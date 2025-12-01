@@ -269,24 +269,79 @@ export const GET_COLLECTIONS = `
 `;
 
 // Utility Functions
-export function normalizeShopifyProduct(shopifyProduct: ShopifyProduct): Product {
-  const variant = shopifyProduct.variants[0];
-  const price = parseFloat(variant.price);
-  const compareAtPrice = variant.compareAtPrice ? parseFloat(variant.compareAtPrice) : null;
+// export function normalizeShopifyProduct(shopifyProduct: ShopifyProduct): Product {
+//   const variant = shopifyProduct.variants[0];
+//   const price = parseFloat(variant.price);
+//   const compareAtPrice = variant.compareAtPrice ? parseFloat(variant.compareAtPrice) : null;
   
+//   // Extract metafield values
+//   const getMetafield = (key: string) => {
+//     return shopifyProduct.metafields?.find(m => m.key === key)?.value;
+//   };
+  
+//   const subcategory = getMetafield("subcategory") || shopifyProduct.productType || "other";
+//   const isNew = getMetafield("is_new") === "true";
+//   const lowStock = getMetafield("low_stock") === "true";
+  
+//   // Determine category from collections or product type
+//   const category = shopifyProduct.collections?.[0]?.handle || 
+//                    (shopifyProduct.productType?.toLowerCase().includes("chemical") ? "cleaning-chemicals" : "cleaning-equipment");
+  
+//   return {
+//     id: shopifyProduct.id,
+//     handle: shopifyProduct.handle,
+//     name: shopifyProduct.title,
+//     description: shopifyProduct.description,
+//     price: price,
+//     originalPrice: compareAtPrice || undefined,
+//     category: category,
+//     subcategory: subcategory,
+//     image: shopifyProduct.featuredImage?.url || shopifyProduct.images[0]?.url || "",
+//     images: shopifyProduct.images.map(img => img.url),
+//     inStock: variant.availableForSale && variant.quantityAvailable > 0,
+//     weight: `${variant.weight}${variant.weightUnit.toLowerCase()}`,
+//     weightValue: variant.weight,
+//     weightUnit: variant.weightUnit,
+//     isNew: isNew,
+//     onSale: compareAtPrice ? compareAtPrice > price : false,
+//     lowStock: lowStock || variant.quantityAvailable < 5,
+//     brand: shopifyProduct.vendor,
+//     tags: shopifyProduct.tags,
+//     variantId: variant.id,
+//     quantityAvailable: variant.quantityAvailable,
+//     sku: variant.sku,
+//   };
+// }
+export function normalizeShopifyProduct(shopifyProduct: ShopifyProduct): Product {
+  let variant: any | undefined;
+  if (Array.isArray(shopifyProduct.variants) && shopifyProduct.variants.length > 0) {
+    variant = shopifyProduct.variants[0];
+  } else if ((shopifyProduct as any).variants?.edges?.length > 0) {
+    variant = (shopifyProduct as any).variants.edges[0].node;
+  }
+  // Helper to get numeric price from variant.price or variant.price.amount.
+  const getPriceValue = (value: any): number => {
+    if (!value) return 0;
+    if (typeof value === "string") return parseFloat(value);
+    if (typeof value === "object" && "amount" in value) return parseFloat(value.amount);
+    return 0;
+  };
+  const price = variant ? getPriceValue(variant.price) : 0;
+  const compareAtPrice = variant && variant.compareAtPrice ? getPriceValue(variant.compareAtPrice) : null;
+
   // Extract metafield values
   const getMetafield = (key: string) => {
     return shopifyProduct.metafields?.find(m => m.key === key)?.value;
   };
-  
+
   const subcategory = getMetafield("subcategory") || shopifyProduct.productType || "other";
   const isNew = getMetafield("is_new") === "true";
   const lowStock = getMetafield("low_stock") === "true";
-  
+
   // Determine category from collections or product type
   const category = shopifyProduct.collections?.[0]?.handle || 
                    (shopifyProduct.productType?.toLowerCase().includes("chemical") ? "cleaning-chemicals" : "cleaning-equipment");
-  
+
   return {
     id: shopifyProduct.id,
     handle: shopifyProduct.handle,
@@ -298,20 +353,21 @@ export function normalizeShopifyProduct(shopifyProduct: ShopifyProduct): Product
     subcategory: subcategory,
     image: shopifyProduct.featuredImage?.url || shopifyProduct.images[0]?.url || "",
     images: shopifyProduct.images.map(img => img.url),
-    inStock: variant.availableForSale && variant.quantityAvailable > 0,
-    weight: `${variant.weight}${variant.weightUnit.toLowerCase()}`,
-    weightValue: variant.weight,
-    weightUnit: variant.weightUnit,
+    inStock: variant?.availableForSale && variant?.quantityAvailable > 0,
+    weight: `${variant?.weight}${variant?.weightUnit.toLowerCase()}`,
+    weightValue: variant?.weight,
+    weightUnit: variant?.weightUnit,
     isNew: isNew,
     onSale: compareAtPrice ? compareAtPrice > price : false,
-    lowStock: lowStock || variant.quantityAvailable < 5,
+    lowStock: lowStock || variant?.quantityAvailable < 5,
     brand: shopifyProduct.vendor,
     tags: shopifyProduct.tags,
-    variantId: variant.id,
-    quantityAvailable: variant.quantityAvailable,
-    sku: variant.sku,
+    variantId: variant?.id,
+    quantityAvailable: variant?.quantityAvailable,
+    sku: variant?.sku,
   };
 }
+
 
 export async function getAllProducts(): Promise<Product[]> {
   try {

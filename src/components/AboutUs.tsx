@@ -26,7 +26,7 @@ export function AboutUs() {
         </p>
 
         {/* Hero Section */}
-        <div className="bg-gradient-to-r from-[#6DB33F] to-[#5da035] rounded-2xl p-6 text-white mb-6">
+        <div className="bg-linear-to-r from-[#6DB33F] to-[#5da035] rounded-2xl p-6 text-white mb-6">
           <h2 className="text-xl mb-3">Who We Are</h2>
           <p className="text-white/90">
             AlClean is Pakistan's leading provider of
@@ -92,7 +92,7 @@ export function AboutUs() {
           </h2>
           <div className="space-y-3">
             <div className="flex gap-3">
-              <div className="w-2 h-2 bg-[#6DB33F] rounded-full mt-2 flex-shrink-0"></div>
+              <div className="w-2 h-2 bg-[#6DB33F] rounded-full mt-2 shrink-0"></div>
               <p className="text-gray-700">
                 <span className="text-gray-900">
                   Wide Product Range:
@@ -101,7 +101,7 @@ export function AboutUs() {
               </p>
             </div>
             <div className="flex gap-3">
-              <div className="w-2 h-2 bg-[#6DB33F] rounded-full mt-2 flex-shrink-0"></div>
+              <div className="w-2 h-2 bg-[#6DB33F] rounded-full mt-2 shrink-0"></div>
               <p className="text-gray-700">
                 <span className="text-gray-900">
                   Professional Equipment:
@@ -110,7 +110,7 @@ export function AboutUs() {
               </p>
             </div>
             <div className="flex gap-3">
-              <div className="w-2 h-2 bg-[#6DB33F] rounded-full mt-2 flex-shrink-0"></div>
+              <div className="w-2 h-2 bg-[#6DB33F] rounded-full mt-2 shrink-0"></div>
               <p className="text-gray-700">
                 <span className="text-gray-900">
                   Expert Support:
@@ -120,7 +120,7 @@ export function AboutUs() {
               </p>
             </div>
             <div className="flex gap-3">
-              <div className="w-2 h-2 bg-[#6DB33F] rounded-full mt-2 flex-shrink-0"></div>
+              <div className="w-2 h-2 bg-[#6DB33F] rounded-full mt-2 shrink-0"></div>
               <p className="text-gray-700">
                 <span className="text-gray-900">
                   Nationwide Delivery:
