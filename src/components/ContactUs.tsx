@@ -1,7 +1,6 @@
-import image_8f03d5c7f7a5ad0420573e04e40e094b85ac1357 from 'figma:asset/8f03d5c7f7a5ad0420573e04e40e094b85ac1357.png';
+import image_8f03d5c7f7a5ad0420573e04e40e094b85ac1357 from '../assets/header.png';
 import { MapPin, Phone, Mail } from "lucide-react";
 import { Link } from "react-router-dom";
-import logo from "figma:asset/0d56b91e4ffc112930c8a550a03dc9cfc1f9fbf4.png";
 
 interface Location {
   city: string;

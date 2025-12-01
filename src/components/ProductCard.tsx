@@ -105,7 +105,7 @@ export function ProductCard({
           <Button
             size="sm"
             className="w-full bg-gradient-to-r from-[#6DB33F] to-[#5da035] hover:from-[#5da035] hover:to-[#4d8f2e] text-white font-semibold h-10 rounded-xl shadow-md hover:shadow-lg transition-all duration-200"
-            onClick={(e) => {
+            onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
               e.stopPropagation();
               onAddToCart(product, 1);
             }}

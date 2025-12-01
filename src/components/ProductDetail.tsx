@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, ShoppingCart, Heart, Minus, Plus } from "lucide-react";
 import { Button } from "./ui/button";
 import { UnifiedHeader } from "./UnifiedHeader";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 import { mockProducts } from "../lib/mockData";
 import { Product } from "../types/shopify";
 

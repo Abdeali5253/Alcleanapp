@@ -1,4 +1,4 @@
-import image_8f03d5c7f7a5ad0420573e04e40e094b85ac1357 from 'figma:asset/8f03d5c7f7a5ad0420573e04e40e094b85ac1357.png';
+import image_8f03d5c7f7a5ad0420573e04e40e094b85ac1357 from '../assets/header.png';
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { ChevronDown, ChevronUp, MessageCircle, Phone } from "lucide-react";

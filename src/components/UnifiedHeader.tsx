@@ -1,11 +1,10 @@
-import image_8f03d5c7f7a5ad0420573e04e40e094b85ac1357 from 'figma:asset/8f03d5c7f7a5ad0420573e04e40e094b85ac1357.png';
+import image_8f03d5c7f7a5ad0420573e04e40e094b85ac1357 from '../assets/header.png';
 import { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Search, Menu, X, ShoppingCart, Phone, MessageCircle, Home, Package, User, MapPin, Bell } from "lucide-react";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
 import { notificationService } from "../lib/notifications";
-import logo from "figma:asset/0d56b91e4ffc112930c8a550a03dc9cfc1f9fbf4.png";
 
 interface UnifiedHeaderProps {
   cartCount?: number;

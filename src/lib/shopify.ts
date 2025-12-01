@@ -5,10 +5,11 @@ import type {
   Product 
 } from "../types/shopify";
 
+
 // Shopify API Configuration
 const SHOPIFY_STORE_DOMAIN = import.meta.env.VITE_SHOPIFY_STORE_DOMAIN || "";
 const SHOPIFY_STOREFRONT_TOKEN = import.meta.env.VITE_SHOPIFY_STOREFRONT_TOKEN || "";
-const SHOPIFY_API_VERSION = import.meta.env.VITE_SHOPIFY_API_VERSION || "2024-01";
+const SHOPIFY_API_VERSION = import.meta.env.VITE_SHOPIFY_API_VERSION || "2025-07";
 
 const endpoint = `https://${SHOPIFY_STORE_DOMAIN}/api/${SHOPIFY_API_VERSION}/graphql.json`;
 

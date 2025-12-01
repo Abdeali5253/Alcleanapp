@@ -1,11 +1,10 @@
-import image_8f03d5c7f7a5ad0420573e04e40e094b85ac1357 from 'figma:asset/8f03d5c7f7a5ad0420573e04e40e094b85ac1357.png';
+import image_8f03d5c7f7a5ad0420573e04e40e094b85ac1357 from '../assets/header.png';
 import { useState, useEffect } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Link, useNavigate } from "react-router-dom";
 import { CheckCircle, Upload, X } from "lucide-react";
-import logo from "figma:asset/0d56b91e4ffc112930c8a550a03dc9cfc1f9fbf4.png";
 import { authService } from "../lib/auth";
 import { toast } from "sonner";
 

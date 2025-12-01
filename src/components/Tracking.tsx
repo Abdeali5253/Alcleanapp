@@ -1,10 +1,9 @@
-import image_8f03d5c7f7a5ad0420573e04e40e094b85ac1357 from 'figma:asset/8f03d5c7f7a5ad0420573e04e40e094b85ac1357.png';
+import image_8f03d5c7f7a5ad0420573e04e40e094b85ac1357 from '../assets/header.png';
 import { Package, CheckCircle2, Truck, MapPin } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
-import logo from "figma:asset/0d56b91e4ffc112930c8a550a03dc9cfc1f9fbf4.png";
 import { useEffect, useState } from "react";
 import { authService } from "../lib/auth";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 
 interface Order {
   id: string;

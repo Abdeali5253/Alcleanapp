@@ -1,2 +1,6 @@
 node_modules/
 .idea
+.env
+TODO.md
+SETUP_GUIDE.md
+COMPLETED.md

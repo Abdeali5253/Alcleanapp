@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import logo from "figma:asset/0d56b91e4ffc112930c8a550a03dc9cfc1f9fbf4.png";
+import logo from "../assets/header.png"; 
+
 
 interface SplashScreenProps {
   onFinish: () => void;

@@ -12,7 +12,7 @@ import {
 const FIREBASE_CONFIG = {
   apiKey: "YOUR_FIREBASE_API_KEY",
   authDomain: "alclean-app.firebaseapp.com",
-  projectId: "alclean-app",
+  projectId: "app-notification-5e56b",
   storageBucket: "alclean-app.appspot.com",
   messagingSenderId: "YOUR_SENDER_ID",
   appId: "YOUR_APP_ID",
