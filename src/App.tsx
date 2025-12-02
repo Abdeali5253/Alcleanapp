@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
-import {Home} from "./components/Home";
-import { Products } from "./components/Products";
+import Home from "./components/Home";
+import Products  from "./components/Products";
 import { ProductDetail } from "./components/ProductDetail";
 import { Cart } from "./components/Cart";
 import { Tracking } from "./components/Tracking";
