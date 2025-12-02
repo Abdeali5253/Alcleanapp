@@ -742,250 +742,118 @@
 // }
 
 
-// src/components/Home.tsx
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { toast } from "sonner";
-
+import { getAllProducts } from "../lib/shopify";
+import { Product } from "../types/shopify";
 import { HeroCarousel } from "./HeroCarousel";
 import { UnifiedHeader } from "./UnifiedHeader";
 import { ProductCard } from "./ProductCard";
-import { QuickViewModal } from "./QuickViewModal";
+import { Link } from "react-router-dom";
 
-import { Droplets, Sparkles, Home as HomeIcon, Shirt, Car, Wind, Truck, Shield, Award, Clock } from "lucide-react";
-import { Product } from "../types/shopify";
-import { getAllProducts } from "../lib/shopify";
-import { Button } from "./ui/button";
-
-// ------------------
-// Category Buttons
-// ------------------
-const topCategories = [
-  { icon: Droplets, title: "Bathroom", link: "/products?subcategory=bathroom-cleaning", color: "#00A3E0" },
-  { icon: Car, title: "Car Wash", link: "/products?subcategory=car-cleaning", color: "#6DB33F" },
-  { icon: Sparkles, title: "Cleaning Chemicals", link: "/products?category=cleaning-chemicals", color: "#9B59B6" },
-  { icon: Droplets, title: "Multi Purpose", link: "/products?subcategory=multi-purpose-cleaner", color: "#FFA500" },
-  { icon: HomeIcon, title: "Dish Washer", link: "/products?subcategory=kitchen-cleaning", color: "#FF6B6B" },
-  { icon: Shirt, title: "Fabric", link: "/products?subcategory=fabric-washing", color: "#6DB33F" },
-  { icon: Wind, title: "Floor Cleaning", link: "/products?subcategory=floor-cleaning", color: "#00A3E0" },
-];
-
-// ------------------
-// Features
-// ------------------
-const trustFeatures = [
-  { icon: Truck, title: "Fast Delivery", description: "Quick delivery across Pakistan" },
-  { icon: Shield, title: "Quality Products", description: "100% authentic products" },
-  { icon: Award, title: "Best Prices", description: "Competitive pricing guaranteed" },
-  { icon: Clock, title: "24/7 Support", description: "Always here to help" },
-];
-
-export function Home() {
+export default function Home() {
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const [wishlist, setWishlist] = useState<string[]>([]);
-  const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
-  const [quantities, setQuantities] = useState<Record<string, number>>({});
-
-  // Fetch Shopify products
   useEffect(() => {
-    async function load() {
-      try {
-        const products = await getAllProducts();
-        setAllProducts(products);
-      } catch (e) {
-        console.error("Home load error:", e);
-      } finally {
+    getAllProducts()
+      .then((res) => {
+        setAllProducts(res);
         setLoading(false);
-      }
-    }
-    load();
+      })
+      .catch(() => setLoading(false));
   }, []);
 
-  const handleAddToCart = (product: Product, qty = 1) => {
-    toast.success(`${qty}x ${product.name} added to cart`);
-  };
+  // Home page sections
+  const featured = allProducts.slice(0, 4);
+  const fabric = allProducts.filter((p) => p.category === "fabric").slice(0, 4);
+  const floor = allProducts.filter((p) => p.category === "floor").slice(0, 4);
+  const equipment = allProducts
+    .filter((p) => p.category === "cleaning-equipment")
+    .slice(0, 4);
 
-  const toggleWishlist = (id: string) => {
-    if (wishlist.includes(id)) {
-      setWishlist(wishlist.filter((w) => w !== id));
-      toast.success("Removed from wishlist");
-    } else {
-      setWishlist([...wishlist, id]);
-      toast.success("Added to wishlist");
-    }
-  };
-
-  // Filters for different sections
-  const featuredProducts = allProducts.filter((p) => p.isNew || p.onSale).slice(0, 4);
-  const fabricProducts = allProducts.filter((p) => p.subcategory === "fabric-washing").slice(0, 4);
-  const floorProducts = allProducts.filter((p) => p.subcategory === "floor-cleaning").slice(0, 4);
-  const equipmentProducts = allProducts.filter((p) => p.subcategory === "mop-buckets").slice(0, 4);
-
-  // Skeleton array
-  const skeletons = Array(4).fill(null);
+  const topCategories = [
+    { id: "bathroom", title: "Bathroom", link: "/products?category=bathroom" },
+    { id: "car-wash", title: "Car Wash", link: "/products?category=car-wash" },
+    {
+      id: "cleaning-chemicals",
+      title: "Cleaning Chemicals",
+      link: "/products?category=cleaning-chemicals",
+    },
+    {
+      id: "multi-purpose",
+      title: "Multi Purpose",
+      link: "/products?category=multi-purpose",
+    },
+    { id: "kitchen", title: "Kitchen", link: "/products?category=kitchen" },
+    { id: "fabric", title: "Fabric", link: "/products?category=fabric" },
+    { id: "floor", title: "Floor Cleaning", link: "/products?category=floor" },
+  ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white pb-20">
-
+    <div className="min-h-screen bg-gray-50 pb-24">
       <UnifiedHeader />
 
-      <main className="max-w-7xl mx-auto px-4 py-6 space-y-12">
-
-        {/* Carousel */}
+      <main className="max-w-7xl mx-auto px-4 py-6 space-y-10">
         <HeroCarousel />
 
-        {/* Categories */}
+        {/* Top Category Quick Filters */}
         <section>
-          <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
-            {topCategories.map((cat, i) => (
-              <Link key={i} to={cat.link} className="flex flex-col items-center min-w-[90px] group">
-                <div
-                  className="w-16 h-16 rounded-2xl flex items-center justify-center mb-2 transition-all group-hover:scale-110"
-                  style={{ backgroundColor: `${cat.color}20` }}
-                >
-                  <cat.icon size={28} style={{ color: cat.color }} />
-                </div>
-                <span className="text-xs text-gray-700">{cat.title}</span>
+          <div className="flex gap-4 overflow-x-auto scrollbar-hide">
+            {topCategories.map((c) => (
+              <Link
+                key={c.id}
+                to={c.link}
+                className="flex flex-col items-center min-w-[90px]"
+              >
+                <div className="w-16 h-16 bg-gray-100 rounded-xl mb-2"></div>
+                <span className="text-sm">{c.title}</span>
               </Link>
             ))}
           </div>
         </section>
 
-        {/* Features */}
-        <section>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {trustFeatures.map((f, i) => (
-              <div key={i} className="bg-white rounded-2xl p-6 text-center border border-gray-100">
-                <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-[#6DB33F]/10 flex items-center justify-center">
-                  <f.icon size={24} className="text-[#6DB33F]" />
-                </div>
-                <h3 className="font-semibold">{f.title}</h3>
-                <p className="text-gray-500 text-xs">{f.description}</p>
-              </div>
-            ))}
-          </div>
-        </section>
+        {/* Featured */}
+        <Section title="Featured Products" products={featured} />
 
+        {/* Fabric */}
+        <Section title="Fabric Washing" products={fabric} />
 
-        {/* Featured Products */}
-        <section>
-          <h2 className="text-2xl font-bold mb-2">Featured Products</h2>
-          <p className="text-gray-600 mb-4">New arrivals and special offers</p>
+        {/* Floor */}
+        <Section title="Industrial Cleaning Chemicals" products={floor} />
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {(loading ? skeletons : featuredProducts).map((p, i) => (
-              <ProductCard
-                key={p?.id || `fsk-${i}`}
-                product={p}
-                skeleton={loading}
-                onAddToCart={handleAddToCart}
-                onQuickView={setQuickViewProduct}
-                isInWishlist={p ? wishlist.includes(p.id) : false}
-                onToggleWishlist={toggleWishlist}
-              />
-            ))}
-          </div>
-        </section>
-
-
-        {/* Fabric Washing */}
-        <section>
-          <h2 className="text-2xl font-bold mb-2">Fabric Washing</h2>
-          <p className="text-gray-600 mb-4">Professional fabric care products</p>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {(loading ? skeletons : fabricProducts).map((p, i) => (
-              <ProductCard
-                key={p?.id || `fbsk-${i}`}
-                product={p}
-                skeleton={loading}
-                onAddToCart={handleAddToCart}
-                onQuickView={setQuickViewProduct}
-                isInWishlist={p ? wishlist.includes(p.id) : false}
-                onToggleWishlist={toggleWishlist}
-              />
-            ))}
-          </div>
-        </section>
-
-        {/* Industrial Cleaning */}
-        <section>
-          <div className="bg-gradient-to-br from-gray-700 via-gray-800 to-gray-900 rounded-3xl p-12 text-center text-white">
-            <h3 className="text-[#00A3E0] text-3xl font-bold">INDUSTRIAL CLEANING</h3>
-            <h4 className="text-5xl font-bold mb-4">CHEMICALS</h4>
-            <p className="text-white/80 max-w-2xl mx-auto mb-8">
-              Powerful professional-grade solutions for industrial applications.
-            </p>
-            <Link to="/products">
-              <Button className="bg-white text-gray-900 px-10 py-6 rounded-xl font-bold shadow-xl">
-                Explore Products
-              </Button>
-            </Link>
-          </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
-            {(loading ? skeletons : floorProducts).map((p, i) => (
-              <ProductCard
-                key={p?.id || `flsk-${i}`}
-                product={p}
-                skeleton={loading}
-                onAddToCart={handleAddToCart}
-                onQuickView={setQuickViewProduct}
-                isInWishlist={p ? wishlist.includes(p.id) : false}
-                onToggleWishlist={toggleWishlist}
-              />
-            ))}
-          </div>
-        </section>
-
-
-        {/* Mop Buckets */}
-        <section>
-          <h2 className="text-2xl font-bold mb-2">Mop Buckets & Equipment</h2>
-          <p className="text-gray-600 mb-4">Professional floor cleaning solutions</p>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {(loading ? skeletons : equipmentProducts).map((p, i) => (
-              <ProductCard
-                key={p?.id || `eqsk-${i}`}
-                product={p}
-                skeleton={loading}
-                onAddToCart={handleAddToCart}
-                onQuickView={setQuickViewProduct}
-                isInWishlist={p ? wishlist.includes(p.id) : false}
-                onToggleWishlist={toggleWishlist}
-              />
-            ))}
-          </div>
-        </section>
-
-        {/* CTA */}
-        <section className="bg-gradient-to-r from-[#6DB33F] to-[#5da035] p-12 text-center text-white rounded-3xl">
-          <h2 className="text-3xl font-bold mb-4">Ready to Get Started?</h2>
-          <p className="text-white/80 max-w-2xl mx-auto mb-6">
-            Browse our complete catalog of cleaning products and equipment.
-          </p>
-          <Link to="/products">
-            <Button className="bg-white text-[#6DB33F] px-12 py-6 font-bold rounded-xl shadow-xl">
-              Shop Now
-            </Button>
-          </Link>
-        </section>
+        {/* Equipment */}
+        <Section title="Mop Buckets & Equipment" products={equipment} />
       </main>
-
-      {quickViewProduct && (
-        <QuickViewModal
-          product={quickViewProduct}
-          onClose={() => setQuickViewProduct(null)}
-          quantity={quantities[quickViewProduct.id] || 1}
-          onQuantityChange={(qty) =>
-            setQuantities({ ...quantities, [quickViewProduct.id]: qty })
-          }
-          onAddToCart={handleAddToCart}
-        />
-      )}
     </div>
   );
 }
+
+function Section({
+  title,
+  products,
+}: {
+  title: string;
+  products: Product[];
+}) {
+  if (!products.length) return null;
+
+  return (
+    <section>
+      <h2 className="text-xl font-bold mb-4">{title}</h2>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {products.map((p) => (
+          <ProductCard
+            key={p.id}
+            product={p}
+            onAddToCart={() => {}}
+            onQuickView={() => {}}
+            isInWishlist={false}
+            onToggleWishlist={() => {}}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
+

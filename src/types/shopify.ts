@@ -2,28 +2,31 @@
 
 export interface Product {
   id: string;
+  title: string;
   handle: string;
 
-  name: string;
-  description?: string;
+  price: number;
+  originalPrice: number | null;
+  onSale: boolean;
+  discountPercent: number;
 
   image: string;
   images: string[];
-
-  price: number;
-  originalPrice?: number;
-
-  sku?: string;
-  weight?: string;
-  brand?: string;
 
   inStock: boolean;
   quantityAvailable: number;
   lowStock: boolean;
 
-  isNew: boolean;
-  onSale: boolean;
-
-  subcategory: string; // we’ll map from productType or a tag
+  description: string;
   tags: string[];
+
+  productType: string;
+  category: string;
+  subcategory: string;
+
+  // Extended fields
+  sku: string | null;
+  brand: string | null;
+  weight: string | null;
+  isNew: boolean;
 }

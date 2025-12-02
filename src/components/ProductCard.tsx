@@ -207,7 +207,7 @@ export function ProductCard({
       >
         <img
           src={product.image}
-          alt={product.name}
+          alt={product.title}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
         />
 
@@ -230,12 +230,12 @@ export function ProductCard({
       {/* Info */}
       <div className="p-4" onClick={handleCardClick}>
         <h3 className="text-gray-900 font-semibold text-base mb-2 line-clamp-2 min-h-[3rem] leading-snug cursor-pointer hover:text-[#6DB33F] transition-colors">
-          {product.name}
+          {product.title}
         </h3>
 
         <p className="text-xs text-gray-500 mb-3 font-medium">{product.weight}</p>
 
-        <PriceDisplay price={product.price} originalPrice={product.originalPrice} className="mb-4" />
+        <PriceDisplay price={product.price} className="mb-4" />
 
         {product.inStock ? (
           <Button

@@ -337,7 +337,7 @@ export function ProductDetail() {
 
   const handleAddToCart = () => {
     if (!product) return;
-    toast.success(`${quantity}x ${product.name} added to cart!`, {
+    toast.success(`${quantity}x ${product.title} added to cart!`, {
       duration: 2000,
       position: "top-center",
     });
@@ -364,13 +364,12 @@ export function ProductDetail() {
     }
   };
 
-  const discount =
-    product?.originalPrice && product.originalPrice > product.price
-      ? Math.round(
-          ((product.originalPrice - product.price) / product.originalPrice) *
-            100
-        )
-      : 0;
+  const safeOriginal = Number(product?.originalPrice || 0);
+
+// const discount = safeOriginal > product.price
+//   ? Math.round(((safeOriginal - product.price) / safeOriginal) * 100)
+//   : 0;
+
 
   // Loading
   if (loading) {
@@ -425,11 +424,11 @@ export function ProductDetail() {
               <div className="aspect-square relative">
                 <img
                   src={product.images[selectedImage] || product.image}
-                  alt={product.name}
+                  alt={product.title}
                   className="w-full h-full object-cover"
                 />
 
-                <div className="absolute top-4 left-4 flex flex-col gap-2">
+                {/* <div className="absolute top-4 left-4 flex flex-col gap-2">
                   {product.onSale && discount > 0 && (
                     <span className="bg-gradient-to-r from-red-500 to-orange-500 text-white text-sm font-bold px-3 py-1.5 rounded-lg shadow-md">
                       -{discount}%
@@ -445,7 +444,7 @@ export function ProductDetail() {
                       Limited Stock
                     </span>
                   )}
-                </div>
+                </div> */}
 
                 {!product.inStock && (
                   <div className="absolute inset-0 bg-black/70 flex items-center justify-center backdrop-blur-sm">
@@ -472,7 +471,7 @@ export function ProductDetail() {
                   >
                     <img
                       src={img}
-                      alt={`${product.name} - ${index + 1}`}
+                      alt={`${product.title} - ${index + 1}`}
                       className="w-full h-full object-cover"
                     />
                   </button>
@@ -486,7 +485,7 @@ export function ProductDetail() {
             <div>
               <div className="flex items-start justify-between gap-4 mb-4">
                 <h1 className="text-3xl md:text-4xl font-bold text-gray-900 leading-tight">
-                  {product.name}
+                  {product.title}
                 </h1>
                 <button
                   onClick={handleToggleWishlist}
@@ -550,13 +549,13 @@ export function ProductDetail() {
                   </span>
                 )}
               </div>
-              {discount > 0 && (
+              {/* {discount > 0 && (
                 <p className="text-green-600 font-semibold">
                   You save Rs.
                   {(product.originalPrice! - product.price).toLocaleString()} (
                   {discount}%)
                 </p>
-              )}
+              )} */}
             </div>
 
             {/* Description */}

@@ -561,216 +561,66 @@
 
 // src/components/Products.tsx
 import { useEffect, useState } from "react";
-import { Filter, X } from "lucide-react";
-import { toast } from "sonner";
-
+import { getAllProducts } from "../lib/shopify";
+import { Product } from "../types/shopify";
 import { UnifiedHeader } from "./UnifiedHeader";
 import { ProductGrid } from "./ProductGrid";
 import { ProductCard } from "./ProductCard";
-import { FilterDrawer } from "./FilterDrawer";
-import { QuickViewModal } from "./QuickViewModal";
+import { useSearchParams } from "react-router-dom";
 
-import { Product } from "../types/shopify";
-import { getAllProducts } from "../lib/shopify";
-import { Button } from "./ui/button";
-import { categories } from "../lib/categories";
-
-export function Products() {
+export default function Products() {
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [searchParams] = useSearchParams();
 
-  const [selectedSubcategories, setSelectedSubcategories] = useState<string[]>([]);
-  const [sortBy, setSortBy] = useState("featured");
-  const [showFilters, setShowFilters] = useState(false);
-  const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [priceRange, setPriceRange] = useState<[number, number]>([0, 70000]);
-  const [stockFilter, setStockFilter] = useState<"all" | "instock" | "outofstock">("all");
+  const categoryParam = searchParams.get("category") || "";
 
-  const [wishlist, setWishlist] = useState<string[]>([]);
-  const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
-  const [quantities, setQuantities] = useState<Record<string, number>>({});
-
-  // Load products
   useEffect(() => {
-    async function load() {
-      try {
-        const products = await getAllProducts();
-        setAllProducts(products);
-      } catch (e) {
-        setError("Failed to load products");
-      } finally {
+    getAllProducts()
+      .then((res) => {
+        setAllProducts(res);
         setLoading(false);
-      }
-    }
-    load();
+      })
+      .catch(() => setLoading(false));
   }, []);
 
-  if (loading) return <div className="py-16 text-center">Loading products…</div>;
-  if (error) return <div className="text-center text-red-500 py-16">{error}</div>;
-
-  // ------------------
-  // Filters
-  // ------------------
   let filtered = allProducts;
 
-  if (searchQuery) {
-    filtered = filtered.filter((p) =>
-      p.name.toLowerCase().includes(searchQuery.toLowerCase())
+  if (categoryParam) {
+    filtered = filtered.filter(
+      (p) => p.category?.toLowerCase() === categoryParam.toLowerCase()
     );
   }
 
-  if (selectedSubcategories.length > 0) {
-    filtered = filtered.filter((p) => selectedSubcategories.includes(p.subcategory));
-  }
-
-  filtered = filtered.filter(
-    (p) => p.price >= priceRange[0] && p.price <= priceRange[1]
-  );
-
-  if (stockFilter === "instock") filtered = filtered.filter((p) => p.inStock);
-  if (stockFilter === "outofstock") filtered = filtered.filter((p) => !p.inStock);
-
-  // Sorting
-  const sorted = [...filtered].sort((a, b) => {
-    if (sortBy === "price-low") return a.price - b.price;
-    if (sortBy === "price-high") return b.price - a.price;
-    if (sortBy === "name") return a.name.localeCompare(b.name);
-    return 0;
-  });
-
-  const handleAddToCart = (product: Product, qty = 1) =>
-    toast.success(`${qty}× ${product.name} added to cart`);
-
-  const toggleWishlist = (id: string) => {
-    if (wishlist.includes(id)) {
-      setWishlist(wishlist.filter((w) => w !== id));
-      toast.success("Removed from wishlist");
-    } else {
-      setWishlist([...wishlist, id]);
-      toast.success("Added to wishlist");
-    }
-  };
-
-  const clearFilters = () => {
-    setSelectedSubcategories([]);
-    setSearchQuery("");
-    setPriceRange([0, 70000]);
-    setStockFilter("all");
-  };
-
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white pb-24">
-
+    <div className="min-h-screen bg-gray-50 pb-20">
       <UnifiedHeader />
 
       <div className="max-w-7xl mx-auto px-4 py-6">
+        {loading && <div className="text-center py-20">Loading…</div>}
 
-        {/* Toolbar */}
-        <div className="flex justify-between items-center mb-6">
-          <button
-            onClick={() => setShowFilters(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-white border rounded-xl"
-          >
-            <Filter size={18} />
-            Filters
-          </button>
-
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
-            className="border rounded-xl px-4 py-2"
-          >
-            <option value="featured">Featured</option>
-            <option value="price-low">Price: Low → High</option>
-            <option value="price-high">Price: High → Low</option>
-            <option value="name">Name A–Z</option>
-          </select>
-        </div>
-
-        {/* Active Filters */}
-        {(selectedSubcategories.length > 0 || searchQuery) && (
-          <div className="flex gap-2 flex-wrap mb-6">
-            {selectedSubcategories.map((id) => {
-              const sc = categories.flatMap((c) => c.subcategories).find((s) => s.id === id);
-              return (
-                <button
-                  key={id}
-                  onClick={() =>
-                    setSelectedSubcategories(selectedSubcategories.filter((x) => x !== id))
-                  }
-                  className="px-3 py-1 bg-[#6DB33F] text-white rounded-full flex items-center gap-2"
-                >
-                  {sc?.name} <X size={14} />
-                </button>
-              );
-            })}
-
-            <button onClick={clearFilters} className="text-gray-500 text-sm">
-              Clear all
-            </button>
+        {!loading && filtered.length === 0 && (
+          <div className="text-center py-20 text-gray-600">
+            No products found
           </div>
         )}
 
-        {/* Products */}
-        <ProductGrid>
-          {sorted.map((p) => (
-            <ProductCard
-              key={p.id}
-              product={p}
-              onAddToCart={handleAddToCart}
-              onQuickView={setQuickViewProduct}
-              isInWishlist={wishlist.includes(p.id)}
-              onToggleWishlist={toggleWishlist}
-            />
-          ))}
-        </ProductGrid>
-
-        {sorted.length === 0 && (
-          <div className="text-center py-16">
-            <p className="text-gray-600 text-lg mb-6 font-medium">No products found</p>
-            <Button onClick={clearFilters} className="bg-[#6DB33F] text-white px-6 py-3 rounded-xl">
-              Clear All Filters
-            </Button>
-          </div>
+        {!loading && (
+          <ProductGrid>
+            {filtered.map((product) => (
+              <ProductCard
+                key={product.id}
+                product={product}
+                onAddToCart={() => {}}
+                onQuickView={() => {}}
+                isInWishlist={false}
+                onToggleWishlist={() => {}}
+              />
+            ))}
+          </ProductGrid>
         )}
       </div>
-
-      <FilterDrawer
-        isOpen={showFilters}
-        onClose={() => setShowFilters(false)}
-        selectedSubcategories={selectedSubcategories}
-        expandedCategories={expandedCategories}
-        onToggleCategory={(id) =>
-          setExpandedCategories((e) =>
-            e.includes(id) ? e.filter((x) => x !== id) : [...e, id]
-          )
-        }
-        onToggleSubcategory={(id) =>
-          setSelectedSubcategories((s) =>
-            s.includes(id) ? s.filter((x) => x !== id) : [...s, id]
-          )
-        }
-        priceRange={priceRange}
-        onPriceRangeChange={setPriceRange}
-        stockFilter={stockFilter}
-        onStockFilterChange={setStockFilter}
-        onClearFilters={clearFilters}
-        productsCount={sorted.length}
-      />
-
-      {quickViewProduct && (
-        <QuickViewModal
-          product={quickViewProduct}
-          onClose={() => setQuickViewProduct(null)}
-          quantity={quantities[quickViewProduct.id] || 1}
-          onQuantityChange={(qty) =>
-            setQuantities({ ...quantities, [quickViewProduct.id]: qty })
-          }
-          onAddToCart={handleAddToCart}
-        />
-      )}
     </div>
   );
 }
+

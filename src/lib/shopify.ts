@@ -428,6 +428,7 @@
 
 // src/lib/shopify.ts
 import { Product } from "../types/shopify";
+import { extractCategory, extractSubcategory } from "./tags";
 
 const SHOPIFY_DOMAIN = import.meta.env.VITE_SHOPIFY_STORE_DOMAIN;
 const SHOPIFY_TOKEN = import.meta.env.VITE_SHOPIFY_STOREFRONT_TOKEN;
@@ -436,7 +437,7 @@ const SHOPIFY_API_VERSION =
 
 if (!SHOPIFY_DOMAIN || !SHOPIFY_TOKEN) {
   console.warn(
-    "[Shopify] Missing VITE_SHOPIFY_STORE_DOMAIN or VITE_SHOPIFY_STOREFRONT_TOKEN env vars."
+    "[Shopify] Missing VITE_SHOPIFY_STORE_DOMAIN or VITE_SHOPIFY_STOREFRONT_TOKEN"
   );
 }
 
@@ -460,107 +461,76 @@ async function shopifyFetch<T>(
     body: JSON.stringify({ query, variables }),
   });
 
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`[Shopify] HTTP ${res.status}: ${text}`);
-  }
-
   const json = (await res.json()) as ShopifyResponse<T>;
 
   if (json.errors?.length) {
-    console.error("[Shopify] GraphQL errors:", json.errors);
+    console.error("[Shopify GraphQL Error]", json.errors);
     throw new Error(json.errors.map((e) => e.message).join(", "));
   }
 
-  if (!json.data) {
-    throw new Error("[Shopify] Empty data");
-  }
+  if (!json.data) throw new Error("Shopify returned no data");
 
   return json.data;
 }
 
-// ---------- Normalizer ----------
-
-export function normalizeShopifyProduct(node: any): Product | null {
+// -------------------------------------------------------------
+//  PRODUCT NORMALIZER (100% stable + supports Option B fields)
+// -------------------------------------------------------------
+function normalizeProduct(node: any): Product | null {
   if (!node) return null;
 
-  const variantNodes: any[] =
-    node?.variants?.edges?.map((e: any) => e?.node).filter(Boolean) ?? [];
+  const variant = node.variants?.edges?.[0]?.node ?? null;
 
-  const primaryVariant =
-    variantNodes.find((v) => v?.availableForSale) ?? variantNodes[0] ?? {};
+  const price = Number(variant?.price?.amount ?? 0);
+  const originalPrice = Number(variant?.compareAtPrice?.amount ?? price);
 
-  const images: string[] =
-    node?.images?.edges
-      ?.map((e: any) => e?.node?.url || e?.node?.src)
-      .filter(Boolean) ?? [];
+  const onSale = originalPrice > price;
+  const discountPercent = onSale
+    ? Math.round(((originalPrice - price) / originalPrice) * 100)
+    : 0;
 
-  const mainImage =
-    images[0] ??
-    node?.featuredImage?.url ??
-    node?.featuredImage?.src ??
-    "";
-
-  // price + compare at
-  const priceAmount =
-    Number(primaryVariant?.price?.amount) ||
-    Number(node?.priceRange?.minVariantPrice?.amount ?? 0);
-
-  const compareAmount =
-    Number(primaryVariant?.compareAtPrice?.amount) ||
-    Number(node?.priceRange?.maxVariantPrice?.amount ?? 0);
-
-  const quantityAvailable = primaryVariant?.quantityAvailable ?? 0;
-  const tags: string[] = node?.tags ?? [];
-
-  const isNew = tags.includes("new") || tags.includes("New");
-  const onSale = compareAmount > priceAmount && priceAmount > 0;
-  const lowStock = quantityAvailable > 0 && quantityAvailable <= 10;
-
-  // We’ll treat productType or a `subcategory:` tag as subcategory
-  let subcategory = node?.productType ?? "";
-  const subTag = tags.find((t) => t.toLowerCase().startsWith("subcategory:"));
-  if (subTag) {
-    subcategory = subTag.split(":")[1]?.trim() ?? subcategory;
-  }
+  const tags: string[] = node.tags ?? [];
 
   return {
-    id: node.id ?? "",
-    handle: node.handle ?? "",
+    id: node.id,
+    title: node.title,
+    handle: node.handle,
 
-    name: node.title ?? "",
-    description: node.description ?? "",
-
-    image: mainImage,
-    images,
-
-    price: priceAmount,
-    originalPrice: compareAmount || undefined,
-
-    sku: primaryVariant?.sku ?? "",
-    weight:
-      primaryVariant?.weight &&
-      primaryVariant?.weightUnit
-        ? `${primaryVariant.weight} ${primaryVariant.weightUnit}`
-        : undefined,
-    brand: node?.vendor ?? undefined,
-
-    inStock: !!primaryVariant?.availableForSale,
-    quantityAvailable,
-    lowStock,
-
-    isNew,
+    price,
+    originalPrice,
     onSale,
+    discountPercent,
 
-    subcategory,
+    image: node.featuredImage?.url ?? node.images?.edges?.[0]?.node?.url ?? "",
+    images: node.images?.edges?.map((img: any) => img.node.url) ?? [],
+
+    inStock: variant?.availableForSale ?? true,
+    quantityAvailable: variant?.quantityAvailable ?? 0,
+    lowStock: (variant?.quantityAvailable ?? 0) < 5,
+
+    description: node.description || "",
     tags,
+
+    productType: node.productType || "",
+    category: extractCategory(tags),
+    subcategory: extractSubcategory(tags),
+
+    // --- Added fields ---
+    sku: variant?.sku ?? null,
+    brand: node.vendor ?? null,
+    weight: variant?.weight
+      ? `${variant.weight} ${variant.weightUnit}`
+      : null,
+
+    isNew: tags.includes("new") || tags.includes("New"),
   };
 }
 
-// ---------- Queries ----------
-
+// -------------------------------------------------------------
+//  GRAPHQL QUERIES
+// -------------------------------------------------------------
 const PRODUCTS_QUERY = `
-  query GetProducts($first: Int!) {
+  query Products($first: Int!) {
     products(first: $first) {
       edges {
         node {
@@ -571,16 +541,8 @@ const PRODUCTS_QUERY = `
           productType
           vendor
           tags
-          featuredImage {
-            url
-          }
-          images(first: 10) {
-            edges {
-              node {
-                url
-              }
-            }
-          }
+          featuredImage { url }
+          images(first: 10) { edges { node { url } } }
           variants(first: 10) {
             edges {
               node {
@@ -590,18 +552,10 @@ const PRODUCTS_QUERY = `
                 quantityAvailable
                 weight
                 weightUnit
-                price {
-                  amount
-                }
-                compareAtPrice {
-                  amount
-                }
+                price { amount }
+                compareAtPrice { amount }
               }
             }
-          }
-          priceRange {
-            minVariantPrice { amount }
-            maxVariantPrice { amount }
           }
         }
       }
@@ -610,7 +564,7 @@ const PRODUCTS_QUERY = `
 `;
 
 const PRODUCT_BY_HANDLE_QUERY = `
-  query GetProductByHandle($handle: String!) {
+  query ProductByHandle($handle: String!) {
     product(handle: $handle) {
       id
       handle
@@ -619,16 +573,8 @@ const PRODUCT_BY_HANDLE_QUERY = `
       productType
       vendor
       tags
-      featuredImage {
-        url
-      }
-      images(first: 10) {
-        edges {
-          node {
-            url
-          }
-        }
-      }
+      featuredImage { url }
+      images(first: 10) { edges { node { url } } }
       variants(first: 10) {
         edges {
           node {
@@ -638,57 +584,36 @@ const PRODUCT_BY_HANDLE_QUERY = `
             quantityAvailable
             weight
             weightUnit
-            price {
-              amount
-            }
-            compareAtPrice {
-              amount
-            }
+            price { amount }
+            compareAtPrice { amount }
           }
         }
-      }
-      priceRange {
-        minVariantPrice { amount }
-        maxVariantPrice { amount }
       }
     }
   }
 `;
 
-// ---------- Public helpers ----------
+// -------------------------------------------------------------
+//  PUBLIC HELPERS
+// -------------------------------------------------------------
+export async function getAllProducts(limit = 200): Promise<Product[]> {
+  const data = await shopifyFetch<{
+    products: { edges: { node: any }[] };
+  }>(PRODUCTS_QUERY, { first: limit });
 
-export async function getAllProducts(limit = 50): Promise<Product[]> {
-  try {
-    const data = await shopifyFetch<{
-      products: { edges: { node: any }[] };
-    }>(PRODUCTS_QUERY, { first: limit });
-
-    const edges = data.products?.edges ?? [];
-
-    return edges
-      .map((edge) => normalizeShopifyProduct(edge.node))
-      .filter((p): p is Product => p !== null);
-  } catch (err) {
-    console.error("[Shopify] getAllProducts error:", err);
-    throw err;
-  }
+  return data.products.edges
+    .map((e) => normalizeProduct(e.node))
+    .filter((p): p is Product => p !== null);
 }
 
 export async function getProductByHandle(
   handle: string
 ): Promise<Product | null> {
   if (!handle) return null;
-  try {
-    const data = await shopifyFetch<{
-      product: any | null;
-    }>(PRODUCT_BY_HANDLE_QUERY, { handle });
 
-    const node = data.product;
-    if (!node) return null;
+  const data = await shopifyFetch<{ product: any }>(PRODUCT_BY_HANDLE_QUERY, {
+    handle,
+  });
 
-    return normalizeShopifyProduct(node);
-  } catch (err) {
-    console.error("[Shopify] getProductByHandle error:", err);
-    throw err;
-  }
+  return normalizeProduct(data.product);
 }
