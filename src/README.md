@@ -119,7 +119,7 @@ npx cap open android
 \`\`\`
 alclean-app/
 ├── components/              # React components
-│   ├── AttractiveHome.tsx   # Home page
+│   ├── Home.tsx   # Home page
 │   ├── Products.tsx         # Product listing
 │   ├── ProductDetail.tsx    # Product page
 │   ├── Cart.tsx             # Shopping cart

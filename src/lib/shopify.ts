@@ -1,292 +1,347 @@
-import type { 
-  ShopifyProduct, 
-  ShopifyProductsResponse, 
-  ShopifyCollectionsResponse,
-  Product 
-} from "../types/shopify";
+// import type { 
+//   ShopifyProduct, 
+//   ShopifyProductsResponse, 
+//   ShopifyCollectionsResponse,
+//   Product 
+// } from "../types/shopify";
 
 
-// Shopify API Configuration
-const SHOPIFY_STORE_DOMAIN = import.meta.env.VITE_SHOPIFY_STORE_DOMAIN || "";
-const SHOPIFY_STOREFRONT_TOKEN = import.meta.env.VITE_SHOPIFY_STOREFRONT_TOKEN || "";
-const SHOPIFY_API_VERSION = import.meta.env.VITE_SHOPIFY_API_VERSION || "2025-07";
+// // Shopify API Configuration
+// const SHOPIFY_STORE_DOMAIN = import.meta.env.VITE_SHOPIFY_STORE_DOMAIN || "";
+// const SHOPIFY_STOREFRONT_TOKEN = import.meta.env.VITE_SHOPIFY_STOREFRONT_TOKEN || "";
+// const SHOPIFY_API_VERSION = import.meta.env.VITE_SHOPIFY_API_VERSION || "2025-07";
 
-const endpoint = `https://${SHOPIFY_STORE_DOMAIN}/api/${SHOPIFY_API_VERSION}/graphql.json`;
+// const endpoint = `https://${SHOPIFY_STORE_DOMAIN}/api/${SHOPIFY_API_VERSION}/graphql.json`;
 
-// Shopify Fetch Function
-export async function shopifyFetch<T = any>({ 
-  query, 
-  variables = {} 
-}: { 
-  query: string; 
-  variables?: Record<string, any>;
-}): Promise<T> {
-  if (!SHOPIFY_STORE_DOMAIN || !SHOPIFY_STOREFRONT_TOKEN) {
-    console.warn("Shopify credentials not configured, using mock data");
-    throw new Error("Shopify not configured");
-  }
+// // Shopify Fetch Function
+// export async function shopifyFetch<T = any>({ 
+//   query, 
+//   variables = {} 
+// }: { 
+//   query: string; 
+//   variables?: Record<string, any>;
+// }): Promise<T> {
+//   if (!SHOPIFY_STORE_DOMAIN || !SHOPIFY_STOREFRONT_TOKEN) {
+//     console.warn("Shopify credentials not configured, using mock data");
+//     throw new Error("Shopify not configured");
+//   }
 
-  const res = await fetch(endpoint, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Shopify-Storefront-Access-Token": SHOPIFY_STOREFRONT_TOKEN,
-    },
-    body: JSON.stringify({ query, variables }),
-  });
+//   const res = await fetch(endpoint, {
+//     method: "POST",
+//     headers: {
+//       "Content-Type": "application/json",
+//       "X-Shopify-Storefront-Access-Token": SHOPIFY_STOREFRONT_TOKEN,
+//     },
+//     body: JSON.stringify({ query, variables }),
+//   });
 
-  const json = await res.json();
+//   const json = await res.json();
 
-  if (!res.ok || json.errors) {
-    const msg = json.errors?.map((e: any) => e.message).join("; ") || res.statusText;
-    throw new Error(`Shopify error: ${msg}`);
-  }
+//   if (!res.ok || json.errors) {
+//     const msg = json.errors?.map((e: any) => e.message).join("; ") || res.statusText;
+//     throw new Error(`Shopify error: ${msg}`);
+//   }
 
-  return json.data;
-}
+//   return json.data;
+// }
 
-// GraphQL Queries
-export const GET_ALL_PRODUCTS = `
-  query GetAllProducts($first: Int!, $after: String) {
-    products(first: $first, after: $after) {
-      edges {
-        node {
-          id
-          handle
-          title
-          description
-          descriptionHtml
-          productType
-          vendor
-          tags
-          availableForSale
-          createdAt
-          updatedAt
-          publishedAt
-          featuredImage {
-            id
-            url
-            altText
-            width
-            height
-          }
-          images(first: 10) {
-            edges {
-              node {
-                id
-                url
-                altText
-                width
-                height
-              }
-            }
-          }
-          variants(first: 1) {
-            edges {
-              node {
-                id
-                title
-                availableForSale
-                price {
-                  amount
-                  currencyCode
-                }
-                compareAtPrice {
-                  amount
-                  currencyCode
-                }
-                weight
-                weightUnit
-                sku
-                quantityAvailable
-              }
-            }
-          }
-          priceRange {
-            minVariantPrice {
-              amount
-              currencyCode
-            }
-            maxVariantPrice {
-              amount
-              currencyCode
-            }
-          }
-          compareAtPriceRange {
-            minVariantPrice {
-              amount
-              currencyCode
-            }
-            maxVariantPrice {
-              amount
-              currencyCode
-            }
-          }
-          collections(first: 5) {
-            edges {
-              node {
-                id
-                handle
-                title
-              }
-            }
-          }
-          metafields(
-            identifiers: [
-              { namespace: "custom", key: "subcategory" }
-              { namespace: "custom", key: "is_new" }
-              { namespace: "custom", key: "low_stock" }
-            ]
-          ) {
-            id
-            namespace
-            key
-            value
-            type
-          }
-        }
-      }
-      pageInfo {
-        hasNextPage
-        hasPreviousPage
-      }
-    }
-  }
-`;
+// // GraphQL Queries
+// export const GET_ALL_PRODUCTS = `
+//   query GetAllProducts($first: Int!, $after: String) {
+//     products(first: $first, after: $after) {
+//       edges {
+//         node {
+//           id
+//           handle
+//           title
+//           description
+//           descriptionHtml
+//           productType
+//           vendor
+//           tags
+//           availableForSale
+//           createdAt
+//           updatedAt
+//           publishedAt
+//           featuredImage {
+//             id
+//             url
+//             altText
+//             width
+//             height
+//           }
+//           images(first: 10) {
+//             edges {
+//               node {
+//                 id
+//                 url
+//                 altText
+//                 width
+//                 height
+//               }
+//             }
+//           }
+//           variants(first: 1) {
+//             edges {
+//               node {
+//                 id
+//                 title
+//                 availableForSale
+//                 price {
+//                   amount
+//                   currencyCode
+//                 }
+//                 compareAtPrice {
+//                   amount
+//                   currencyCode
+//                 }
+//                 weight
+//                 weightUnit
+//                 sku
+//                 quantityAvailable
+//               }
+//             }
+//           }
+//           priceRange {
+//             minVariantPrice {
+//               amount
+//               currencyCode
+//             }
+//             maxVariantPrice {
+//               amount
+//               currencyCode
+//             }
+//           }
+//           compareAtPriceRange {
+//             minVariantPrice {
+//               amount
+//               currencyCode
+//             }
+//             maxVariantPrice {
+//               amount
+//               currencyCode
+//             }
+//           }
+//           collections(first: 5) {
+//             edges {
+//               node {
+//                 id
+//                 handle
+//                 title
+//               }
+//             }
+//           }
+//           metafields(
+//             identifiers: [
+//               { namespace: "custom", key: "subcategory" }
+//               { namespace: "custom", key: "is_new" }
+//               { namespace: "custom", key: "low_stock" }
+//             ]
+//           ) {
+//             id
+//             namespace
+//             key
+//             value
+//             type
+//           }
+//         }
+//       }
+//       pageInfo {
+//         hasNextPage
+//         hasPreviousPage
+//       }
+//     }
+//   }
+// `;
 
-export const GET_PRODUCT_BY_HANDLE = `
-  query GetProductByHandle($handle: String!) {
-    product(handle: $handle) {
-      id
-      handle
-      title
-      description
-      descriptionHtml
-      productType
-      vendor
-      tags
-      availableForSale
-      createdAt
-      featuredImage {
-        id
-        url
-        altText
-        width
-        height
-      }
-      images(first: 10) {
-        edges {
-          node {
-            id
-            url
-            altText
-            width
-            height
-          }
-        }
-      }
-      variants(first: 10) {
-        edges {
-          node {
-            id
-            title
-            availableForSale
-            price {
-              amount
-              currencyCode
-            }
-            compareAtPrice {
-              amount
-              currencyCode
-            }
-            weight
-            weightUnit
-            sku
-            quantityAvailable
-            selectedOptions {
-              name
-              value
-            }
-          }
-        }
-      }
-      priceRange {
-        minVariantPrice {
-          amount
-          currencyCode
-        }
-        maxVariantPrice {
-          amount
-          currencyCode
-        }
-      }
-      collections(first: 5) {
-        edges {
-          node {
-            id
-            handle
-            title
-          }
-        }
-      }
-      metafields(
-        identifiers: [
-          { namespace: "custom", key: "subcategory" }
-          { namespace: "custom", key: "is_new" }
-          { namespace: "custom", key: "low_stock" }
-        ]
-      ) {
-        id
-        namespace
-        key
-        value
-        type
-      }
-    }
-  }
-`;
+// export const GET_PRODUCT_BY_HANDLE = `
+//   query GetProductByHandle($handle: String!) {
+//     product(handle: $handle) {
+//       id
+//       handle
+//       title
+//       description
+//       descriptionHtml
+//       productType
+//       vendor
+//       tags
+//       availableForSale
+//       createdAt
+//       featuredImage {
+//         id
+//         url
+//         altText
+//         width
+//         height
+//       }
+//       images(first: 10) {
+//         edges {
+//           node {
+//             id
+//             url
+//             altText
+//             width
+//             height
+//           }
+//         }
+//       }
+//       variants(first: 10) {
+//         edges {
+//           node {
+//             id
+//             title
+//             availableForSale
+//             price {
+//               amount
+//               currencyCode
+//             }
+//             compareAtPrice {
+//               amount
+//               currencyCode
+//             }
+//             weight
+//             weightUnit
+//             sku
+//             quantityAvailable
+//             selectedOptions {
+//               name
+//               value
+//             }
+//           }
+//         }
+//       }
+//       priceRange {
+//         minVariantPrice {
+//           amount
+//           currencyCode
+//         }
+//         maxVariantPrice {
+//           amount
+//           currencyCode
+//         }
+//       }
+//       collections(first: 5) {
+//         edges {
+//           node {
+//             id
+//             handle
+//             title
+//           }
+//         }
+//       }
+//       metafields(
+//         identifiers: [
+//           { namespace: "custom", key: "subcategory" }
+//           { namespace: "custom", key: "is_new" }
+//           { namespace: "custom", key: "low_stock" }
+//         ]
+//       ) {
+//         id
+//         namespace
+//         key
+//         value
+//         type
+//       }
+//     }
+//   }
+// `;
 
-export const GET_COLLECTIONS = `
-  query GetCollections($first: Int!) {
-    collections(first: $first) {
-      edges {
-        node {
-          id
-          handle
-          title
-          description
-          image {
-            id
-            url
-            altText
-            width
-            height
-          }
-        }
-      }
-    }
-  }
-`;
+// export const GET_COLLECTIONS = `
+//   query GetCollections($first: Int!) {
+//     collections(first: $first) {
+//       edges {
+//         node {
+//           id
+//           handle
+//           title
+//           description
+//           image {
+//             id
+//             url
+//             altText
+//             width
+//             height
+//           }
+//         }
+//       }
+//     }
+//   }
+// `;
 
-// Utility Functions
-// export function normalizeShopifyProduct(shopifyProduct: ShopifyProduct): Product {
-//   const variant = shopifyProduct.variants[0];
-//   const price = parseFloat(variant.price);
-//   const compareAtPrice = variant.compareAtPrice ? parseFloat(variant.compareAtPrice) : null;
+// // Utility Functions
+// // export function normalizeShopifyProduct(shopifyProduct: ShopifyProduct): Product {
+// //   const variant = shopifyProduct.variants[0];
+// //   const price = parseFloat(variant.price);
+// //   const compareAtPrice = variant.compareAtPrice ? parseFloat(variant.compareAtPrice) : null;
   
+// //   // Extract metafield values
+// //   const getMetafield = (key: string) => {
+// //     return shopifyProduct.metafields?.find(m => m.key === key)?.value;
+// //   };
+  
+// //   const subcategory = getMetafield("subcategory") || shopifyProduct.productType || "other";
+// //   const isNew = getMetafield("is_new") === "true";
+// //   const lowStock = getMetafield("low_stock") === "true";
+  
+// //   // Determine category from collections or product type
+// //   const category = shopifyProduct.collections?.[0]?.handle || 
+// //                    (shopifyProduct.productType?.toLowerCase().includes("chemical") ? "cleaning-chemicals" : "cleaning-equipment");
+  
+// //   return {
+// //     id: shopifyProduct.id,
+// //     handle: shopifyProduct.handle,
+// //     name: shopifyProduct.title,
+// //     description: shopifyProduct.description,
+// //     price: price,
+// //     originalPrice: compareAtPrice || undefined,
+// //     category: category,
+// //     subcategory: subcategory,
+// //     image: shopifyProduct.featuredImage?.url || shopifyProduct.images[0]?.url || "",
+// //     images: shopifyProduct.images.map(img => img.url),
+// //     inStock: variant.availableForSale && variant.quantityAvailable > 0,
+// //     weight: `${variant.weight}${variant.weightUnit.toLowerCase()}`,
+// //     weightValue: variant.weight,
+// //     weightUnit: variant.weightUnit,
+// //     isNew: isNew,
+// //     onSale: compareAtPrice ? compareAtPrice > price : false,
+// //     lowStock: lowStock || variant.quantityAvailable < 5,
+// //     brand: shopifyProduct.vendor,
+// //     tags: shopifyProduct.tags,
+// //     variantId: variant.id,
+// //     quantityAvailable: variant.quantityAvailable,
+// //     sku: variant.sku,
+// //   };
+// // }
+// export function normalizeShopifyProduct(shopifyProduct: ShopifyProduct): Product {
+//   let variant: any | undefined;
+//   if (Array.isArray(shopifyProduct.variants) && shopifyProduct.variants.length > 0) {
+//     variant = shopifyProduct.variants[0];
+//   } else if ((shopifyProduct as any).variants?.edges?.length > 0) {
+//     variant = (shopifyProduct as any).variants.edges[0].node;
+//   }
+//   // Helper to get numeric price from variant.price or variant.price.amount.
+//   const getPriceValue = (value: any): number => {
+//     if (!value) return 0;
+//     if (typeof value === "string") return parseFloat(value);
+//     if (typeof value === "object" && "amount" in value) return parseFloat(value.amount);
+//     return 0;
+//   };
+//   const price = variant ? getPriceValue(variant.price) : 0;
+//   const compareAtPrice = variant && variant.compareAtPrice ? getPriceValue(variant.compareAtPrice) : null;
+
 //   // Extract metafield values
 //   const getMetafield = (key: string) => {
 //     return shopifyProduct.metafields?.find(m => m.key === key)?.value;
 //   };
-  
+
 //   const subcategory = getMetafield("subcategory") || shopifyProduct.productType || "other";
 //   const isNew = getMetafield("is_new") === "true";
 //   const lowStock = getMetafield("low_stock") === "true";
-  
+
 //   // Determine category from collections or product type
 //   const category = shopifyProduct.collections?.[0]?.handle || 
 //                    (shopifyProduct.productType?.toLowerCase().includes("chemical") ? "cleaning-chemicals" : "cleaning-equipment");
-  
+
 //   return {
 //     id: shopifyProduct.id,
 //     handle: shopifyProduct.handle,
@@ -298,129 +353,342 @@ export const GET_COLLECTIONS = `
 //     subcategory: subcategory,
 //     image: shopifyProduct.featuredImage?.url || shopifyProduct.images[0]?.url || "",
 //     images: shopifyProduct.images.map(img => img.url),
-//     inStock: variant.availableForSale && variant.quantityAvailable > 0,
-//     weight: `${variant.weight}${variant.weightUnit.toLowerCase()}`,
-//     weightValue: variant.weight,
-//     weightUnit: variant.weightUnit,
+//     inStock: variant?.availableForSale && variant?.quantityAvailable > 0,
+//     weight: `${variant?.weight}${variant?.weightUnit.toLowerCase()}`,
+//     weightValue: variant?.weight,
+//     weightUnit: variant?.weightUnit,
 //     isNew: isNew,
 //     onSale: compareAtPrice ? compareAtPrice > price : false,
-//     lowStock: lowStock || variant.quantityAvailable < 5,
+//     lowStock: lowStock || variant?.quantityAvailable < 5,
 //     brand: shopifyProduct.vendor,
 //     tags: shopifyProduct.tags,
-//     variantId: variant.id,
-//     quantityAvailable: variant.quantityAvailable,
-//     sku: variant.sku,
+//     variantId: variant?.id,
+//     quantityAvailable: variant?.quantityAvailable,
+//     sku: variant?.sku,
 //   };
 // }
-export function normalizeShopifyProduct(shopifyProduct: ShopifyProduct): Product {
-  let variant: any | undefined;
-  if (Array.isArray(shopifyProduct.variants) && shopifyProduct.variants.length > 0) {
-    variant = shopifyProduct.variants[0];
-  } else if ((shopifyProduct as any).variants?.edges?.length > 0) {
-    variant = (shopifyProduct as any).variants.edges[0].node;
+
+
+// export async function getAllProducts(): Promise<Product[]> {
+//   try {
+//     const data = await shopifyFetch<ShopifyProductsResponse>({
+//       query: GET_ALL_PRODUCTS,
+//       variables: { first: 100 },
+//     });
+    
+//     return data.products.edges.map(edge => normalizeShopifyProduct(edge.node));
+//   } catch (error) {
+//     console.error("Error fetching products:", error);
+//     return [];
+//   }
+// }
+
+// export async function getProductByHandle(handle: string): Promise<Product | null> {
+//   try {
+//     const data = await shopifyFetch<{ product: ShopifyProduct }>({
+//       query: GET_PRODUCT_BY_HANDLE,
+//       variables: { handle },
+//     });
+    
+//     if (!data.product) return null;
+    
+//     return normalizeShopifyProduct(data.product);
+//   } catch (error) {
+//     console.error("Error fetching product:", error);
+//     return null;
+//   }
+// }
+
+// export async function getCollections() {
+//   try {
+//     const data = await shopifyFetch<ShopifyCollectionsResponse>({
+//       query: GET_COLLECTIONS,
+//       variables: { first: 50 },
+//     });
+    
+//     return data.collections.edges.map(edge => edge.node);
+//   } catch (error) {
+//     console.error("Error fetching collections:", error);
+//     return [];
+//   }
+// }
+
+// // Convert Pakistani Rupees (used in UI) to USD (for Shopify if needed)
+// export function convertPKRtoUSD(pkr: number): number {
+//   const exchangeRate = 0.0036; // Approximate rate, update as needed
+//   return pkr * exchangeRate;
+// }
+
+// // Convert USD to PKR
+// export function convertUSDtoPKR(usd: number): number {
+//   const exchangeRate = 278; // Approximate rate, update as needed
+//   return Math.round(usd * exchangeRate);
+// }
+
+
+// src/lib/shopify.ts
+import { Product } from "../types/shopify";
+
+const SHOPIFY_DOMAIN = import.meta.env.VITE_SHOPIFY_STORE_DOMAIN;
+const SHOPIFY_TOKEN = import.meta.env.VITE_SHOPIFY_STOREFRONT_TOKEN;
+const SHOPIFY_API_VERSION =
+  import.meta.env.VITE_SHOPIFY_API_VERSION ?? "2025-07";
+
+if (!SHOPIFY_DOMAIN || !SHOPIFY_TOKEN) {
+  console.warn(
+    "[Shopify] Missing VITE_SHOPIFY_STORE_DOMAIN or VITE_SHOPIFY_STOREFRONT_TOKEN env vars."
+  );
+}
+
+const SHOPIFY_URL = `https://${SHOPIFY_DOMAIN}/api/${SHOPIFY_API_VERSION}/graphql.json`;
+
+interface ShopifyResponse<T> {
+  data?: T;
+  errors?: { message: string }[];
+}
+
+async function shopifyFetch<T>(
+  query: string,
+  variables?: Record<string, any>
+): Promise<T> {
+  const res = await fetch(SHOPIFY_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Shopify-Storefront-Access-Token": SHOPIFY_TOKEN!,
+    },
+    body: JSON.stringify({ query, variables }),
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`[Shopify] HTTP ${res.status}: ${text}`);
   }
-  // Helper to get numeric price from variant.price or variant.price.amount.
-  const getPriceValue = (value: any): number => {
-    if (!value) return 0;
-    if (typeof value === "string") return parseFloat(value);
-    if (typeof value === "object" && "amount" in value) return parseFloat(value.amount);
-    return 0;
-  };
-  const price = variant ? getPriceValue(variant.price) : 0;
-  const compareAtPrice = variant && variant.compareAtPrice ? getPriceValue(variant.compareAtPrice) : null;
 
-  // Extract metafield values
-  const getMetafield = (key: string) => {
-    return shopifyProduct.metafields?.find(m => m.key === key)?.value;
-  };
+  const json = (await res.json()) as ShopifyResponse<T>;
 
-  const subcategory = getMetafield("subcategory") || shopifyProduct.productType || "other";
-  const isNew = getMetafield("is_new") === "true";
-  const lowStock = getMetafield("low_stock") === "true";
+  if (json.errors?.length) {
+    console.error("[Shopify] GraphQL errors:", json.errors);
+    throw new Error(json.errors.map((e) => e.message).join(", "));
+  }
 
-  // Determine category from collections or product type
-  const category = shopifyProduct.collections?.[0]?.handle || 
-                   (shopifyProduct.productType?.toLowerCase().includes("chemical") ? "cleaning-chemicals" : "cleaning-equipment");
+  if (!json.data) {
+    throw new Error("[Shopify] Empty data");
+  }
+
+  return json.data;
+}
+
+// ---------- Normalizer ----------
+
+export function normalizeShopifyProduct(node: any): Product | null {
+  if (!node) return null;
+
+  const variantNodes: any[] =
+    node?.variants?.edges?.map((e: any) => e?.node).filter(Boolean) ?? [];
+
+  const primaryVariant =
+    variantNodes.find((v) => v?.availableForSale) ?? variantNodes[0] ?? {};
+
+  const images: string[] =
+    node?.images?.edges
+      ?.map((e: any) => e?.node?.url || e?.node?.src)
+      .filter(Boolean) ?? [];
+
+  const mainImage =
+    images[0] ??
+    node?.featuredImage?.url ??
+    node?.featuredImage?.src ??
+    "";
+
+  // price + compare at
+  const priceAmount =
+    Number(primaryVariant?.price?.amount) ||
+    Number(node?.priceRange?.minVariantPrice?.amount ?? 0);
+
+  const compareAmount =
+    Number(primaryVariant?.compareAtPrice?.amount) ||
+    Number(node?.priceRange?.maxVariantPrice?.amount ?? 0);
+
+  const quantityAvailable = primaryVariant?.quantityAvailable ?? 0;
+  const tags: string[] = node?.tags ?? [];
+
+  const isNew = tags.includes("new") || tags.includes("New");
+  const onSale = compareAmount > priceAmount && priceAmount > 0;
+  const lowStock = quantityAvailable > 0 && quantityAvailable <= 10;
+
+  // We’ll treat productType or a `subcategory:` tag as subcategory
+  let subcategory = node?.productType ?? "";
+  const subTag = tags.find((t) => t.toLowerCase().startsWith("subcategory:"));
+  if (subTag) {
+    subcategory = subTag.split(":")[1]?.trim() ?? subcategory;
+  }
 
   return {
-    id: shopifyProduct.id,
-    handle: shopifyProduct.handle,
-    name: shopifyProduct.title,
-    description: shopifyProduct.description,
-    price: price,
-    originalPrice: compareAtPrice || undefined,
-    category: category,
-    subcategory: subcategory,
-    image: shopifyProduct.featuredImage?.url || shopifyProduct.images[0]?.url || "",
-    images: shopifyProduct.images.map(img => img.url),
-    inStock: variant?.availableForSale && variant?.quantityAvailable > 0,
-    weight: `${variant?.weight}${variant?.weightUnit.toLowerCase()}`,
-    weightValue: variant?.weight,
-    weightUnit: variant?.weightUnit,
-    isNew: isNew,
-    onSale: compareAtPrice ? compareAtPrice > price : false,
-    lowStock: lowStock || variant?.quantityAvailable < 5,
-    brand: shopifyProduct.vendor,
-    tags: shopifyProduct.tags,
-    variantId: variant?.id,
-    quantityAvailable: variant?.quantityAvailable,
-    sku: variant?.sku,
+    id: node.id ?? "",
+    handle: node.handle ?? "",
+
+    name: node.title ?? "",
+    description: node.description ?? "",
+
+    image: mainImage,
+    images,
+
+    price: priceAmount,
+    originalPrice: compareAmount || undefined,
+
+    sku: primaryVariant?.sku ?? "",
+    weight:
+      primaryVariant?.weight &&
+      primaryVariant?.weightUnit
+        ? `${primaryVariant.weight} ${primaryVariant.weightUnit}`
+        : undefined,
+    brand: node?.vendor ?? undefined,
+
+    inStock: !!primaryVariant?.availableForSale,
+    quantityAvailable,
+    lowStock,
+
+    isNew,
+    onSale,
+
+    subcategory,
+    tags,
   };
 }
 
+// ---------- Queries ----------
 
-export async function getAllProducts(): Promise<Product[]> {
+const PRODUCTS_QUERY = `
+  query GetProducts($first: Int!) {
+    products(first: $first) {
+      edges {
+        node {
+          id
+          handle
+          title
+          description
+          productType
+          vendor
+          tags
+          featuredImage {
+            url
+          }
+          images(first: 10) {
+            edges {
+              node {
+                url
+              }
+            }
+          }
+          variants(first: 10) {
+            edges {
+              node {
+                id
+                sku
+                availableForSale
+                quantityAvailable
+                weight
+                weightUnit
+                price {
+                  amount
+                }
+                compareAtPrice {
+                  amount
+                }
+              }
+            }
+          }
+          priceRange {
+            minVariantPrice { amount }
+            maxVariantPrice { amount }
+          }
+        }
+      }
+    }
+  }
+`;
+
+const PRODUCT_BY_HANDLE_QUERY = `
+  query GetProductByHandle($handle: String!) {
+    product(handle: $handle) {
+      id
+      handle
+      title
+      description
+      productType
+      vendor
+      tags
+      featuredImage {
+        url
+      }
+      images(first: 10) {
+        edges {
+          node {
+            url
+          }
+        }
+      }
+      variants(first: 10) {
+        edges {
+          node {
+            id
+            sku
+            availableForSale
+            quantityAvailable
+            weight
+            weightUnit
+            price {
+              amount
+            }
+            compareAtPrice {
+              amount
+            }
+          }
+        }
+      }
+      priceRange {
+        minVariantPrice { amount }
+        maxVariantPrice { amount }
+      }
+    }
+  }
+`;
+
+// ---------- Public helpers ----------
+
+export async function getAllProducts(limit = 50): Promise<Product[]> {
   try {
-    const data = await shopifyFetch<ShopifyProductsResponse>({
-      query: GET_ALL_PRODUCTS,
-      variables: { first: 100 },
-    });
-    
-    return data.products.edges.map(edge => normalizeShopifyProduct(edge.node));
-  } catch (error) {
-    console.error("Error fetching products:", error);
-    return [];
+    const data = await shopifyFetch<{
+      products: { edges: { node: any }[] };
+    }>(PRODUCTS_QUERY, { first: limit });
+
+    const edges = data.products?.edges ?? [];
+
+    return edges
+      .map((edge) => normalizeShopifyProduct(edge.node))
+      .filter((p): p is Product => p !== null);
+  } catch (err) {
+    console.error("[Shopify] getAllProducts error:", err);
+    throw err;
   }
 }
 
-export async function getProductByHandle(handle: string): Promise<Product | null> {
+export async function getProductByHandle(
+  handle: string
+): Promise<Product | null> {
+  if (!handle) return null;
   try {
-    const data = await shopifyFetch<{ product: ShopifyProduct }>({
-      query: GET_PRODUCT_BY_HANDLE,
-      variables: { handle },
-    });
-    
-    if (!data.product) return null;
-    
-    return normalizeShopifyProduct(data.product);
-  } catch (error) {
-    console.error("Error fetching product:", error);
-    return null;
+    const data = await shopifyFetch<{
+      product: any | null;
+    }>(PRODUCT_BY_HANDLE_QUERY, { handle });
+
+    const node = data.product;
+    if (!node) return null;
+
+    return normalizeShopifyProduct(node);
+  } catch (err) {
+    console.error("[Shopify] getProductByHandle error:", err);
+    throw err;
   }
-}
-
-export async function getCollections() {
-  try {
-    const data = await shopifyFetch<ShopifyCollectionsResponse>({
-      query: GET_COLLECTIONS,
-      variables: { first: 50 },
-    });
-    
-    return data.collections.edges.map(edge => edge.node);
-  } catch (error) {
-    console.error("Error fetching collections:", error);
-    return [];
-  }
-}
-
-// Convert Pakistani Rupees (used in UI) to USD (for Shopify if needed)
-export function convertPKRtoUSD(pkr: number): number {
-  const exchangeRate = 0.0036; // Approximate rate, update as needed
-  return pkr * exchangeRate;
-}
-
-// Convert USD to PKR
-export function convertUSDtoPKR(usd: number): number {
-  const exchangeRate = 278; // Approximate rate, update as needed
-  return Math.round(usd * exchangeRate);
 }
