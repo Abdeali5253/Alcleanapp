@@ -1,409 +1,312 @@
-# 🧼 AlClean - Shopping App
+# 🧼 AlClean Shopping App
 
-A modern mobile-first shopping application for AlClean cleaning products with Shopify integration and push notifications.
-
----
-
-## ⚡ Quick Start
-
-**🚨 IMPORTANT:** You need a Shopify Storefront API token to run this app!
-
-### First Time Setup?
-
-1. **Get Your Shopify Token** - [**GET_YOUR_SHOPIFY_TOKEN.md**](./GET_YOUR_SHOPIFY_TOKEN.md) ⭐ **START HERE**
-2. **Setup Checklist** - [**SETUP_CHECKLIST.md**](./SETUP_CHECKLIST.md) - Track your progress
-3. **Having Issues?** - [**QUICK_FIX_SHOPIFY_ERROR.md**](./QUICK_FIX_SHOPIFY_ERROR.md) - Quick fix guide
-
-### Already Have Your Token?
-
-1. Edit `/.env` file
-2. Add your Storefront API token
-3. Run `npm run dev`
-4. Done! ✅
+A mobile-first shopping application for AlClean cleaning products with Shopify GraphQL integration, Firebase push notifications, and complete checkout flow.
 
 ---
 
-## ✨ Features
+## 🚀 Quick Start
 
-### 🛍️ Shopping Experience
-- Product catalog from Shopify
-- Smart cart management
-- Multiple payment options (COD, Bank Transfer)
-- Dynamic delivery charges (Rs.200 for major cities, Rs.50/kg others)
-- Product categories (Chemicals & Equipment)
+### 1. Install Dependencies
 
-### 📦 Order Management
-- Real-time order tracking
-- Integration with Shopify Admin API
-- Automatic order creation in Shopify
-- Sync with existing tracking system
-- Order status updates
+```bash
+# Frontend
+npm install
 
-### 🔔 Push Notifications
-- Firebase Cloud Messaging integration
-- Order placement confirmations
-- Shipment notifications
-- Delivery updates
-- In-app notification inbox
-- Customizable notification settings
+# Backend
+cd server
+npm install
+cd ..
+```
 
-### 👤 User Features
-- User authentication (login/signup)
-- Profile management
-- Order history
-- Help & Support with FAQs
-- About Us & Contact pages
+### 2. Configure Environment Variables
 
-### 🎨 UI/UX
-- Mobile-first responsive design
-- Hero banner carousel
-- Bottom navigation
-- Smooth animations
-- Modern, clean interface
+**Frontend (/.env):**
+```env
+# Shopify
+VITE_SHOPIFY_STORE_DOMAIN=alclean-pk.myshopify.com
+VITE_SHOPIFY_STOREFRONT_TOKEN=your_storefront_api_token
+VITE_SHOPIFY_ADMIN_API_TOKEN=your_admin_api_token
+VITE_SHOPIFY_API_VERSION=2025-07
+
+# Firebase (optional - for push notifications)
+VITE_FIREBASE_API_KEY=your_key
+VITE_FIREBASE_AUTH_DOMAIN=app-notification-5e56b.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=app-notification-5e56b
+VITE_FIREBASE_STORAGE_BUCKET=app-notification-5e56b.appspot.com
+VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+VITE_FIREBASE_APP_ID=your_app_id
+VITE_FIREBASE_VAPID_KEY=your_vapid_key
+
+# Backend
+VITE_BACKEND_URL=http://localhost:3001
+# For mobile testing: http://192.168.20.107:3001
+```
+
+**Backend (server/.env):**
+```env
+PORT=3001
+NODE_ENV=development
+
+# Shopify
+SHOPIFY_STORE_DOMAIN=alclean-pk.myshopify.com
+SHOPIFY_ADMIN_API_TOKEN=your_admin_api_token
+SHOPIFY_API_VERSION=2025-07
+
+# Firebase (optional)
+FIREBASE_SERVER_KEY=your_server_key
+
+# CORS
+ALLOWED_ORIGINS=http://localhost:5173,http://192.168.20.107:5173
+```
+
+### 3. Start Servers
+
+```bash
+# Terminal 1 - Backend
+cd server
+npm run dev
+
+# Terminal 2 - Frontend
+npm run dev
+```
+
+Frontend: http://localhost:5173  
+Backend: http://localhost:3001  
+Mobile: http://192.168.20.107:5173
+
+---
+
+## 🏗️ Tech Stack
+
+- **Frontend:** React + TypeScript + Vite + Tailwind CSS
+- **Backend:** Node.js + Express + TypeScript
+- **Integration:** Shopify GraphQL API (Storefront + Admin)
+- **Notifications:** Firebase Cloud Messaging
+- **Auth:** localStorage-based authentication
+- **UI:** shadcn/ui components + Lucide icons
 
 ---
 
 ## 📁 Project Structure
 
 ```
-alclean-app/
-├── server/                  # Node.js/TypeScript backend
-│   ├── src/
-│   │   ├── index.ts        # Server entry point
-│   │   ├── routes/
-│   │   │   ├── shopify.ts  # Shopify integration
-│   │   │   └── notifications.ts  # FCM integration
-│   ├── package.json
-│   └── .env
-│
-├── src/                    # React frontend
-│   ├── components/         # React components
-│   │   ├── AttractiveHome.tsx
-│   │   ├── Products.tsx
-│   │   ├── Cart.tsx
-│   │   ├── Checkout.tsx
-│   │   ├── Tracking.tsx
-│   │   └── ...
-│   ├── lib/               # Services & utilities
-│   │   ├── shopify.ts    # Shopify client
-│   │   ├── order-service.ts  # Order management
-│   │   ├── cart.ts       # Cart management
-│   │   ├── auth.ts       # Authentication
-│   │   └── notifications.ts  # Push notifications
-│   └── App.tsx
-│
-├── public/                # Static assets
-├── .env                   # Frontend config
-└── README.md
+/
+├── components/           # React components
+│   ├── AttractiveHome.tsx
+│   ├── Products.tsx
+│   ├── Cart.tsx
+│   ├── Checkout.tsx
+│   ├── Account.tsx
+│   ├── NotificationInbox.tsx
+│   └── ui/              # Reusable UI components
+├── lib/                 # Utilities & services
+│   ├── shopify.ts       # Shopify API client
+│   ├── cart.ts          # Cart management
+│   ├── auth.ts          # Authentication
+│   ├── notifications.ts # FCM service
+│   └── order-service.ts # Order creation
+├── server/              # Backend
+│   └── src/
+│       ├── index.ts     # Express server
+│       └── routes/
+│           ├── shopify.ts
+│           └── notifications.ts
+├── .env                 # Frontend config
+└── server/.env          # Backend config
 ```
 
 ---
 
-## 🔧 Configuration Guide
+## 🔑 Getting Shopify API Tokens
 
-### Getting Shopify Credentials
+### Storefront API Token (Required)
 
-⚠️ **IMPORTANT:** You need TWO different API tokens from Shopify:
-
-#### 1. Storefront API Token (for fetching products)
-
-1. Go to Shopify Admin: https://alclean-pk.myshopify.com/admin
-2. Settings  Apps and sales channels → Develop apps
-3. Create or select app: "AlClean Mobile App"
-4. Configuration tab → Storefront API integration → Configure
-5. Enable scopes:
+1. Go to: Shopify Admin > Settings > Apps and sales channels > Develop apps
+2. Create or select your app
+3. Configuration > Storefront API > Enable scopes:
    - `unauthenticated_read_product_listings`
    - `unauthenticated_read_product_inventory`
    - `unauthenticated_read_collection_listings`
-6. Save → Install app
-7. API credentials tab → Copy **Storefront API access token**
-8. Add to `.env`: `VITE_SHOPIFY_STOREFRONT_TOKEN=your_token`
+4. API credentials > Copy **Storefront API access token**
 
-#### 2. Admin API Token (for creating orders)
+### Admin API Token (Required for Orders)
 
-1. Same app → Configuration tab → Admin API
-2. Configure Admin API scopes:
-   - `read_products`
+1. Same app > Configuration > Admin API
+2. Enable scopes:
    - `write_draft_orders`
+   - `read_draft_orders`
    - `write_orders`
-3. Install app and copy **Admin API access token**
-4. Add to `.env`: `VITE_SHOPIFY_ADMIN_API_TOKEN=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`
+3. Install app > Copy **Admin API access token**
 
-**Store Configuration:**
-- Store domain: `alclean-pk.myshopify.com`
-- Add to `.env`: `VITE_SHOPIFY_STORE_DOMAIN=alclean-pk.myshopify.com`
+---
 
-📖 **Detailed setup guide:** See [SETUP_STOREFRONT_API.md](./SETUP_STOREFRONT_API.md)
+## 🛍️ Features
 
-### Getting Firebase Keys
+### Shopping
+- Product catalog with categories (Chemicals & Equipment)
+- Hero carousel banner
+- Search & filter
+- Product detail pages
+- Cart with quantity management
+- Supreme offers section
 
-1. Go to [Firebase Console](https://console.firebase.google.com/)
-2. Select project: `app-notification-5e56b`
-3. Project Settings → General:
-   - Copy all config values
-4. Project Settings → Cloud Messaging:
-   - Copy "Server key" (for backend)
-   - Copy "Web Push certificate" (VAPID key)
+### Checkout & Delivery
+- COD and Bank Transfer payment options
+- Fixed Rs.200 delivery for major cities
+- Rs.50/kg for other cities
+- Authentication required before checkout
+- Order placement to Shopify
+
+### User Account
+- Login/Signup with Shopify integration
+- Edit profile
+- Order tracking
+- Help & Support with FAQs
+- About & Contact pages
+
+### Notifications (Optional)
+- Push notifications via Firebase
+- Order confirmations
+- Shipment updates
+- Notification inbox
+- Settings & preferences
+
+---
+
+## 🧹 Unused Components to Delete
+
+If you want to minimize the project, these UI components are likely **NOT used** and can be deleted:
+
+```
+/components/ui/
+├── accordion.tsx         ❌
+├── alert-dialog.tsx      ❌
+├── alert.tsx             ❌
+├── aspect-ratio.tsx      ❌
+├── avatar.tsx            ❌
+├── breadcrumb.tsx        ❌
+├── calendar.tsx          ❌
+├── card.tsx              ❌
+├── carousel.tsx          ❌
+├── chart.tsx             ❌
+├── checkbox.tsx          ❌
+├── collapsible.tsx       ❌
+├── command.tsx           ❌
+├── context-menu.tsx      ❌
+├── dialog.tsx            ❌
+├── dropdown-menu.tsx     ❌
+├── form.tsx              ❌
+├── hover-card.tsx        ❌
+├── menubar.tsx           ❌
+├── navigation-menu.tsx   ❌
+├── pagination.tsx        ❌
+├── popover.tsx           ❌
+├── progress.tsx          ❌
+├── radio-group.tsx       ❌
+├── resizable.tsx         ❌
+├── scroll-area.tsx       ❌
+├── select.tsx            ❌
+├── separator.tsx         ❌
+├── sheet.tsx             ❌
+├── sidebar.tsx           ❌
+├── skeleton.tsx          ❌
+├── slider.tsx            ❌
+├── switch.tsx            ❌
+├── table.tsx             ❌
+├── tabs.tsx              ❌
+├── textarea.tsx          ❌
+├── toggle-group.tsx      ❌
+├── toggle.tsx            ❌
+└── tooltip.tsx           ❌
+```
+
+**Keep these (actively used):**
+- ✅ `button.tsx`
+- ✅ `input.tsx`
+- ✅ `label.tsx`
+- ✅ `sonner.tsx` (toast notifications)
+- ✅ `drawer.tsx` (for mobile filters)
+- ✅ `use-mobile.ts`
+- ✅ `utils.ts`
 
 ---
 
 ## 🧪 Testing
 
 ### Test Backend Connection
+Visit: http://localhost:5173/backend-test
 
-```bash
-# Health check
-curl http://localhost:3001/health
+### Test Shopify Products
+Open browser console and check for:
+- `[Shopify] Loaded X total products`
+- No "Shopify is not configured" errors
 
-# Expected: { "status": "ok", ... }
-```
-
-### Test Shopify Integration
-
-```bash
-# Place test order
-curl -X POST http://localhost:3001/api/shopify/create-order \
-  -H "Content-Type: application/json" \
-  -d @test-order.json
-```
-
-### Test in Browser
-
-1. Open app: http://192.168.20.107:5173
-2. Check for green "Backend Connected ✓" badge
-3. Add products to cart
-4. Complete checkout
-5. Check Shopify Admin for order
+### Test Order Placement
+1. Add products to cart
+2. Go to checkout
+3. Login/signup
+4. Fill delivery details
+5. Place order
+6. Check Shopify Admin > Orders
 
 ---
 
 ## 📱 Mobile Testing
 
-### On Android Device
+Configure Vite for network access:
 
-1. Connect device to same WiFi network
-2. Open browser
-3. Navigate to: `http://192.168.20.107:5173`
-4. App should load and function fully
-
-### Network Configuration
-
-The Vite server is configured to accept connections from your IP:
-```javascript
-// vite.config.ts
-server: {
-  host: '0.0.0.0',
-  port: 5173,
-}
+**vite.config.ts:**
+```typescript
+export default defineConfig({
+  server: {
+    host: '0.0.0.0',
+    port: 5173,
+  }
+})
 ```
+
+Then access from mobile: http://192.168.20.107:5173
 
 ---
 
-## 🚀 Deployment
+## 🔒 Security
 
-### Backend Deployment
-
-**Option 1: Your Server (app.albizco.com)**
-```bash
-# SSH to server
-ssh user@app.albizco.com
-
-# Install Node.js
-curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-sudo apt-get install -y nodejs
-
-# Upload files and install
-cd /path/to/server
-npm install
-npm run build
-
-# Run with PM2
-sudo npm install -g pm2
-pm2 start dist/index.js --name alclean-backend
-pm2 save
-pm2 startup
-```
-
-**Option 2: Serverless (Vercel/Railway/Render)**
-```bash
-# Deploy to Vercel
-vercel --prod
-
-# Or Railway
-railway up
-
-# Or Render
-# Connect GitHub repo and deploy
-```
-
-### Frontend Deployment
-
-**For Web:**
-```bash
-npm run build
-# Upload dist/ folder to your hosting
-```
-
-**For Android APK:**
-```bash
-# Install Capacitor
-npm install @capacitor/core @capacitor/cli
-npx cap init
-
-# Add Android platform
-npx cap add android
-
-# Build
-npm run build
-npx cap copy
-npx cap sync
-
-# Open Android Studio
-npx cap open android
-```
+- Never commit `.env` files (already in .gitignore)
+- Store API tokens securely
+- Use environment variables for all credentials
+- Storefront API token is safe for frontend (read-only)
+- Admin API token must be protected (order creation)
 
 ---
 
-## 📖 Documentation
+## 🐛 Troubleshooting
 
-- **[BACKEND_SETUP.md](./BACKEND_SETUP.md)** - Detailed backend setup guide
-- **[TROUBLESHOOTING.md](./TROUBLESHOOTING.md)** - Common issues and solutions
-- **[SYSTEM_ARCHITECTURE.md](./SYSTEM_ARCHITECTURE.md)** - System design and flows
-- **[INTEGRATION_QUICK_START.md](./INTEGRATION_QUICK_START.md)** - Integration guide
+### "Shopify is not configured" error
+- Check `.env` file exists in project root
+- Verify `VITE_SHOPIFY_STOREFRONT_TOKEN` is set
+- Restart dev server completely
 
----
+### Products not loading
+- Check browser console for errors
+- Verify Shopify Storefront API scopes are enabled
+- Test connection: `/backend-test` page
 
-## 🛠️ Tech Stack
+### Backend connection failed
+- Ensure backend is running: `cd server && npm run dev`
+- Check `VITE_BACKEND_URL` matches backend port
+- Verify CORS settings in `server/.env`
 
-### Frontend
-- **React 18** - UI framework
-- **TypeScript** - Type safety
-- **Vite** - Build tool
-- **Tailwind CSS** - Styling
-- **React Router** - Navigation
-- **Lucide React** - Icons
-
-### Backend
-- **Node.js** - Runtime
-- **Express** - Web framework
-- **TypeScript** - Type safety
-- **CORS** - Cross-origin support
-
-### Integrations
-- **Shopify** - E-commerce platform
-  - Storefront API (products)
-  - Admin API (orders)
-- **Firebase** - Push notifications
-  - Cloud Messaging (FCM)
-
----
-
-##  Security
-
-### Environment Variables
-Never commit `.env` files:
-```gitignore
-.env
-.env.local
-.env.*.local
-server/.env
-```
-
-### API Keys
-- Shopify Admin API token - server-side only
-- Firebase server key - server-side only
-- VAPID key - safe for client-side
-
-### CORS
-Configure allowed origins in `server/.env`:
-```env
-ALLOWED_ORIGINS=https://yourapp.com,https://www.yourapp.com
-```
-
----
-
-## 📊 Features Roadmap
-
-### Current (v1.0)
-- ✅ Product catalog
-- ✅ Shopping cart
-- ✅ Checkout flow
-- ✅ Shopify integration
-- ✅ Push notifications
-- ✅ Order tracking
-- ✅ User authentication
-
-### Planned (v1.1)
-- 🔄 Payment gateway integration
-- 🔄 Advanced search & filters
-- 🔄 Product reviews
-- 🔄 Wishlist
-- 🔄 Referral system
-
-### Future (v2.0)
-- 🔄 Native mobile apps (iOS/Android)
-- 🔄 Offline mode
-- 🔄 AR product preview
-- 🔄 Voice search
-
----
-
-## 🐛 Known Issues
-
-### Issue: Backend connection error on mobile
-**Solution:** Make sure both backend and frontend URLs use your network IP (e.g., `192.168.20.107`)
-
-### Issue: Notifications not showing
-**Solution:** Check Firebase keys are correctly configured in both frontend and backend `.env` files
-
-### Issue: Orders not appearing in Shopify
-**Solution:** Verify Shopify Admin API token has `write_draft_orders` permission
-
----
-
-## 📞 Support
-
-### Documentation
-- Check `/TROUBLESHOOTING.md` for common issues
-- Read `/BACKEND_SETUP.md` for setup details
-- See `/SYSTEM_ARCHITECTURE.md` for system overview
-
-### Debugging
-- **Backend logs:** Check terminal where `npm run dev` is running
-- **Frontend logs:** Open browser console (F12)
-- **Shopify errors:** Check backend terminal for detailed error messages
-- **Firebase errors:** Check Firebase Console → Cloud Messaging
+### Orders not creating in Shopify
+- Check `VITE_SHOPIFY_ADMIN_API_TOKEN` is set
+- Verify Admin API scopes include `write_draft_orders`
+- Check backend logs for errors
 
 ---
 
 ## 📄 License
 
-This project is proprietary software for AlClean.
+Private project for AlClean
 
 ---
 
-## 👥 Credits
-
-Developed for AlClean - Professional Cleaning Solutions
-
----
-
-## 🎯 Getting Started Checklist
-
-- [ ] Node.js 18+ installed
-- [ ] Dependencies installed (`npm install`)
-- [ ] Backend `.env` configured
-- [ ] Frontend `.env` configured
-- [ ] Firebase project created
-- [ ] Shopify app configured
-- [ ] Backend running (`cd server && npm run dev`)
-- [ ] Frontend running (`npm run dev`)
-- [ ] Green "Backend Connected" shows in app
-- [ ] Test order placed successfully
-- [ ] Order appears in Shopify Admin
-
----
-
-**Version:** 1.0.0  
-**Last Updated:** December 6, 2025  
-**Status:** Production Ready
+**Need help?** Check browser console and backend terminal for error messages.
