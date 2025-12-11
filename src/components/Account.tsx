@@ -1,4 +1,4 @@
-import image_8f03d5c7f7a5ad0420573e04e40e094b85ac1357 from 'figma:asset/8f03d5c7f7a5ad0420573e04e40e094b85ac1357.png';
+import logo from '../assets/logo.png';
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { 
@@ -16,7 +16,7 @@ import { authService, User as AuthUser } from "../lib/auth";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 
 const menuItems = [
   {
@@ -130,7 +130,7 @@ export function Account() {
           <div className="max-w-md mx-auto px-4 py-4 flex items-center justify-center">
             <Link to="/">
               <img
-                src={image_8f03d5c7f7a5ad0420573e04e40e094b85ac1357}
+                src={logo}
                 alt="AlClean"
                 className="h-10 cursor-pointer"
               />
@@ -291,7 +291,7 @@ export function Account() {
         <div className="max-w-md mx-auto px-4 py-4 flex items-center justify-center">
           <Link to="/">
             <img
-              src={image_8f03d5c7f7a5ad0420573e04e40e094b85ac1357}
+              src={logo}
               alt="AlClean"
               className="h-10 cursor-pointer"
             />

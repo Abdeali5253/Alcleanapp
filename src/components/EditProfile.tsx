@@ -1,4 +1,4 @@
-import image_8f03d5c7f7a5ad0420573e04e40e094b85ac1357 from 'figma:asset/8f03d5c7f7a5ad0420573e04e40e094b85ac1357.png';
+import logo from '../assets/logo.png';
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ChevronLeft, Save } from "lucide-react";
@@ -6,7 +6,7 @@ import { authService, User } from "../lib/auth";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 
 export function EditProfile() {
   const navigate = useNavigate();
@@ -50,7 +50,7 @@ export function EditProfile() {
             </button>
             <Link to="/" className="flex-1 flex justify-center">
               <img
-                src={image_8f03d5c7f7a5ad0420573e04e40e094b85ac1357}
+                src={logo}
                 alt="AlClean"
                 className="h-10"
               />

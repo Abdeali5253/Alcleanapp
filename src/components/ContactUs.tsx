@@ -1,7 +1,6 @@
-import image_8f03d5c7f7a5ad0420573e04e40e094b85ac1357 from 'figma:asset/8f03d5c7f7a5ad0420573e04e40e094b85ac1357.png';
+import logo from '../assets/logo.png';
 import { MapPin, Phone, Mail } from "lucide-react";
 import { Link } from "react-router-dom";
-import logo from "figma:asset/0d56b91e4ffc112930c8a550a03dc9cfc1f9fbf4.png";
 
 interface Location {
   city: string;
@@ -45,7 +44,7 @@ export function ContactUs() {
       <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
         <div className="max-w-md mx-auto px-4 py-4 flex items-center justify-center">
           <Link to="/">
-            <img src={image_8f03d5c7f7a5ad0420573e04e40e094b85ac1357} alt="AlClean" className="h-10 cursor-pointer" />
+            <img src={logo} alt="AlClean" className="h-10 cursor-pointer" />
           </Link>
         </div>
       </header>

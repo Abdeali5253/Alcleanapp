@@ -5,7 +5,7 @@ import { ProductCard } from "./ProductCard";
 import { Product } from "../types/shopify";
 import { getProductsByCollection } from "../lib/shopify";
 import { ProductCardSkeleton } from "./ProductCardSkeleton";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 import { cartService } from "../lib/cart";
 
 export function SupremeOffers() {

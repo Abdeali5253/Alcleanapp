@@ -1,4 +1,4 @@
-import image_8f03d5c7f7a5ad0420573e04e40e094b85ac1357 from 'figma:asset/8f03d5c7f7a5ad0420573e04e40e094b85ac1357.png';
+import logo from '../assets/logo.png';
 import { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Search, Menu, X, ShoppingCart, Phone, MessageCircle, Home, Package, User, MapPin, Bell } from "lucide-react";
@@ -91,7 +91,7 @@ export function UnifiedHeader({ cartCount }: UnifiedHeaderProps) {
 
             {/* Logo */}
             <Link to="/" className="flex items-center">
-              <img src={image_8f03d5c7f7a5ad0420573e04e40e094b85ac1357} alt="AlClean" className="h-10 md:h-12 cursor-pointer" />
+              <img src={logo} alt="AlClean" className="h-10 md:h-12 cursor-pointer" />
             </Link>
 
             {/* Desktop Navigation */}

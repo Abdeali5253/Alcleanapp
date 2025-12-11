@@ -1,4 +1,4 @@
-import image_8f03d5c7f7a5ad0420573e04e40e094b85ac1357 from 'figma:asset/8f03d5c7f7a5ad0420573e04e40e094b85ac1357.png';
+import logo from '../assets/logo.png';
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { ChevronDown, ChevronUp, MessageCircle, Phone } from "lucide-react";
@@ -99,7 +99,7 @@ export function HelpSupport() {
         <div className="max-w-md mx-auto px-4 py-4 flex items-center justify-center">
           <Link to="/">
             <img
-              src={image_8f03d5c7f7a5ad0420573e04e40e094b85ac1357}
+              src={logo}
               alt="AlClean"
               className="h-10 cursor-pointer"
             />

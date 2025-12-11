@@ -1,4 +1,4 @@
-import image_8f03d5c7f7a5ad0420573e04e40e094b85ac1357 from 'figma:asset/8f03d5c7f7a5ad0420573e04e40e094b85ac1357.png';
+import logo from '../assets/logo.png';
 import { useState, useEffect } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -6,7 +6,7 @@ import { Label } from "./ui/label";
 import { Link, useNavigate } from "react-router-dom";
 import { CheckCircle, Upload, X, Loader2 } from "lucide-react";
 import { authService } from "../lib/auth";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 import { cartService } from "../lib/cart";
 import { orderService } from "../lib/order-service";
 
@@ -186,7 +186,7 @@ export function Checkout() {
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <Link to="/" className="flex items-center">
-              <img src={image_8f03d5c7f7a5ad0420573e04e40e094b85ac1357} alt="AlClean" className="h-12 cursor-pointer" />
+              <img src={logo} alt="AlClean" className="h-12 cursor-pointer" />
             </Link>
             <nav className="flex items-center gap-8">
               <Link to="/about" className="text-gray-700 hover:text-[#6DB33F] transition-colors">
