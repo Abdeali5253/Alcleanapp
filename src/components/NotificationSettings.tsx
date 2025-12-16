@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "./ui/button";
 import { notificationService } from "../lib/notifications";
 import { NotificationSettings as Settings } from "../types/notifications";
-import { toast } from "sonner";
+import { toast } from "sonner@2.0.3";
 
 export function NotificationSettings() {
   const navigate = useNavigate();

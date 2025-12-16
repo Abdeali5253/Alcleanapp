@@ -1,19 +1,18 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import logo from "figma:asset/0d56b91e4ffc112930c8a550a03dc9cfc1f9fbf4.png";
+import { Logo } from "./Logo";
 
 interface SplashScreenProps {
   onFinish: () => void;
 }
 
 export function SplashScreen({ onFinish }: SplashScreenProps) {
-  const [show, setShow] = useState(true);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Hide splash screen after 2 seconds
     const timer = setTimeout(() => {
-      setShow(false);
-      setTimeout(onFinish, 300); // Wait for exit animation
+      setLoading(false);
+      setTimeout(onFinish, 500);
     }, 2000);
 
     return () => clearTimeout(timer);
@@ -21,72 +20,31 @@ export function SplashScreen({ onFinish }: SplashScreenProps) {
 
   return (
     <AnimatePresence>
-      {show && (
+      {loading && (
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
+          initial={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.3 }}
-          className="fixed inset-0 z-[100] bg-gradient-to-br from-[#6DB33F] to-[#5da035] flex items-center justify-center"
+          className="fixed inset-0 bg-[#6DB33F] flex flex-col items-center justify-center z-50"
         >
-          <div className="text-center">
-            {/* Logo Animation */}
+          <motion.div
+            initial={{ scale: 0.5, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.5 }}
+            className="flex flex-col items-center gap-4"
+          >
+            <Logo size="lg" linkTo="" className="text-white text-4xl" />
             <motion.div
-              initial={{ scale: 0.5, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{
-                duration: 0.5,
-                ease: "easeOut",
+              animate={{
+                rotate: 360,
               }}
-              className="mb-8"
-            >
-              <img
-                src={logo}
-                alt="AlClean"
-                className="h-24 mx-auto drop-shadow-2xl"
-              />
-            </motion.div>
-
-            {/* Tagline */}
-            <motion.h2
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
               transition={{
-                delay: 0.3,
-                duration: 0.5,
+                duration: 1,
+                repeat: Infinity,
+                ease: "linear",
               }}
-              className="text-white text-xl font-semibold mb-2"
-            >
-              Premium Cleaning Solutions
-            </motion.h2>
-
-            {/* Loading Dots */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{
-                delay: 0.6,
-                duration: 0.3,
-              }}
-              className="flex gap-2 justify-center"
-            >
-              {[0, 1, 2].map((i) => (
-                <motion.div
-                  key={i}
-                  animate={{
-                    scale: [1, 1.2, 1],
-                    opacity: [0.5, 1, 0.5],
-                  }}
-                  transition={{
-                    duration: 1,
-                    repeat: Infinity,
-                    delay: i * 0.2,
-                  }}
-                  className="w-2 h-2 bg-white rounded-full"
-                />
-              ))}
-            </motion.div>
-          </div>
+              className="w-12 h-12 border-4 border-white border-t-transparent rounded-full"
+            />
+          </motion.div>
         </motion.div>
       )}
     </AnimatePresence>

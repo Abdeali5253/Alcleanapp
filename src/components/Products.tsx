@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Filter, X, ChevronDown } from "lucide-react";
 import { Button } from "./ui/button";
-import { toast } from "sonner";
+import { toast } from "sonner@2.0.3";
 import { UnifiedHeader } from "./UnifiedHeader";
 import { ProductCard } from "./ProductCard";
 import { ProductGrid } from "./ProductGrid";

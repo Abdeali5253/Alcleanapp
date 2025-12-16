@@ -29,7 +29,7 @@ interface CreateOrderRequest {
 async function shopifyGraphQL(query: string, variables: any = {}) {
   const domain = process.env.SHOPIFY_STORE_DOMAIN;
   const token = process.env.SHOPIFY_ADMIN_API_TOKEN;
-  const version = process.env.SHOPIFY_API_VERSION || '2025-07';
+  const version = process.env.SHOPIFY_API_VERSION || '2024-01';
 
   if (!domain || !token) {
     throw new Error('Shopify credentials not configured');
@@ -58,13 +58,11 @@ async function shopifyGraphQL(query: string, variables: any = {}) {
  * Create draft order in Shopify
  */
 async function createDraftOrder(orderData: CreateOrderRequest) {
-  // Prepare line items
   const lineItems = orderData.items.map(item => ({
     variantId: item.variantId,
     quantity: item.quantity,
   }));
 
-  // Split name into first and last
   const nameParts = orderData.customerName.split(' ');
   const firstName = nameParts[0];
   const lastName = nameParts.slice(1).join(' ') || '';
@@ -123,7 +121,6 @@ async function createDraftOrder(orderData: CreateOrderRequest) {
 
   const result = await shopifyGraphQL(mutation, variables);
 
-  // Check for errors
   if (result.data?.draftOrderCreate?.userErrors?.length > 0) {
     const errors = result.data.draftOrderCreate.userErrors;
     const errorMessages = errors.map((e: any) => e.message).join(', ');
@@ -138,7 +135,7 @@ async function createDraftOrder(orderData: CreateOrderRequest) {
 }
 
 /**
- * Complete draft order to create actual order
+ * Complete draft order
  */
 async function completeDraftOrder(draftOrderId: string) {
   const mutation = `
@@ -163,7 +160,6 @@ async function completeDraftOrder(draftOrderId: string) {
   const variables = { id: draftOrderId };
   const result = await shopifyGraphQL(mutation, variables);
 
-  // Check for errors (but don't fail if completion fails)
   if (result.data?.draftOrderComplete?.userErrors?.length > 0) {
     console.warn('Draft order completion errors:', result.data.draftOrderComplete.userErrors);
     return null;
@@ -174,13 +170,11 @@ async function completeDraftOrder(draftOrderId: string) {
 
 /**
  * POST /api/shopify/create-order
- * Create a new order in Shopify
  */
 router.post('/create-order', async (req: Request, res: Response) => {
   try {
     const orderData: CreateOrderRequest = req.body;
 
-    // Validate required fields
     const requiredFields = [
       'orderNumber',
       'customerName',
@@ -204,7 +198,6 @@ router.post('/create-order', async (req: Request, res: Response) => {
       }
     }
 
-    // Validate items array
     if (!Array.isArray(orderData.items) || orderData.items.length === 0) {
       return res.status(400).json({
         success: false,
@@ -214,11 +207,9 @@ router.post('/create-order', async (req: Request, res: Response) => {
 
     console.log(`[Shopify] Creating order: ${orderData.orderNumber}`);
 
-    // Create draft order
     const draftOrder = await createDraftOrder(orderData);
     console.log(`[Shopify] Draft order created: ${draftOrder.id}`);
 
-    // Try to complete the draft order
     let order = null;
     try {
       order = await completeDraftOrder(draftOrder.id);
@@ -226,7 +217,7 @@ router.post('/create-order', async (req: Request, res: Response) => {
         console.log(`[Shopify] Order completed: ${order.id}`);
       }
     } catch (error) {
-      console.warn('[Shopify] Failed to complete draft order, but draft is created:', error);
+      console.warn('[Shopify] Failed to complete draft order:', error);
     }
 
     res.json({

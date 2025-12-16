@@ -4,7 +4,7 @@ import { Button } from "./ui/button";
 import { useNavigate, Link } from "react-router-dom";
 import { UnifiedHeader } from "./UnifiedHeader";
 import { authService } from "../lib/auth";
-import { toast } from "sonner";
+import { toast } from "sonner@2.0.3";
 import { cartService, CartItem } from "../lib/cart";
 
 export function Cart() {

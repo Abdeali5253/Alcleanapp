@@ -31,7 +31,7 @@ const fcmTokens = new Map<string, {
 }>();
 
 /**
- * Send push notification via Firebase Cloud Messaging
+ * Send push notification via FCM
  */
 async function sendFCMNotification(notification: SendNotificationRequest) {
   const serverKey = process.env.FCM_SERVER_KEY;
@@ -70,13 +70,11 @@ async function sendFCMNotification(notification: SendNotificationRequest) {
 
 /**
  * POST /api/notifications/send
- * Send push notification to devices
  */
 router.post('/send', async (req: Request, res: Response) => {
   try {
     const { title, body, tokens, data, icon, clickAction }: SendNotificationRequest = req.body;
 
-    // Validate required fields
     if (!title || !body) {
       return res.status(400).json({
         success: false,
@@ -120,7 +118,6 @@ router.post('/send', async (req: Request, res: Response) => {
 
 /**
  * POST /api/notifications/subscribe
- * Save FCM token for a device
  */
 router.post('/subscribe', async (req: Request, res: Response) => {
   try {
@@ -163,7 +160,6 @@ router.post('/subscribe', async (req: Request, res: Response) => {
 
 /**
  * GET /api/notifications/tokens
- * Get all saved tokens (admin only - add auth in production)
  */
 router.get('/tokens', (req: Request, res: Response) => {
   const tokens = Array.from(fcmTokens.values());
@@ -172,14 +168,13 @@ router.get('/tokens', (req: Request, res: Response) => {
     count: tokens.length,
     tokens: tokens.map(t => ({
       ...t,
-      token: t.token.substring(0, 20) + '...', // Hide full token
+      token: t.token.substring(0, 20) + '...',
     })),
   });
 });
 
 /**
  * POST /api/notifications/send-to-user
- * Send notification to specific user by email or userId
  */
 router.post('/send-to-user', async (req: Request, res: Response) => {
   try {
@@ -199,7 +194,6 @@ router.post('/send-to-user', async (req: Request, res: Response) => {
       });
     }
 
-    // Find tokens for this user
     const userTokens = Array.from(fcmTokens.values())
       .filter(t => t.email === email || t.userId === userId)
       .map(t => t.token);

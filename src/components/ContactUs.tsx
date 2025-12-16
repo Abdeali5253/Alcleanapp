@@ -1,6 +1,6 @@
-import logo from '../assets/logo.png';
 import { MapPin, Phone, Mail } from "lucide-react";
 import { Link } from "react-router-dom";
+import { Logo } from "./Logo";
 
 interface Location {
   city: string;
@@ -44,7 +44,7 @@ export function ContactUs() {
       <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
         <div className="max-w-md mx-auto px-4 py-4 flex items-center justify-center">
           <Link to="/">
-            <img src={logo} alt="AlClean" className="h-10 cursor-pointer" />
+            <Logo className="h-10 cursor-pointer" />
           </Link>
         </div>
       </header>

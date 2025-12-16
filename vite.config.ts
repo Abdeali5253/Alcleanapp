@@ -9,7 +9,7 @@
       extensions: ['.js', '.jsx', '.ts', '.tsx', '.json'],
       alias: {
         'vaul@1.1.2': 'vaul',
-        'sonner': 'sonner',
+        'sonner@2.0.3': 'sonner',
         'recharts@2.15.2': 'recharts',
         'react-resizable-panels@2.1.7': 'react-resizable-panels',
         'react-hook-form@7.55.0': 'react-hook-form',
@@ -17,8 +17,7 @@
         'next-themes@0.4.6': 'next-themes',
         'lucide-react@0.487.0': 'lucide-react',
         'input-otp@1.4.2': 'input-otp',
-        '../assets/logo.png': path.resolve(__dirname, './src/assets/8f03d5c7f7a5ad0420573e04e40e094b85ac1357.png'),
-        'figma:asset/0d56b91e4ffc112930c8a550a03dc9cfc1f9fbf4.png': path.resolve(__dirname, './src/assets/0d56b91e4ffc112930c8a550a03dc9cfc1f9fbf4.png'),
+        'figma:asset/8f03d5c7f7a5ad0420573e04e40e094b85ac1357.png': path.resolve(__dirname, './src/assets/8f03d5c7f7a5ad0420573e04e40e094b85ac1357.png'),
         'embla-carousel-react@8.6.0': 'embla-carousel-react',
         'cmdk@1.1.1': 'cmdk',
         'class-variance-authority@0.7.1': 'class-variance-authority',

@@ -1,7 +1,6 @@
-import logo from '../assets/logo.png';
 import { Link } from "react-router-dom";
 import { Target, Eye, Award, Users } from "lucide-react";
-import logo from "figma:asset/0d56b91e4ffc112930c8a550a03dc9cfc1f9fbf4.png";
+import { Logo } from "./Logo";
 
 export function AboutUs() {
   return (
@@ -9,11 +8,7 @@ export function AboutUs() {
       <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
         <div className="max-w-md mx-auto px-4 py-4 flex items-center justify-center">
           <Link to="/">
-            <img
-              src={logo}
-              alt="AlClean"
-              className="h-10 cursor-pointer"
-            />
+            <Logo className="h-10 cursor-pointer" />
           </Link>
         </div>
       </header>

@@ -1,4 +1,3 @@
-import logo from '../assets/logo.png';
 import { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Search, Menu, X, ShoppingCart, Phone, MessageCircle, Home, Package, User, MapPin, Bell } from "lucide-react";
@@ -6,7 +5,7 @@ import { Input } from "./ui/input";
 import { Button } from "./ui/button";
 import { notificationService } from "../lib/notifications";
 import { SearchDrawer } from "./SearchDrawer";
-import logo from "figma:asset/0d56b91e4ffc112930c8a550a03dc9cfc1f9fbf4.png";
+import { Logo } from "./Logo";
 import { cartService } from "../lib/cart";
 
 interface UnifiedHeaderProps {
@@ -90,9 +89,9 @@ export function UnifiedHeader({ cartCount }: UnifiedHeaderProps) {
             </button>
 
             {/* Logo */}
-            <Link to="/" className="flex items-center">
-              <img src={logo} alt="AlClean" className="h-10 md:h-12 cursor-pointer" />
-            </Link>
+            <div className="flex items-center">
+              <Logo className="h-10 md:h-12 cursor-pointer" linkTo="/" />
+            </div>
 
             {/* Desktop Navigation */}
             <nav className="hidden md:flex items-center gap-6">

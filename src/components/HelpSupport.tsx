@@ -1,8 +1,8 @@
-import logo from '../assets/logo.png';
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { ChevronDown, ChevronUp, MessageCircle, Phone } from "lucide-react";
 import { Button } from "./ui/button";
+import { Logo } from "./Logo";
 
 interface FAQ {
   question: string;
@@ -98,11 +98,7 @@ export function HelpSupport() {
       <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
         <div className="max-w-md mx-auto px-4 py-4 flex items-center justify-center">
           <Link to="/">
-            <img
-              src={logo}
-              alt="AlClean"
-              className="h-10 cursor-pointer"
-            />
+            <Logo />
           </Link>
         </div>
       </header>

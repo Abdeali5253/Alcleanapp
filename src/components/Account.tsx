@@ -1,4 +1,3 @@
-import logo from '../assets/logo.png';
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { 
@@ -16,7 +15,8 @@ import { authService, User as AuthUser } from "../lib/auth";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import { toast } from "sonner";
+import { toast } from "sonner@2.0.3";
+import { Logo } from "./Logo";
 
 const menuItems = [
   {
@@ -129,11 +129,7 @@ export function Account() {
         <header className="bg-white border-b border-gray-200">
           <div className="max-w-md mx-auto px-4 py-4 flex items-center justify-center">
             <Link to="/">
-              <img
-                src={logo}
-                alt="AlClean"
-                className="h-10 cursor-pointer"
-              />
+              <Logo />
             </Link>
           </div>
         </header>
@@ -290,11 +286,7 @@ export function Account() {
       <header className="bg-white border-b border-gray-200">
         <div className="max-w-md mx-auto px-4 py-4 flex items-center justify-center">
           <Link to="/">
-            <img
-              src={logo}
-              alt="AlClean"
-              className="h-10 cursor-pointer"
-            />
+            <Logo />
           </Link>
         </div>
       </header>
