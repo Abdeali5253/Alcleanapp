@@ -214,8 +214,8 @@ function normalizeProduct(item: any): Product {
 
   // Categorize based on product data
   const categoryData = categorizeProduct(
-    item.title || ",
-    item.productType || ",
+    item.title || '',
+    item.productType || '',
     item.tags || []
   );
 
@@ -246,7 +246,7 @@ function normalizeProduct(item: any): Product {
     inStock: v?.availableForSale ?? false,
     quantityAvailable,
     lowStock,
-    productType: item.productType || ",
+    productType: item.productType || '',
     tags: item.tags || [],
 
     category: categoryData.category,
