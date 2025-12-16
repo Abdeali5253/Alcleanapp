@@ -1,6 +1,6 @@
 
   {
-      "name": "Alclean app",
+      "name": "alclean-app",
       "version": "0.1.0",
       "private": true,
       "dependencies": {
