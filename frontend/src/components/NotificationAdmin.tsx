@@ -9,11 +9,11 @@ import { NotificationType, NotificationSegment } from "../types/notifications";
 import { toast } from "sonner";
 
 export function NotificationAdmin() {
-  const [title, setTitle] = useState(");
-  const [body, setBody] = useState(");
+  const [title, setTitle] = useState('');
+  const [body, setBody] = useState('');
   const [type, setType] = useState<NotificationType>("general");
   const [segment, setSegment] = useState<NotificationSegment>("all_users");
-  const [discountCode, setDiscountCode] = useState(");
+  const [discountCode, setDiscountCode] = useState('');
   const [isSending, setIsSending] = useState(false);
 
   const notificationTypes: { value: NotificationType; label: string; icon: any }[] = [
