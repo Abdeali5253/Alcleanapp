@@ -216,7 +216,7 @@ export function NotificationInbox() {
                 key={notification.id}
                 onClick={() => handleNotificationClick(notification)}
                 className={`bg-white rounded-xl border border-gray-200 p-4 cursor-pointer transition-all hover:shadow-md ${
-                  !notification.read ? "bg-blue-50 border-blue-200" : "
+                  !notification.read ? "bg-blue-50 border-blue-200" : ''
                 }`}
               >
                 <div className="flex gap-4">
