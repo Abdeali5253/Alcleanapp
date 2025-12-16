@@ -11,13 +11,13 @@ export function Logo({ className = "", linkTo = "/", size = "md" }: LogoProps) {
   const sizeClasses = {
     sm: "h-8 w-auto",
     md: "h-10 w-auto",
-    lg: "h-12 w-auto"
+    lg: "h-14 w-auto"
   };
 
   const logoContent = (
     <img 
       src={logoImage} 
-      alt="AlClean Logo" 
+      alt="AlClean" 
       className={`${sizeClasses[size]} object-contain ${className}`}
     />
   );
