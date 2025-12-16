@@ -5,7 +5,7 @@ import { Label } from "./ui/label";
 import { Link, useNavigate } from "react-router-dom";
 import { CheckCircle, Upload, X, Loader2 } from "lucide-react";
 import { authService } from "../lib/auth";
-import { toast } from "sonner"";
+import { toast } from "sonner";
 import { cartService } from "../lib/cart";
 import { orderService } from "../lib/order-service";
 import { Logo } from "./Logo";
@@ -20,13 +20,13 @@ export function Checkout() {
   const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [orderNumber, setOrderNumber] = useState("");
+  const [orderNumber, setOrderNumber] = useState(");
 
   // Form fields
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [address, setAddress] = useState("");
+  const [name, setName] = useState(");
+  const [email, setEmail] = useState(");
+  const [phone, setPhone] = useState(");
+  const [address, setAddress] = useState(");
   const [city, setCity] = useState("Karachi");
 
   // Get cart data
@@ -50,9 +50,9 @@ export function Checkout() {
         // Pre-fill form with user data
         const user = authService.getCurrentUser();
         if (user) {
-          setName(user.name || "");
-          setEmail(user.email || "");
-          setPhone(user.phone || "");
+          setName(user.name || ");
+          setEmail(user.email || ");
+          setPhone(user.phone || ");
         }
         setIsCheckingAuth(false);
       }

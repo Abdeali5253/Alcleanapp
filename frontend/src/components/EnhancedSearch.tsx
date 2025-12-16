@@ -22,7 +22,7 @@ const popularSearches = [
 const recentSearchesKey = "alclean_recent_searches";
 
 export function EnhancedSearch({ isOpen, onClose }: EnhancedSearchProps) {
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState(");
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);

@@ -2,11 +2,11 @@
 import { Product } from "../types/shopify";
 
 // Get configuration from environment variables
-const SHOPIFY_DOMAIN = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SHOPIFY_STORE_DOMAIN) || "";
-const SHOPIFY_TOKEN = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SHOPIFY_STOREFRONT_TOKEN) || "";
+const SHOPIFY_DOMAIN = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SHOPIFY_STORE_DOMAIN) || ";
+const SHOPIFY_TOKEN = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SHOPIFY_STOREFRONT_TOKEN) || ";
 const SHOPIFY_API_VERSION = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SHOPIFY_API_VERSION) || "2025-07";
 
-const SHOPIFY_URL = SHOPIFY_DOMAIN ? `https://${SHOPIFY_DOMAIN}/api/${SHOPIFY_API_VERSION}/graphql.json` : "";
+const SHOPIFY_URL = SHOPIFY_DOMAIN ? `https://${SHOPIFY_DOMAIN}/api/${SHOPIFY_API_VERSION}/graphql.json` : ";
 
 // Collection mapping based on user's Shopify store
 export const COLLECTION_MAPPING = {
@@ -214,8 +214,8 @@ function normalizeProduct(item: any): Product {
 
   // Categorize based on product data
   const categoryData = categorizeProduct(
-    item.title || "",
-    item.productType || "",
+    item.title || ",
+    item.productType || ",
     item.tags || []
   );
 
@@ -246,7 +246,7 @@ function normalizeProduct(item: any): Product {
     inStock: v?.availableForSale ?? false,
     quantityAvailable,
     lowStock,
-    productType: item.productType || "",
+    productType: item.productType || ",
     tags: item.tags || [],
 
     category: categoryData.category,

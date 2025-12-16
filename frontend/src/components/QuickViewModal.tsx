@@ -86,7 +86,7 @@ export function QuickViewModal({
                       : "text-red-700 bg-red-50"
                   }`}>
                     {product.inStock 
-                      ? `In Stock ${product.quantityAvailable > 0 ? `(${product.quantityAvailable} available)` : ""}` 
+                      ? `In Stock ${product.quantityAvailable > 0 ? `(${product.quantityAvailable} available)` : "}` 
                       : "Out of Stock"}
                   </span>
                 </div>

@@ -5,16 +5,16 @@ import { authService, User } from "../lib/auth";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import { toast } from "sonner"";
+import { toast } from "sonner";
 import { Logo } from "./Logo";
 
 export function EditProfile() {
   const navigate = useNavigate();
   const currentUser = authService.getCurrentUser();
   
-  const [name, setName] = useState(currentUser?.name || "");
-  const [email, setEmail] = useState(currentUser?.email || "");
-  const [phone, setPhone] = useState(currentUser?.phone || "");
+  const [name, setName] = useState(currentUser?.name || ");
+  const [email, setEmail] = useState(currentUser?.email || ");
+  const [phone, setPhone] = useState(currentUser?.phone || ");
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {

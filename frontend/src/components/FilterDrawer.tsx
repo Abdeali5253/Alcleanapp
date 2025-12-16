@@ -158,7 +158,7 @@ export function FilterDrawer({
                     <ChevronDown
                       size={18}
                       className={`text-gray-500 transition-transform duration-200 ${
-                        expandedCategories.includes(category.id) ? "rotate-180" : ""
+                        expandedCategories.includes(category.id) ? "rotate-180" : "
                       }`}
                     />
                   </button>

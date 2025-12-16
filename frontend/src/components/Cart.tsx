@@ -4,7 +4,7 @@ import { Button } from "./ui/button";
 import { useNavigate, Link } from "react-router-dom";
 import { UnifiedHeader } from "./UnifiedHeader";
 import { authService } from "../lib/auth";
-import { toast } from "sonner"";
+import { toast } from "sonner";
 import { cartService, CartItem } from "../lib/cart";
 
 export function Cart() {
@@ -88,7 +88,7 @@ export function Cart() {
                 >
                   <div className="flex gap-4">
                     <img
-                      src={item.product.image || ""}
+                      src={item.product.image || "}
                       alt={item.product.title}
                       className="w-24 h-24 object-cover rounded-lg bg-gray-100"
                     />

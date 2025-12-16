@@ -6,14 +6,14 @@ import { Label } from "./ui/label";
 import { UnifiedHeader } from "./UnifiedHeader";
 import { notificationService } from "../lib/notifications";
 import { NotificationType, NotificationSegment } from "../types/notifications";
-import { toast } from "sonner"";
+import { toast } from "sonner";
 
 export function NotificationAdmin() {
-  const [title, setTitle] = useState("");
-  const [body, setBody] = useState("");
+  const [title, setTitle] = useState(");
+  const [body, setBody] = useState(");
   const [type, setType] = useState<NotificationType>("general");
   const [segment, setSegment] = useState<NotificationSegment>("all_users");
-  const [discountCode, setDiscountCode] = useState("");
+  const [discountCode, setDiscountCode] = useState(");
   const [isSending, setIsSending] = useState(false);
 
   const notificationTypes: { value: NotificationType; label: string; icon: any }[] = [
@@ -94,9 +94,9 @@ export function NotificationAdmin() {
       toast.success("Notification sent successfully! 🎉");
       
       // Clear form
-      setTitle("");
-      setBody("");
-      setDiscountCode("");
+      setTitle(");
+      setBody(");
+      setDiscountCode(");
     } catch (error) {
       toast.error("Failed to send notification");
     } finally {

@@ -31,7 +31,7 @@ export function Products() {
   const [selectedSubcategories, setSelectedSubcategories] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
   const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState(");
   const [wishlist, setWishlist] = useState<string[]>([]);
   const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
   const [quantities, setQuantities] = useState<Record<string, number>>({});
@@ -147,7 +147,7 @@ export function Products() {
 
   const clearFilters = () => {
     setSelectedSubcategories([]);
-    setSearchQuery("");
+    setSearchQuery(");
     setCategoryFilter("all");
     setFilters(defaultFilters);
     navigate('/products');
@@ -267,7 +267,7 @@ export function Products() {
                 Filter by Subcategory
               </label>
               <select
-                value={selectedSubcategories[0] || ""}
+                value={selectedSubcategories[0] || "}
                 onChange={(e) => {
                   if (e.target.value) {
                     setSelectedSubcategories([e.target.value]);
@@ -277,7 +277,7 @@ export function Products() {
                 }}
                 className="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white text-sm font-medium text-gray-700 hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#6DB33F]/20 transition-all"
               >
-                <option value="">All {categoryFilter === "cleaning-chemicals" ? "Chemicals" : "Equipment"}</option>
+                <option value=">All {categoryFilter === "cleaning-chemicals" ? "Chemicals" : "Equipment"}</option>
                 {categories
                   .find(cat => cat.id === categoryFilter)
                   ?.subcategories.map(sub => (
@@ -341,7 +341,7 @@ export function Products() {
                 <Search size={14} />
                 "{searchQuery}"
                 <button onClick={() => {
-                  setSearchQuery("");
+                  setSearchQuery(");
                   navigate('/products');
                 }} className="hover:bg-blue-100 rounded-full p-0.5 transition-colors">
                   <X size={14} />

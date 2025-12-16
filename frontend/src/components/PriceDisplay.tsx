@@ -9,7 +9,7 @@ export function PriceDisplay({
   price, 
   originalPrice, 
   size = "md",
-  className = "" 
+  className = " 
 }: PriceDisplayProps) {
   const sizes = {
     sm: {

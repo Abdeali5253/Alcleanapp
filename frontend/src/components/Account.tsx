@@ -15,7 +15,7 @@ import { authService, User as AuthUser } from "../lib/auth";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import { toast } from "sonner"";
+import { toast } from "sonner";
 import { Logo } from "./Logo";
 
 const menuItems = [
@@ -63,10 +63,10 @@ export function Account() {
   const [user, setUser] = useState<AuthUser | null>(authService.getCurrentUser());
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [isSignup, setIsSignup] = useState(false);
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [phone, setPhone] = useState("");
+  const [name, setName] = useState(");
+  const [email, setEmail] = useState(");
+  const [password, setPassword] = useState(");
+  const [phone, setPhone] = useState(");
 
   useEffect(() => {
     // Subscribe to auth changes
@@ -255,10 +255,10 @@ export function Account() {
                 <button 
                   onClick={() => {
                     setIsSignup(!isSignup);
-                    setEmail("");
-                    setPassword("");
-                    setName("");
-                    setPhone("");
+                    setEmail(");
+                    setPassword(");
+                    setName(");
+                    setPhone(");
                   }}
                   className="text-[#6DB33F] hover:underline"
                 >

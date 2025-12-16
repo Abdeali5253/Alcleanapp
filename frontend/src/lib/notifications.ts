@@ -14,12 +14,12 @@ const getFirebaseConfig = () => {
   const env = typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env : {};
   
   return {
-    apiKey: env.VITE_FIREBASE_API_KEY || "",
-    authDomain: env.VITE_FIREBASE_AUTH_DOMAIN || "",
+    apiKey: env.VITE_FIREBASE_API_KEY || ",
+    authDomain: env.VITE_FIREBASE_AUTH_DOMAIN || ",
     projectId: env.VITE_FIREBASE_PROJECT_ID || "app-notification-5e56b",
-    storageBucket: env.VITE_FIREBASE_STORAGE_BUCKET || "",
-    messagingSenderId: env.VITE_FIREBASE_MESSAGING_SENDER_ID || "",
-    appId: env.VITE_FIREBASE_APP_ID || "",
+    storageBucket: env.VITE_FIREBASE_STORAGE_BUCKET || ",
+    messagingSenderId: env.VITE_FIREBASE_MESSAGING_SENDER_ID || ",
+    appId: env.VITE_FIREBASE_APP_ID || ",
   };
 };
 
@@ -390,7 +390,7 @@ class NotificationService {
 
   private getPlatform(): "web" | "android" | "ios" {
     // Detect platform
-    const userAgent = navigator.userAgent || "";
+    const userAgent = navigator.userAgent || ";
     if (/android/i.test(userAgent)) return "android";
     if (/iPad|iPhone|iPod/.test(userAgent)) return "ios";
     return "web";

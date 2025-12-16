@@ -155,14 +155,14 @@ export function NotificationInbox() {
             <Button
               variant={filter === "all" ? "default" : "outline"}
               onClick={() => setFilter("all")}
-              className={filter === "all" ? "bg-[#6DB33F] hover:bg-[#5da035]" : ""}
+              className={filter === "all" ? "bg-[#6DB33F] hover:bg-[#5da035]" : "}
             >
               All ({notifications.length})
             </Button>
             <Button
               variant={filter === "unread" ? "default" : "outline"}
               onClick={() => setFilter("unread")}
-              className={filter === "unread" ? "bg-[#6DB33F] hover:bg-[#5da035]" : ""}
+              className={filter === "unread" ? "bg-[#6DB33F] hover:bg-[#5da035]" : "}
             >
               Unread ({unreadCount})
             </Button>
@@ -216,7 +216,7 @@ export function NotificationInbox() {
                 key={notification.id}
                 onClick={() => handleNotificationClick(notification)}
                 className={`bg-white rounded-xl border border-gray-200 p-4 cursor-pointer transition-all hover:shadow-md ${
-                  !notification.read ? "bg-blue-50 border-blue-200" : ""
+                  !notification.read ? "bg-blue-50 border-blue-200" : "
                 }`}
               >
                 <div className="flex gap-4">
@@ -264,7 +264,7 @@ export function NotificationInbox() {
                   <div className="mt-3 rounded-lg overflow-hidden">
                     <img
                       src={notification.imageUrl}
-                      alt=""
+                      alt="
                       className="w-full h-32 object-cover"
                     />
                   </div>
