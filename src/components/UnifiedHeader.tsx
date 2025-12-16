@@ -4,7 +4,7 @@ import { Search, Menu, X, ShoppingCart, Phone, MessageCircle, Home, Package, Use
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
 import { notificationService } from "../lib/notifications";
-import { SearchDrawer } from "./SearchDrawer";
+import { EnhancedSearch } from "./EnhancedSearch";
 import { Logo } from "./Logo";
 import { cartService } from "../lib/cart";
 
