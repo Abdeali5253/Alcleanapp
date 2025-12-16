@@ -88,7 +88,7 @@ export function Cart() {
                 >
                   <div className="flex gap-4">
                     <img
-                      src={item.product.image || "}
+                      src={item.product.image || ''}
                       alt={item.product.title}
                       className="w-24 h-24 object-cover rounded-lg bg-gray-100"
                     />

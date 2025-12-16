@@ -267,7 +267,7 @@ export function Products() {
                 Filter by Subcategory
               </label>
               <select
-                value={selectedSubcategories[0] || "}
+                value={selectedSubcategories[0] || ''}
                 onChange={(e) => {
                   if (e.target.value) {
                     setSelectedSubcategories([e.target.value]);
