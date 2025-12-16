@@ -2,8 +2,8 @@
 import { Product } from "../types/shopify";
 
 // Get configuration from environment variables
-const SHOPIFY_DOMAIN = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SHOPIFY_STORE_DOMAIN) || ";
-const SHOPIFY_TOKEN = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SHOPIFY_STOREFRONT_TOKEN) || ";
+const SHOPIFY_DOMAIN = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SHOPIFY_STORE_DOMAIN) || '';
+const SHOPIFY_TOKEN = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SHOPIFY_STOREFRONT_TOKEN) || '';
 const SHOPIFY_API_VERSION = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SHOPIFY_API_VERSION) || "2025-07";
 
 const SHOPIFY_URL = SHOPIFY_DOMAIN ? `https://${SHOPIFY_DOMAIN}/api/${SHOPIFY_API_VERSION}/graphql.json` : ";
