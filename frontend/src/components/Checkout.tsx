@@ -20,13 +20,13 @@ export function Checkout() {
   const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [orderNumber, setOrderNumber] = useState(");
+  const [orderNumber, setOrderNumber] = useState('');
 
   // Form fields
-  const [name, setName] = useState(");
-  const [email, setEmail] = useState(");
-  const [phone, setPhone] = useState(");
-  const [address, setAddress] = useState(");
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [address, setAddress] = useState('');
   const [city, setCity] = useState("Karachi");
 
   // Get cart data

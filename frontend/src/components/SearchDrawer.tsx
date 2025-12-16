@@ -11,7 +11,7 @@ interface SearchDrawerProps {
 }
 
 export function SearchDrawer({ isOpen, onClose }: SearchDrawerProps) {
-  const [searchQuery, setSearchQuery] = useState(");
+  const [searchQuery, setSearchQuery] = useState('');
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);

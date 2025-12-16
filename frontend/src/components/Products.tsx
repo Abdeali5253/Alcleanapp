@@ -31,7 +31,7 @@ export function Products() {
   const [selectedSubcategories, setSelectedSubcategories] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
   const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
-  const [searchQuery, setSearchQuery] = useState(");
+  const [searchQuery, setSearchQuery] = useState('');
   const [wishlist, setWishlist] = useState<string[]>([]);
   const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
   const [quantities, setQuantities] = useState<Record<string, number>>({});

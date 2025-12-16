@@ -63,10 +63,10 @@ export function Account() {
   const [user, setUser] = useState<AuthUser | null>(authService.getCurrentUser());
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [isSignup, setIsSignup] = useState(false);
-  const [name, setName] = useState(");
-  const [email, setEmail] = useState(");
-  const [password, setPassword] = useState(");
-  const [phone, setPhone] = useState(");
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [phone, setPhone] = useState('');
 
   useEffect(() => {
     // Subscribe to auth changes
