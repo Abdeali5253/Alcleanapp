@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "./ui/button";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 import { UnifiedHeader } from "./UnifiedHeader";
 import { ProductCard } from "./ProductCard";
 import { QuickViewModal } from "./QuickViewModal";
