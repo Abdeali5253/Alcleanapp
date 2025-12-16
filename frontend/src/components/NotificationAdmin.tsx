@@ -6,7 +6,7 @@ import { Label } from "./ui/label";
 import { UnifiedHeader } from "./UnifiedHeader";
 import { notificationService } from "../lib/notifications";
 import { NotificationType, NotificationSegment } from "../types/notifications";
-import { toast } from "sonner"";
+import { toast } from "sonner";
 
 export function NotificationAdmin() {
   const [title, setTitle] = useState("");

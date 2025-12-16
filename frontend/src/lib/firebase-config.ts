@@ -23,7 +23,7 @@ export const firebaseConfig = getFirebaseConfig();
 // Get this from Firebase Console > Project Settings > Cloud Messaging > Web Push certificates
 const getVapidKey = () => {
   const env = typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env : {};
-  return env.VITE_FIREBASE_VAPID_KEY || "";
+  return env.VITE_FIREBASE_VAPID_KEY || ";
 };
 
 export const VAPID_KEY = getVapidKey();

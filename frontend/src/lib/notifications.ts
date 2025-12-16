@@ -390,7 +390,7 @@ class NotificationService {
 
   private getPlatform(): "web" | "android" | "ios" {
     // Detect platform
-    const userAgent = navigator.userAgent || "";
+    const userAgent = navigator.userAgent || ";
     if (/android/i.test(userAgent)) return "android";
     if (/iPad|iPhone|iPod/.test(userAgent)) return "ios";
     return "web";
