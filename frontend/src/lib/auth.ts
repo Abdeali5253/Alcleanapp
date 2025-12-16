@@ -16,8 +16,8 @@ const AUTH_STORAGE_KEY = 'alclean_auth';
 const REDIRECT_STORAGE_KEY = 'alclean_redirect_after_login';
 
 // Shopify Customer API Configuration
-const SHOPIFY_STORE_DOMAIN = typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_SHOPIFY_STORE_DOMAIN : ";
-const SHOPIFY_STOREFRONT_TOKEN = typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_SHOPIFY_STOREFRONT_TOKEN : ";
+const SHOPIFY_STORE_DOMAIN = typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_SHOPIFY_STORE_DOMAIN : '';
+const SHOPIFY_STOREFRONT_TOKEN = typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_SHOPIFY_STOREFRONT_TOKEN : '';
 
 // GraphQL Mutations for Shopify Customer
 const CREATE_CUSTOMER = `
