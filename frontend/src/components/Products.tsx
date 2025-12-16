@@ -277,7 +277,7 @@ export function Products() {
                 }}
                 className="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white text-sm font-medium text-gray-700 hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#6DB33F]/20 transition-all"
               >
-                <option value=">All {categoryFilter === "cleaning-chemicals" ? "Chemicals" : "Equipment"}</option>
+                <option value="">All {categoryFilter === "cleaning-chemicals" ? "Chemicals" : "Equipment"}</option>
                 {categories
                   .find(cat => cat.id === categoryFilter)
                   ?.subcategories.map(sub => (
