@@ -290,8 +290,8 @@ export function UnifiedHeader({ cartCount }: UnifiedHeaderProps) {
         </div>
       )}
 
-      {/* Search Drawer */}
-      <SearchDrawer isOpen={showSearchDrawer} onClose={() => setShowSearchDrawer(false)} />
+      {/* Enhanced Search */}
+      <EnhancedSearch isOpen={showSearchDrawer} onClose={() => setShowSearchDrawer(false)} />
     </>
   );
 }
