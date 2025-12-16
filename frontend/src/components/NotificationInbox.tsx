@@ -155,14 +155,14 @@ export function NotificationInbox() {
             <Button
               variant={filter === "all" ? "default" : "outline"}
               onClick={() => setFilter("all")}
-              className={filter === "all" ? "bg-[#6DB33F] hover:bg-[#5da035]" : "}
+              className={filter === "all" ? "bg-[#6DB33F] hover:bg-[#5da035]" : ''}
             >
               All ({notifications.length})
             </Button>
             <Button
               variant={filter === "unread" ? "default" : "outline"}
               onClick={() => setFilter("unread")}
-              className={filter === "unread" ? "bg-[#6DB33F] hover:bg-[#5da035]" : "}
+              className={filter === "unread" ? "bg-[#6DB33F] hover:bg-[#5da035]" : ''}
             >
               Unread ({unreadCount})
             </Button>
