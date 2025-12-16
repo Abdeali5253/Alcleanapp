@@ -1,40 +1,55 @@
 import { useState, useEffect } from "react";
-import { Filter, X, ChevronDown } from "lucide-react";
+import { Filter, X, Search, Grid3X3, LayoutGrid, Sparkles } from "lucide-react";
 import { Button } from "./ui/button";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 import { UnifiedHeader } from "./UnifiedHeader";
 import { ProductCard } from "./ProductCard";
 import { ProductGrid } from "./ProductGrid";
 import { FilterDrawer } from "./FilterDrawer";
 import { QuickViewModal } from "./QuickViewModal";
+import { QuickFilters, FilterState, defaultFilters } from "./QuickFilters";
 import { Product } from "../types/shopify";
 import { categories } from "../lib/categories";
-import { getAllProducts, getProductsByCollection } from "../lib/shopify";
+import { getAllProducts } from "../lib/shopify";
 import { ProductCardSkeleton } from "./ProductCardSkeleton";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { cartService } from "../lib/cart";
+
+type CategoryFilter = "all" | "cleaning-chemicals" | "cleaning-equipment" | "car-washing" | "bathroom-cleaning" | "fabric-cleaning" | "dishwashing";
+
+const categoryInfo: Record<CategoryFilter, { name: string; emoji: string; color: string }> = {
+  "all": { name: "All Products", emoji: "📦", color: "#6DB33F" },
+  "cleaning-chemicals": { name: "Cleaning Chemicals", emoji: "🧪", color: "#9B59B6" },
+  "cleaning-equipment": { name: "Cleaning Equipment", emoji: "🧹", color: "#E74C3C" },
+  "dishwashing": { name: "Dishwashing", emoji: "🍽️", color: "#FF6B6B" },
+  "car-washing": { name: "Car Washing", emoji: "🚗", color: "#6DB33F" },
+  "fabric-cleaning": { name: "Fabric Cleaning", emoji: "👕", color: "#00A3E0" },
+  "bathroom-cleaning": { name: "Bathroom Cleaning", emoji: "🚿", color: "#00A3E0" },
+};
 
 export function Products() {
   const [selectedSubcategories, setSelectedSubcategories] = useState<string[]>([]);
-  const [sortBy, setSortBy] = useState("featured");
   const [showFilters, setShowFilters] = useState(false);
   const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [priceRange, setPriceRange] = useState<[number, number]>([0, 70000]);
-  const [stockFilter, setStockFilter] = useState<"all" | "instock" | "outofstock">("all");
   const [wishlist, setWishlist] = useState<string[]>([]);
   const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
   const [quantities, setQuantities] = useState<Record<string, number>>({});
-  const [categoryFilter, setCategoryFilter] = useState<"all" | "cleaning-chemicals" | "cleaning-equipment" | "car-washing" | "bathroom-cleaning" | "fabric-cleaning" | "dishwashing">("all");
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filters, setFilters] = useState<FilterState>(defaultFilters);
+  const [viewMode, setViewMode] = useState<'grid' | 'compact'>('grid');
   const location = useLocation();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   // Parse URL parameters and set filters
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const category = params.get("category");
     const subcategory = params.get("subcategory");
+    const search = params.get("search");
 
     // Reset filters first
     setCategoryFilter("all");
@@ -43,19 +58,22 @@ export function Products() {
     if (category) {
       const validCategories = ["cleaning-chemicals", "cleaning-equipment", "car-washing", "bathroom-cleaning", "fabric-cleaning", "dishwashing"];
       if (validCategories.includes(category)) {
-        setCategoryFilter(category as any);
+        setCategoryFilter(category as CategoryFilter);
       }
     }
 
     if (subcategory) {
       setSelectedSubcategories([subcategory]);
-      // Also expand the parent category for this subcategory
       const parentCategory = categories.find(cat =>
         cat.subcategories.some(sub => sub.id === subcategory)
       );
       if (parentCategory && !expandedCategories.includes(parentCategory.id)) {
         setExpandedCategories([...expandedCategories, parentCategory.id]);
       }
+    }
+
+    if (search) {
+      setSearchQuery(search);
     }
   }, [location.search]);
 
@@ -64,8 +82,6 @@ export function Products() {
     const fetchProducts = async () => {
       try {
         setLoading(true);
-        
-        // Fetch all products and let tag-based categorization handle it
         const products = await getAllProducts(250);
         
         console.log('[Products] Loaded products:', {
@@ -78,10 +94,6 @@ export function Products() {
             fabric: products.filter(p => p.category === 'fabric-cleaning').length,
             dishwashing: products.filter(p => p.category === 'dishwashing').length,
           },
-          bySubcategory: products.reduce((acc, p) => {
-            acc[p.subcategory] = (acc[p.subcategory] || 0) + 1;
-            return acc;
-          }, {} as Record<string, number>),
         });
         
         setAllProducts(products);
@@ -136,131 +148,118 @@ export function Products() {
   const clearFilters = () => {
     setSelectedSubcategories([]);
     setSearchQuery("");
-    setPriceRange([0, 70000]);
-    setStockFilter("all");
     setCategoryFilter("all");
+    setFilters(defaultFilters);
+    navigate('/products');
   };
 
   // Filter products
   let filteredProducts = allProducts;
 
+  // Search filter
   if (searchQuery) {
-    const beforeSearch = filteredProducts.length;
+    const query = searchQuery.toLowerCase();
     filteredProducts = filteredProducts.filter(p => 
-      p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.description?.toLowerCase().includes(searchQuery.toLowerCase())
+      p.title.toLowerCase().includes(query) ||
+      p.description?.toLowerCase().includes(query) ||
+      p.tags.some(t => t.toLowerCase().includes(query))
     );
-    console.log(`[Filter] Search "${searchQuery}": ${beforeSearch} → ${filteredProducts.length} products`);
   }
 
+  // Category filter
+  if (categoryFilter !== "all") {
+    filteredProducts = filteredProducts.filter(p => p.category === categoryFilter);
+  }
+
+  // Subcategory filter
   if (selectedSubcategories.length > 0) {
-    const beforeSubcat = filteredProducts.length;
     filteredProducts = filteredProducts.filter(p => selectedSubcategories.includes(p.subcategory));
-    console.log(`[Filter] Subcategories ${selectedSubcategories.join(', ')}: ${beforeSubcat} → ${filteredProducts.length} products`);
   }
 
-  filteredProducts = filteredProducts.filter(p => p.price >= priceRange[0] && p.price <= priceRange[1]);
+  // Price range filter
+  if (filters.priceRange !== 'all') {
+    filteredProducts = filteredProducts.filter(p => {
+      switch (filters.priceRange) {
+        case 'under500': return p.price < 500;
+        case '500to1000': return p.price >= 500 && p.price <= 1000;
+        case '1000to5000': return p.price >= 1000 && p.price <= 5000;
+        case 'over5000': return p.price > 5000;
+        default: return true;
+      }
+    });
+  }
 
-  if (stockFilter === "instock") {
+  // Stock filter
+  if (filters.stockStatus === "instock") {
     filteredProducts = filteredProducts.filter(p => p.inStock);
-  } else if (stockFilter === "outofstock") {
+  } else if (filters.stockStatus === "outofstock") {
     filteredProducts = filteredProducts.filter(p => !p.inStock);
   }
 
-  if (categoryFilter !== "all") {
-    const beforeCat = filteredProducts.length;
-    filteredProducts = filteredProducts.filter(p => p.category === categoryFilter);
-    console.log(`[Filter] Category "${categoryFilter}": ${beforeCat} → ${filteredProducts.length} products`);
+  // On sale filter
+  if (filters.onSale) {
+    filteredProducts = filteredProducts.filter(p => p.onSale && p.discountPercent > 0);
   }
 
   // Sort products
   const sortedProducts = [...filteredProducts].sort((a, b) => {
-    if (sortBy === "price-low") return a.price - b.price;
-    if (sortBy === "price-high") return b.price - a.price;
-    if (sortBy === "name") return a.title.localeCompare(b.title);
-    return 0;
+    switch (filters.sortBy) {
+      case "price-low": return a.price - b.price;
+      case "price-high": return b.price - a.price;
+      case "name": return a.title.localeCompare(b.title);
+      case "discount": return b.discountPercent - a.discountPercent;
+      default: return 0;
+    }
   });
+
+  const currentCategoryInfo = categoryInfo[categoryFilter];
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white pb-24 md:pb-8">
       <UnifiedHeader />
 
       <div className="max-w-7xl mx-auto px-4 py-6 md:py-8">
-        {/* Category Filter Buttons */}
-        <div className="flex gap-3 mb-6 overflow-x-auto pb-2 scrollbar-hide">
-          <button
-            onClick={() => setCategoryFilter("all")}
-            className={`px-6 py-3 rounded-xl font-medium transition-all whitespace-nowrap ${
-              categoryFilter === "all"
-                ? "bg-gradient-to-r from-[#6DB33F] to-[#5da035] text-white shadow-md"
-                : "bg-white text-gray-700 border border-gray-200 hover:border-[#6DB33F]/30 hover:shadow-md"
-            }`}
-          >
-            All Products
-          </button>
-          <button
-            onClick={() => setCategoryFilter("cleaning-chemicals")}
-            className={`px-6 py-3 rounded-xl font-medium transition-all whitespace-nowrap ${
-              categoryFilter === "cleaning-chemicals"
-                ? "bg-gradient-to-r from-[#6DB33F] to-[#5da035] text-white shadow-md"
-                : "bg-white text-gray-700 border border-gray-200 hover:border-[#6DB33F]/30 hover:shadow-md"
-            }`}
-          >
-            Cleaning Chemicals
-          </button>
-          <button
-            onClick={() => setCategoryFilter("cleaning-equipment")}
-            className={`px-6 py-3 rounded-xl font-medium transition-all whitespace-nowrap ${
-              categoryFilter === "cleaning-equipment"
-                ? "bg-gradient-to-r from-[#6DB33F] to-[#5da035] text-white shadow-md"
-                : "bg-white text-gray-700 border border-gray-200 hover:border-[#6DB33F]/30 hover:shadow-md"
-            }`}
-          >
-            Cleaning Equipment
-          </button>
-          <button
-            onClick={() => setCategoryFilter("dishwashing")}
-            className={`px-6 py-3 rounded-xl font-medium transition-all whitespace-nowrap ${
-              categoryFilter === "dishwashing"
-                ? "bg-gradient-to-r from-[#6DB33F] to-[#5da035] text-white shadow-md"
-                : "bg-white text-gray-700 border border-gray-200 hover:border-[#6DB33F]/30 hover:shadow-md"
-            }`}
-          >
-            Dishwashing
-          </button>
-          <button
-            onClick={() => setCategoryFilter("car-washing")}
-            className={`px-6 py-3 rounded-xl font-medium transition-all whitespace-nowrap ${
-              categoryFilter === "car-washing"
-                ? "bg-gradient-to-r from-[#6DB33F] to-[#5da035] text-white shadow-md"
-                : "bg-white text-gray-700 border border-gray-200 hover:border-[#6DB33F]/30 hover:shadow-md"
-            }`}
-          >
-            Car Washing
-          </button>
-          <button
-            onClick={() => setCategoryFilter("fabric-cleaning")}
-            className={`px-6 py-3 rounded-xl font-medium transition-all whitespace-nowrap ${
-              categoryFilter === "fabric-cleaning"
-                ? "bg-gradient-to-r from-[#6DB33F] to-[#5da035] text-white shadow-md"
-                : "bg-white text-gray-700 border border-gray-200 hover:border-[#6DB33F]/30 hover:shadow-md"
-            }`}
-          >
-            Fabric Cleaning
-          </button>
-          <button
-            onClick={() => setCategoryFilter("bathroom-cleaning")}
-            className={`px-6 py-3 rounded-xl font-medium transition-all whitespace-nowrap ${
-              categoryFilter === "bathroom-cleaning"
-                ? "bg-gradient-to-r from-[#6DB33F] to-[#5da035] text-white shadow-md"
-                : "bg-white text-gray-700 border border-gray-200 hover:border-[#6DB33F]/30 hover:shadow-md"
-            }`}
-          >
-            Bathroom Cleaning
-          </button>
+        {/* Page Header */}
+        <div className="mb-6">
+          <div className="flex items-center gap-3 mb-2">
+            <span className="text-3xl">{currentCategoryInfo.emoji}</span>
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
+              {currentCategoryInfo.name}
+            </h1>
+          </div>
+          {searchQuery && (
+            <p className="text-gray-600">
+              Showing results for "<span className="font-medium text-[#6DB33F]">{searchQuery}</span>"
+            </p>
+          )}
         </div>
 
-        {/* Subcategory Dropdowns for Cleaning Chemicals and Equipment */}
+        {/* Category Filter Buttons */}
+        <div className="flex gap-3 mb-6 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4">
+          {(Object.keys(categoryInfo) as CategoryFilter[]).map((cat) => {
+            const info = categoryInfo[cat];
+            const isActive = categoryFilter === cat;
+            return (
+              <button
+                key={cat}
+                onClick={() => {
+                  setCategoryFilter(cat);
+                  setSelectedSubcategories([]);
+                }}
+                className={`flex items-center gap-2 px-5 py-3 rounded-xl font-medium transition-all whitespace-nowrap ${
+                  isActive
+                    ? "bg-gradient-to-r from-[#6DB33F] to-[#5da035] text-white shadow-lg shadow-[#6DB33F]/30"
+                    : "bg-white text-gray-700 border border-gray-200 hover:border-[#6DB33F]/50 hover:shadow-md"
+                }`}
+              >
+                <span>{info.emoji}</span>
+                <span>{info.name}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Subcategory Dropdown for specific categories */}
         {(categoryFilter === "cleaning-chemicals" || categoryFilter === "cleaning-equipment") && (
           <div className="mb-6">
             <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
@@ -291,59 +290,60 @@ export function Products() {
           </div>
         )}
 
-        {/* Toolbar */}
-        <div className="flex items-center justify-between mb-6 md:mb-8">
-          <div className="flex items-center gap-3">
+        {/* Quick Filters */}
+        <QuickFilters
+          currentFilters={filters}
+          onFilterChange={setFilters}
+          productCount={sortedProducts.length}
+        />
+
+        {/* View Mode Toggle & Advanced Filter */}
+        <div className="flex items-center justify-between mb-6">
+          <button
+            onClick={() => setShowFilters(true)}
+            className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl hover:shadow-md hover:border-[#6DB33F]/30 transition-all duration-200"
+          >
+            <Filter size={18} className="text-gray-600" />
+            <span className="text-gray-700 font-medium">Advanced Filters</span>
+            {selectedSubcategories.length > 0 && (
+              <span className="bg-gradient-to-r from-[#6DB33F] to-[#5da035] text-white text-xs px-2 py-0.5 rounded-full font-medium">
+                {selectedSubcategories.length}
+              </span>
+            )}
+          </button>
+
+          {/* View Mode Toggle */}
+          <div className="flex items-center gap-2 bg-gray-100 rounded-xl p-1">
             <button
-              onClick={() => setShowFilters(true)}
-              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl hover:shadow-md hover:border-[#6DB33F]/30 transition-all duration-200"
+              onClick={() => setViewMode('grid')}
+              className={`p-2 rounded-lg transition-all ${
+                viewMode === 'grid' ? 'bg-white shadow-sm' : 'hover:bg-gray-200'
+              }`}
             >
-              <Filter size={18} className="text-gray-600" />
-              <span className="text-gray-700 font-medium">Filters</span>
-              {selectedSubcategories.length > 0 && (
-                <span className="bg-gradient-to-r from-[#6DB33F] to-[#5da035] text-white text-xs px-2 py-0.5 rounded-full font-medium">
-                  {selectedSubcategories.length}
-                </span>
-              )}
+              <Grid3X3 size={18} className={viewMode === 'grid' ? 'text-[#6DB33F]' : 'text-gray-500'} />
             </button>
-            <span className="text-gray-500 text-sm hidden sm:inline">
-              {sortedProducts.length} product{sortedProducts.length !== 1 ? 's' : ''}
-            </span>
-          </div>
-
-          <div className="flex items-center gap-3">
-            {/* Sort Dropdown */}
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="px-4 py-2.5 border border-gray-200 rounded-xl bg-white text-sm font-medium text-gray-700 hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#6DB33F]/20 transition-all"
+            <button
+              onClick={() => setViewMode('compact')}
+              className={`p-2 rounded-lg transition-all ${
+                viewMode === 'compact' ? 'bg-white shadow-sm' : 'hover:bg-gray-200'
+              }`}
             >
-              <option value="featured">Featured</option>
-              <option value="price-low">Price: Low to High</option>
-              <option value="price-high">Price: High to Low</option>
-              <option value="name">Name: A-Z</option>
-            </select>
-
-            {/* Stock Filter Dropdown */}
-            <select
-              value={stockFilter}
-              onChange={(e) => setStockFilter(e.target.value as "all" | "instock" | "outofstock")}
-              className="px-4 py-2.5 border border-gray-200 rounded-xl bg-white text-sm font-medium text-gray-700 hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#6DB33F]/20 transition-all"
-            >
-              <option value="all">All Products</option>
-              <option value="instock">In Stock</option>
-              <option value="outofstock">Out of Stock</option>
-            </select>
+              <LayoutGrid size={18} className={viewMode === 'compact' ? 'text-[#6DB33F]' : 'text-gray-500'} />
+            </button>
           </div>
         </div>
 
-        {/* Active Filters */}
+        {/* Active Filters Tags */}
         {(selectedSubcategories.length > 0 || searchQuery) && (
           <div className="flex flex-wrap gap-2 mb-6">
             {searchQuery && (
               <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-full text-sm font-medium">
-                Search: "{searchQuery}"
-                <button onClick={() => setSearchQuery("")} className="hover:bg-blue-100 rounded-full p-0.5 transition-colors">
+                <Search size={14} />
+                "{searchQuery}"
+                <button onClick={() => {
+                  setSearchQuery("");
+                  navigate('/products');
+                }} className="hover:bg-blue-100 rounded-full p-0.5 transition-colors">
                   <X size={14} />
                 </button>
               </div>
@@ -365,7 +365,7 @@ export function Products() {
             })}
             <button
               onClick={clearFilters}
-              className="px-3 py-1.5 text-gray-500 text-sm font-medium hover:text-gray-700 transition-colors"
+              className="px-3 py-1.5 text-gray-500 text-sm font-medium hover:text-red-500 transition-colors"
             >
               Clear all
             </button>
@@ -374,13 +374,29 @@ export function Products() {
 
         {/* Products Grid */}
         {loading ? (
-          <ProductGrid>
+          <div className={`grid ${viewMode === 'compact' ? 'grid-cols-3 md:grid-cols-6' : 'grid-cols-2 md:grid-cols-4'} gap-4 md:gap-6`}>
             {Array.from({ length: 12 }, (_, index) => (
               <ProductCardSkeleton key={index} />
             ))}
-          </ProductGrid>
+          </div>
+        ) : sortedProducts.length === 0 ? (
+          <div className="text-center py-16">
+            <div className="mb-4">
+              <div className="w-24 h-24 bg-gray-100 rounded-full mx-auto flex items-center justify-center">
+                <Sparkles size={40} className="text-gray-300" />
+              </div>
+            </div>
+            <p className="text-gray-600 text-xl mb-2 font-semibold">No products found</p>
+            <p className="text-gray-400 mb-6">Try adjusting your filters or search terms</p>
+            <Button 
+              onClick={clearFilters} 
+              className="bg-gradient-to-r from-[#6DB33F] to-[#5da035] hover:from-[#5da035] hover:to-[#4d8f2e] text-white font-semibold px-8 py-6 rounded-xl shadow-md hover:shadow-lg transition-all"
+            >
+              Clear All Filters
+            </Button>
+          </div>
         ) : (
-          <ProductGrid>
+          <div className={`grid ${viewMode === 'compact' ? 'grid-cols-3 md:grid-cols-6' : 'grid-cols-2 md:grid-cols-4'} gap-4 md:gap-6`}>
             {sortedProducts.map((product) => (
               <ProductCard
                 key={product.id}
@@ -391,24 +407,13 @@ export function Products() {
                 onToggleWishlist={toggleWishlist}
               />
             ))}
-          </ProductGrid>
+          </div>
         )}
 
-        {/* No Results */}
-        {sortedProducts.length === 0 && (
-          <div className="text-center py-16">
-            <div className="mb-4">
-              <div className="w-20 h-20 bg-gray-100 rounded-full mx-auto flex items-center justify-center">
-                <Filter size={32} className="text-gray-400" />
-              </div>
-            </div>
-            <p className="text-gray-600 text-lg mb-6 font-medium">No products found</p>
-            <Button 
-              onClick={clearFilters} 
-              className="bg-gradient-to-r from-[#6DB33F] to-[#5da035] hover:from-[#5da035] hover:to-[#4d8f2e] text-white font-semibold px-8 py-6 rounded-xl shadow-md hover:shadow-lg transition-all"
-            >
-              Clear All Filters
-            </Button>
+        {/* Results Summary */}
+        {!loading && sortedProducts.length > 0 && (
+          <div className="text-center py-8 text-gray-500">
+            Showing {sortedProducts.length} of {allProducts.length} products
           </div>
         )}
       </div>
@@ -421,14 +426,14 @@ export function Products() {
         onToggleSubcategory={toggleSubcategory}
         expandedCategories={expandedCategories}
         onToggleCategory={toggleCategory}
-        priceRange={priceRange}
-        onPriceRangeChange={setPriceRange}
-        stockFilter={stockFilter}
-        onStockFilterChange={setStockFilter}
+        priceRange={[0, 70000]}
+        onPriceRangeChange={() => {}}
+        stockFilter={filters.stockStatus as "all" | "instock" | "outofstock"}
+        onStockFilterChange={(val) => setFilters({...filters, stockStatus: val})}
         onClearFilters={clearFilters}
         productsCount={sortedProducts.length}
         categoryFilter={categoryFilter}
-        onCategoryFilterChange={setCategoryFilter}
+        onCategoryFilterChange={(val) => setCategoryFilter(val as CategoryFilter)}
       />
 
       {/* Quick View Modal */}
