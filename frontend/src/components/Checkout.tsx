@@ -5,7 +5,7 @@ import { Label } from "./ui/label";
 import { Link, useNavigate } from "react-router-dom";
 import { CheckCircle, Upload, X, Loader2 } from "lucide-react";
 import { authService } from "../lib/auth";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner"";
 import { cartService } from "../lib/cart";
 import { orderService } from "../lib/order-service";
 import { Logo } from "./Logo";
