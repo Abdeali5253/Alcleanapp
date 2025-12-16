@@ -264,7 +264,7 @@ export function NotificationInbox() {
                   <div className="mt-3 rounded-lg overflow-hidden">
                     <img
                       src={notification.imageUrl}
-                      alt="
+                      alt=""
                       className="w-full h-32 object-cover"
                     />
                   </div>
