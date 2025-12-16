@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import logoImage from "figma:asset/8f03d5c7f7a5ad0420573e04e40e094b85ac1357.png";
+import logoImage from "../assets/logo.png";
 
 interface LogoProps {
   className?: string;
