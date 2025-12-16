@@ -32,7 +32,7 @@ export function SplashScreen({ onFinish }: SplashScreenProps) {
             transition={{ duration: 0.5 }}
             className="flex flex-col items-center gap-4"
           >
-            <Logo size="lg" linkTo=" className="text-white text-4xl" />
+            <Logo size="lg" linkTo="" className="text-white text-4xl" />
             <motion.div
               animate={{
                 rotate: 360,
