@@ -213,6 +213,67 @@ export async function getProductById(productId: string): Promise<Product | null>
   }
 }
 
+// Get products by collection handle
+export async function getProductsByCollection(collectionHandle: string, first: number = 20): Promise<Product[]> {
+  const query = `
+    query GetCollectionProducts($handle: String!, $first: Int!) {
+      collectionByHandle(handle: $handle) {
+        id
+        title
+        products(first: $first) {
+          edges {
+            node {
+              id
+              title
+              description
+              handle
+              productType
+              vendor
+              tags
+              featuredImage { url }
+              images(first: 5) {
+                edges { node { url } }
+              }
+              variants(first: 1) {
+                edges {
+                  node {
+                    id
+                    title
+                    sku
+                    price { amount currencyCode }
+                    compareAtPrice { amount }
+                    availableForSale
+                    quantityAvailable
+                    weight
+                    weightUnit
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  `;
+
+  try {
+    const data = await shopifyFetch<{ collectionByHandle: { products: { edges: { node: any }[] } } | null }>(
+      query, 
+      { handle: collectionHandle, first }
+    );
+    
+    if (!data.collectionByHandle) {
+      console.warn(`[Shopify] Collection "${collectionHandle}" not found`);
+      return [];
+    }
+    
+    return data.collectionByHandle.products.edges.map(edge => transformProduct(edge.node));
+  } catch (error) {
+    console.error("[Shopify] Error fetching collection products:", error);
+    return [];
+  }
+}
+
 // ==================== CUSTOMER AUTH ====================
 
 export interface ShopifyCustomer {
@@ -386,32 +447,37 @@ export interface ShopifyCheckout {
   };
 }
 
-// Create checkout
+// Create cart (Shopify 2023+ uses Cart API instead of Checkout API)
 export async function checkoutCreate(lineItems: CheckoutLineItem[], email?: string): Promise<ShopifyCheckout> {
   const mutation = `
-    mutation checkoutCreate($input: CheckoutCreateInput!) {
-      checkoutCreate(input: $input) {
-        checkout {
+    mutation cartCreate($input: CartInput!) {
+      cartCreate(input: $input) {
+        cart {
           id
-          webUrl
-          totalPrice { amount currencyCode }
-          lineItems(first: 50) {
+          checkoutUrl
+          cost {
+            totalAmount { amount currencyCode }
+            subtotalAmount { amount currencyCode }
+          }
+          lines(first: 50) {
             edges {
               node {
                 id
-                title
                 quantity
-                variant {
-                  id
-                  title
-                  price { amount }
-                  image { url }
+                merchandise {
+                  ... on ProductVariant {
+                    id
+                    title
+                    price { amount }
+                    image { url }
+                    product { title }
+                  }
                 }
               }
             }
           }
         }
-        checkoutUserErrors {
+        userErrors {
           code
           field
           message
@@ -420,47 +486,80 @@ export async function checkoutCreate(lineItems: CheckoutLineItem[], email?: stri
     }
   `;
 
-  const input: any = { lineItems };
-  if (email) input.email = email;
+  const input: any = { 
+    lines: lineItems.map(item => ({
+      merchandiseId: item.variantId,
+      quantity: item.quantity
+    }))
+  };
+  if (email) {
+    input.buyerIdentity = { email };
+  }
 
   const data = await shopifyFetch<any>(mutation, { input });
 
-  if (data.checkoutCreate.checkoutUserErrors?.length > 0) {
-    throw new Error(data.checkoutCreate.checkoutUserErrors.map((e: any) => e.message).join(", "));
+  if (data.cartCreate.userErrors?.length > 0) {
+    throw new Error(data.cartCreate.userErrors.map((e: any) => e.message).join(", "));
   }
 
-  return data.checkoutCreate.checkout;
+  const cart = data.cartCreate.cart;
+  
+  // Transform cart response to match ShopifyCheckout interface
+  return {
+    id: cart.id,
+    webUrl: cart.checkoutUrl,
+    totalPrice: cart.cost.totalAmount,
+    lineItems: {
+      edges: cart.lines.edges.map((edge: any) => ({
+        node: {
+          id: edge.node.id,
+          title: edge.node.merchandise.product?.title || edge.node.merchandise.title,
+          quantity: edge.node.quantity,
+          variant: {
+            id: edge.node.merchandise.id,
+            title: edge.node.merchandise.title,
+            price: edge.node.merchandise.price,
+            image: edge.node.merchandise.image
+          }
+        }
+      }))
+    }
+  };
 }
 
-// Add line items to checkout
+// Add line items to cart (Cart API)
 export async function checkoutLineItemsAdd(
-  checkoutId: string, 
+  cartId: string, 
   lineItems: CheckoutLineItem[]
 ): Promise<ShopifyCheckout> {
   const mutation = `
-    mutation checkoutLineItemsAdd($checkoutId: ID!, $lineItems: [CheckoutLineItemInput!]!) {
-      checkoutLineItemsAdd(checkoutId: $checkoutId, lineItems: $lineItems) {
-        checkout {
+    mutation cartLinesAdd($cartId: ID!, $lines: [CartLineInput!]!) {
+      cartLinesAdd(cartId: $cartId, lines: $lines) {
+        cart {
           id
-          webUrl
-          totalPrice { amount currencyCode }
-          lineItems(first: 50) {
+          checkoutUrl
+          cost {
+            totalAmount { amount currencyCode }
+          }
+          lines(first: 50) {
             edges {
               node {
                 id
-                title
                 quantity
-                variant {
-                  id
-                  title
-                  price { amount }
-                  image { url }
+                merchandise {
+                  ... on ProductVariant {
+                    id
+                    title
+                    price { amount }
+                    image { url }
+                    product { title }
+                  }
                 }
               }
             }
           }
         }
-        checkoutUserErrors {
+        userErrors {
           code
           field
           message
@@ -469,29 +568,42 @@ export async function checkoutLineItemsAdd(
     }
   `;
 
-  const data = await shopifyFetch<any>(mutation, { checkoutId, lineItems });
+  const lines = lineItems.map(item => ({
+    merchandiseId: item.variantId,
+    quantity: item.quantity
+  }));
 
-  if (data.checkoutLineItemsAdd.checkoutUserErrors?.length > 0) {
-    throw new Error(data.checkoutLineItemsAdd.checkoutUserErrors.map((e: any) => e.message).join(", "));
+  const data = await shopifyFetch<any>(mutation, { cartId, lines });
+
+  if (data.cartLinesAdd.userErrors?.length > 0) {
+    throw new Error(data.cartLinesAdd.userErrors.map((e: any) => e.message).join(", "));
   }
 
-  return data.checkoutLineItemsAdd.checkout;
+  const cart = data.cartLinesAdd.cart;
+  return {
+    id: cart.id,
+    webUrl: cart.checkoutUrl,
+    totalPrice: cart.cost.totalAmount,
+    lineItems: { edges: cart.lines.edges }
+  };
 }
 
-// Update checkout with customer info
+// Update cart with customer info (Cart API)
 export async function checkoutCustomerAssociateV2(
-  checkoutId: string, 
+  cartId: string, 
   customerAccessToken: string
 ): Promise<ShopifyCheckout> {
   const mutation = `
-    mutation checkoutCustomerAssociateV2($checkoutId: ID!, $customerAccessToken: String!) {
-      checkoutCustomerAssociateV2(checkoutId: $checkoutId, customerAccessToken: $customerAccessToken) {
-        checkout {
+    mutation cartBuyerIdentityUpdate($cartId: ID!, $buyerIdentity: CartBuyerIdentityInput!) {
+      cartBuyerIdentityUpdate(cartId: $cartId, buyerIdentity: $buyerIdentity) {
+        cart {
           id
-          webUrl
-          totalPrice { amount currencyCode }
+          checkoutUrl
+          cost {
+            totalAmount { amount currencyCode }
+          }
         }
-        checkoutUserErrors {
+        userErrors {
           code
           field
           message
@@ -500,18 +612,30 @@ export async function checkoutCustomerAssociateV2(
     }
   `;
 
-  const data = await shopifyFetch<any>(mutation, { checkoutId, customerAccessToken });
+  const data = await shopifyFetch<any>(mutation, { 
+    cartId, 
+    buyerIdentity: { customerAccessToken } 
+  });
 
-  if (data.checkoutCustomerAssociateV2.checkoutUserErrors?.length > 0) {
-    throw new Error(data.checkoutCustomerAssociateV2.checkoutUserErrors.map((e: any) => e.message).join(", "));
+  if (data.cartBuyerIdentityUpdate.userErrors?.length > 0) {
+    throw new Error(data.cartBuyerIdentityUpdate.userErrors.map((e: any) => e.message).join(", "));
   }
 
-  return data.checkoutCustomerAssociateV2.checkout;
+  const cart = data.cartBuyerIdentityUpdate.cart;
+  return {
+    id: cart.id,
+    webUrl: cart.checkoutUrl,
+    totalPrice: cart.cost.totalAmount,
+    lineItems: { edges: [] }
+  };
 }
 
-// Update checkout shipping address
+// Update cart with delivery address (Cart API)
+// Note: Cart API doesn't directly support shipping address before checkout
+// The address is collected on the Shopify checkout page
+// This function updates buyer identity with delivery address preferences
 export async function checkoutShippingAddressUpdateV2(
-  checkoutId: string,
+  cartId: string,
   shippingAddress: {
     firstName: string;
     lastName: string;
@@ -523,15 +647,21 @@ export async function checkoutShippingAddressUpdateV2(
     phone: string;
   }
 ): Promise<ShopifyCheckout> {
+  // Cart API doesn't support shipping address update directly
+  // Instead, we update the delivery address preferences in buyer identity
+  // The actual address is entered on Shopify's checkout page
+  
   const mutation = `
-    mutation checkoutShippingAddressUpdateV2($checkoutId: ID!, $shippingAddress: MailingAddressInput!) {
-      checkoutShippingAddressUpdateV2(checkoutId: $checkoutId, shippingAddress: $shippingAddress) {
-        checkout {
+    mutation cartBuyerIdentityUpdate($cartId: ID!, $buyerIdentity: CartBuyerIdentityInput!) {
+      cartBuyerIdentityUpdate(cartId: $cartId, buyerIdentity: $buyerIdentity) {
+        cart {
           id
-          webUrl
-          totalPrice { amount currencyCode }
+          checkoutUrl
+          cost {
+            totalAmount { amount currencyCode }
+          }
         }
-        checkoutUserErrors {
+        userErrors {
           code
           field
           message
@@ -540,13 +670,57 @@ export async function checkoutShippingAddressUpdateV2(
     }
   `;
 
-  const data = await shopifyFetch<any>(mutation, { checkoutId, shippingAddress });
+  // Build delivery address preferences
+  const buyerIdentity = {
+    deliveryAddressPreferences: [{
+      deliveryAddress: {
+        firstName: shippingAddress.firstName,
+        lastName: shippingAddress.lastName,
+        address1: shippingAddress.address1,
+        city: shippingAddress.city,
+        province: shippingAddress.province,
+        country: shippingAddress.country,
+        zip: shippingAddress.zip,
+        phone: shippingAddress.phone,
+      }
+    }]
+  };
 
-  if (data.checkoutShippingAddressUpdateV2.checkoutUserErrors?.length > 0) {
-    throw new Error(data.checkoutShippingAddressUpdateV2.checkoutUserErrors.map((e: any) => e.message).join(", "));
+  try {
+    const data = await shopifyFetch<any>(mutation, { cartId, buyerIdentity });
+
+    if (data.cartBuyerIdentityUpdate?.userErrors?.length > 0) {
+      console.warn("[Shopify] Shipping address update warning:", data.cartBuyerIdentityUpdate.userErrors);
+    }
+
+    const cart = data.cartBuyerIdentityUpdate?.cart;
+    if (!cart) {
+      // If update fails, return a minimal checkout object
+      // The user will still be able to enter address on Shopify checkout page
+      return {
+        id: cartId,
+        webUrl: '',
+        totalPrice: { amount: '0', currencyCode: 'PKR' },
+        lineItems: { edges: [] }
+      };
+    }
+
+    return {
+      id: cart.id,
+      webUrl: cart.checkoutUrl,
+      totalPrice: cart.cost.totalAmount,
+      lineItems: { edges: [] }
+    };
+  } catch (error) {
+    console.warn("[Shopify] Shipping address update failed, user can enter on checkout page:", error);
+    // Return minimal object - address will be entered on Shopify checkout
+    return {
+      id: cartId,
+      webUrl: '',
+      totalPrice: { amount: '0', currencyCode: 'PKR' },
+      lineItems: { edges: [] }
+    };
   }
-
-  return data.checkoutShippingAddressUpdateV2.checkout;
 }
 
 // Get checkout URL (opens in WebView for payment)

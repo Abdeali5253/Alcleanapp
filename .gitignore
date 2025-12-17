@@ -8,3 +8,11 @@ node_modules/
 dist/
 .idea/
 .emergent/
+-e 
+# Environment files
+*.env
+*.env.*
+-e 
+# Environment files
+*.env
+*.env.*

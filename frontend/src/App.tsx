@@ -9,6 +9,7 @@ import { Account } from "./components/Account";
 import { EditProfile } from "./components/EditProfile";
 import { HelpSupport } from "./components/HelpSupport";
 import { Checkout } from "./components/Checkout";
+import { CheckoutSuccess } from "./components/CheckoutWebView";
 import { ContactUs } from "./components/ContactUs";
 import { AboutUs } from "./components/AboutUs";
 import { NotificationInbox } from "./components/NotificationInbox";
@@ -60,6 +61,7 @@ export default function App() {
           <Route path="/edit-profile" element={<EditProfile />} />
           <Route path="/help-support" element={<HelpSupport />} />
           <Route path="/checkout" element={<Checkout />} />
+          <Route path="/checkout/success" element={<CheckoutSuccess />} />
           <Route path="/contact" element={<ContactUs />} />
           <Route path="/about" element={<AboutUs />} />
           <Route path="/notifications" element={<NotificationInbox />} />

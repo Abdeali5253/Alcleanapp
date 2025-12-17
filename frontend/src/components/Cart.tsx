@@ -13,10 +13,10 @@ export function Cart() {
 
   // Load cart on mount and subscribe to changes
   useEffect(() => {
-    setCartItems(cartService.getCart());
+    setCartItems(cartService.getItems());
     
     const unsubscribe = cartService.subscribe(() => {
-      setCartItems(cartService.getCart());
+      setCartItems(cartService.getItems());
     });
 
     return unsubscribe;
