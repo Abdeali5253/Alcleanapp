@@ -2,4 +2,7 @@
 # Environment files
 *.env
 *.env.*
-*.md
+TODO.md
+*.json
+node_modules/
+dist/
