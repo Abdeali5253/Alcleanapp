@@ -9,8 +9,11 @@ import { cartService, CartItem } from "../lib/cart";
 import { authService, User } from "../lib/auth";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 
-// Check if running in Capacitor
+// Check if running in Capacitor (will be available when built as mobile app)
 const isCapacitor = typeof (window as any).Capacitor !== 'undefined';
+
+// Capacitor Browser module (loaded dynamically when available)
+let CapacitorBrowser: any = null;
 
 export function Checkout() {
   const navigate = useNavigate();
