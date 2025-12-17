@@ -61,6 +61,7 @@ export default function App() {
           <Route path="/edit-profile" element={<EditProfile />} />
           <Route path="/help-support" element={<HelpSupport />} />
           <Route path="/checkout" element={<Checkout />} />
+          <Route path="/checkout/success" element={<CheckoutSuccess />} />
           <Route path="/contact" element={<ContactUs />} />
           <Route path="/about" element={<AboutUs />} />
           <Route path="/notifications" element={<NotificationInbox />} />
