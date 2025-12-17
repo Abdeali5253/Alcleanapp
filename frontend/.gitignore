@@ -3,7 +3,6 @@
 *.env
 *.env.*
 TODO.md
-*.json
 node_modules/
 dist/
 public/
