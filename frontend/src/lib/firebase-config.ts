@@ -56,8 +56,15 @@ export function getFirebaseMessaging(): Messaging | null {
 
 export async function requestNotificationPermission(): Promise<string | null> {
   try {
-    if (!('Notification' in window)) {
-      console.warn('[Firebase] Notifications not supported');
+    // Check if running in a context that supports notifications
+    if (typeof window === 'undefined' || !('Notification' in window)) {
+      console.warn('[Firebase] Notifications not supported in this environment');
+      return null;
+    }
+    
+    // Check if service workers are supported
+    if (!('serviceWorker' in navigator)) {
+      console.warn('[Firebase] Service workers not supported');
       return null;
     }
     
@@ -69,21 +76,34 @@ export async function requestNotificationPermission(): Promise<string | null> {
     }
     
     const messagingInstance = getFirebaseMessaging();
-    if (!messagingInstance) return null;
+    if (!messagingInstance) {
+      console.warn('[Firebase] Messaging not available');
+      return null;
+    }
     
     // Get FCM token with VAPID key
-    const token = await getToken(messagingInstance, { 
-      vapidKey: VAPID_KEY 
-    });
-    
-    if (token) {
-      console.log('[Firebase] FCM Token:', token.substring(0, 30) + '...');
-      return token;
+    try {
+      const token = await getToken(messagingInstance, { 
+        vapidKey: VAPID_KEY 
+      });
+      
+      if (token) {
+        console.log('[Firebase] FCM Token:', token.substring(0, 30) + '...');
+        return token;
+      }
+    } catch (tokenError: any) {
+      // Handle specific errors gracefully
+      if (tokenError.code === 'messaging/failed-service-worker-registration') {
+        console.warn('[Firebase] Service worker registration failed. Push notifications will not work in this environment.');
+      } else {
+        console.warn('[Firebase] Token retrieval failed:', tokenError.message || tokenError);
+      }
+      return null;
     }
     
     return null;
   } catch (error) {
-    console.error('[Firebase] Token error:', error);
+    console.error('[Firebase] Permission error:', error);
     return null;
   }
 }
