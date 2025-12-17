@@ -3,6 +3,7 @@
 *.env
 *.env.*
 TODO.md
-google-services.json
+*.json
 node_modules/
 dist/
+public/
