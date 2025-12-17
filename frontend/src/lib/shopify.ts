@@ -130,7 +130,10 @@ function categorizeProduct(title: string, productType: string, tags: string[]): 
     "handle", "stick", "pole", "holder", "dispenser", "bin", "dustbin",
     "microfiber", "towel", "dustpan", "scoop", "mat", "cart", "caddy",
     "dryer", "hand dryer", "tissue", "roll", "basket", "janitor",
-    "scraper", "spray bottle", "container", "window cleaning", "viper"
+    "scraper", "spray bottle", "container", "window cleaning", "viper",
+    "grinding", "grinder", "machine", "polisher", "vacuum", "sweeper",
+    "rubber strip", "strip", "pad", "refill", "head", "attachment",
+    "hose", "nozzle", "connector", "wheel", "caster", "frame"
   ];
   
   const isEquipment = equipmentKeywords.some(kw => titleLower.includes(kw));
