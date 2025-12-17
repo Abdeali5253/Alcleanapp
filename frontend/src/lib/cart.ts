@@ -32,10 +32,25 @@ class CartService {
     try {
       const stored = localStorage.getItem(CART_STORAGE_KEY);
       if (stored) {
-        this.items = JSON.parse(stored);
+        const parsed = JSON.parse(stored);
+        // Validate and clean cart data
+        this.items = Array.isArray(parsed) ? parsed.filter(item => {
+          // Ensure item has product and valid quantity
+          if (!item || !item.product || typeof item.product.id !== 'string') {
+            return false;
+          }
+          // Ensure quantity is a number
+          item.quantity = typeof item.quantity === 'number' ? item.quantity : parseInt(item.quantity) || 1;
+          // Ensure price is a number
+          if (item.product.price && typeof item.product.price !== 'number') {
+            item.product.price = parseFloat(item.product.price) || 0;
+          }
+          return item.quantity > 0;
+        }) : [];
       }
     } catch (error) {
       console.error("[Cart] Failed to load:", error);
+      this.items = [];
     }
   }
 
