@@ -9,6 +9,7 @@ import { Account } from "./components/Account";
 import { EditProfile } from "./components/EditProfile";
 import { HelpSupport } from "./components/HelpSupport";
 import { Checkout } from "./components/Checkout";
+import { CheckoutSuccess } from "./components/CheckoutWebView";
 import { ContactUs } from "./components/ContactUs";
 import { AboutUs } from "./components/AboutUs";
 import { NotificationInbox } from "./components/NotificationInbox";
