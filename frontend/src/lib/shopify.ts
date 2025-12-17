@@ -527,35 +527,39 @@ export async function checkoutCreate(lineItems: CheckoutLineItem[], email?: stri
   };
 }
 
-// Add line items to checkout
+// Add line items to cart (Cart API)
 export async function checkoutLineItemsAdd(
-  checkoutId: string, 
+  cartId: string, 
   lineItems: CheckoutLineItem[]
 ): Promise<ShopifyCheckout> {
   const mutation = `
-    mutation checkoutLineItemsAdd($checkoutId: ID!, $lineItems: [CheckoutLineItemInput!]!) {
-      checkoutLineItemsAdd(checkoutId: $checkoutId, lineItems: $lineItems) {
-        checkout {
+    mutation cartLinesAdd($cartId: ID!, $lines: [CartLineInput!]!) {
+      cartLinesAdd(cartId: $cartId, lines: $lines) {
+        cart {
           id
-          webUrl
-          totalPrice { amount currencyCode }
-          lineItems(first: 50) {
+          checkoutUrl
+          cost {
+            totalAmount { amount currencyCode }
+          }
+          lines(first: 50) {
             edges {
               node {
                 id
-                title
                 quantity
-                variant {
-                  id
-                  title
-                  price { amount }
-                  image { url }
+                merchandise {
+                  ... on ProductVariant {
+                    id
+                    title
+                    price { amount }
+                    image { url }
+                    product { title }
+                  }
                 }
               }
             }
           }
         }
-        checkoutUserErrors {
+        userErrors {
           code
           field
           message
@@ -564,29 +568,42 @@ export async function checkoutLineItemsAdd(
     }
   `;
 
-  const data = await shopifyFetch<any>(mutation, { checkoutId, lineItems });
+  const lines = lineItems.map(item => ({
+    merchandiseId: item.variantId,
+    quantity: item.quantity
+  }));
 
-  if (data.checkoutLineItemsAdd.checkoutUserErrors?.length > 0) {
-    throw new Error(data.checkoutLineItemsAdd.checkoutUserErrors.map((e: any) => e.message).join(", "));
+  const data = await shopifyFetch<any>(mutation, { cartId, lines });
+
+  if (data.cartLinesAdd.userErrors?.length > 0) {
+    throw new Error(data.cartLinesAdd.userErrors.map((e: any) => e.message).join(", "));
   }
 
-  return data.checkoutLineItemsAdd.checkout;
+  const cart = data.cartLinesAdd.cart;
+  return {
+    id: cart.id,
+    webUrl: cart.checkoutUrl,
+    totalPrice: cart.cost.totalAmount,
+    lineItems: { edges: cart.lines.edges }
+  };
 }
 
-// Update checkout with customer info
+// Update cart with customer info (Cart API)
 export async function checkoutCustomerAssociateV2(
-  checkoutId: string, 
+  cartId: string, 
   customerAccessToken: string
 ): Promise<ShopifyCheckout> {
   const mutation = `
-    mutation checkoutCustomerAssociateV2($checkoutId: ID!, $customerAccessToken: String!) {
-      checkoutCustomerAssociateV2(checkoutId: $checkoutId, customerAccessToken: $customerAccessToken) {
-        checkout {
+    mutation cartBuyerIdentityUpdate($cartId: ID!, $buyerIdentity: CartBuyerIdentityInput!) {
+      cartBuyerIdentityUpdate(cartId: $cartId, buyerIdentity: $buyerIdentity) {
+        cart {
           id
-          webUrl
-          totalPrice { amount currencyCode }
+          checkoutUrl
+          cost {
+            totalAmount { amount currencyCode }
+          }
         }
-        checkoutUserErrors {
+        userErrors {
           code
           field
           message
@@ -595,13 +612,22 @@ export async function checkoutCustomerAssociateV2(
     }
   `;
 
-  const data = await shopifyFetch<any>(mutation, { checkoutId, customerAccessToken });
+  const data = await shopifyFetch<any>(mutation, { 
+    cartId, 
+    buyerIdentity: { customerAccessToken } 
+  });
 
-  if (data.checkoutCustomerAssociateV2.checkoutUserErrors?.length > 0) {
-    throw new Error(data.checkoutCustomerAssociateV2.checkoutUserErrors.map((e: any) => e.message).join(", "));
+  if (data.cartBuyerIdentityUpdate.userErrors?.length > 0) {
+    throw new Error(data.cartBuyerIdentityUpdate.userErrors.map((e: any) => e.message).join(", "));
   }
 
-  return data.checkoutCustomerAssociateV2.checkout;
+  const cart = data.cartBuyerIdentityUpdate.cart;
+  return {
+    id: cart.id,
+    webUrl: cart.checkoutUrl,
+    totalPrice: cart.cost.totalAmount,
+    lineItems: { edges: [] }
+  };
 }
 
 // Update checkout shipping address
