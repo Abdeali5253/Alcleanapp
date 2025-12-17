@@ -32,10 +32,25 @@ class CartService {
     try {
       const stored = localStorage.getItem(CART_STORAGE_KEY);
       if (stored) {
-        this.items = JSON.parse(stored);
+        const parsed = JSON.parse(stored);
+        // Validate and clean cart data
+        this.items = Array.isArray(parsed) ? parsed.filter(item => {
+          // Ensure item has product and valid quantity
+          if (!item || !item.product || typeof item.product.id !== 'string') {
+            return false;
+          }
+          // Ensure quantity is a number
+          item.quantity = typeof item.quantity === 'number' ? item.quantity : parseInt(item.quantity) || 1;
+          // Ensure price is a number
+          if (item.product.price && typeof item.product.price !== 'number') {
+            item.product.price = parseFloat(item.product.price) || 0;
+          }
+          return item.quantity > 0;
+        }) : [];
       }
     } catch (error) {
       console.error("[Cart] Failed to load:", error);
+      this.items = [];
     }
   }
 
@@ -98,12 +113,20 @@ class CartService {
 
   // Add to cart
   addToCart(product: Product, quantity: number = 1): void {
+    // Ensure quantity is a valid number
+    const qty = typeof quantity === 'number' ? quantity : parseInt(String(quantity)) || 1;
+    
     const existingIndex = this.items.findIndex(item => item.product.id === product.id);
     
     if (existingIndex >= 0) {
-      this.items[existingIndex].quantity += quantity;
+      this.items[existingIndex].quantity = (this.items[existingIndex].quantity || 0) + qty;
     } else {
-      this.items.push({ product, quantity });
+      // Ensure product price is a number
+      const cleanProduct = {
+        ...product,
+        price: typeof product.price === 'number' ? product.price : parseFloat(String(product.price)) || 0
+      };
+      this.items.push({ product: cleanProduct, quantity: qty });
     }
     
     // Reset checkout when cart changes
@@ -147,10 +170,13 @@ class CartService {
     }
 
     // Convert cart items to checkout line items
+    // Ensure quantity is always an integer
     const lineItems: CheckoutLineItem[] = this.items.map(item => ({
       variantId: item.product.variantId,
-      quantity: item.quantity,
+      quantity: Math.max(1, Math.floor(Number(item.quantity) || 1)),
     }));
+
+    console.log("[Cart] Creating checkout with line items:", lineItems);
 
     const user = authService.getUser();
     
