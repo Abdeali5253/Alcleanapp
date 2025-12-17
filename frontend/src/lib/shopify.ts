@@ -447,32 +447,37 @@ export interface ShopifyCheckout {
   };
 }
 
-// Create checkout
+// Create cart (Shopify 2023+ uses Cart API instead of Checkout API)
 export async function checkoutCreate(lineItems: CheckoutLineItem[], email?: string): Promise<ShopifyCheckout> {
   const mutation = `
-    mutation checkoutCreate($input: CheckoutCreateInput!) {
-      checkoutCreate(input: $input) {
-        checkout {
+    mutation cartCreate($input: CartInput!) {
+      cartCreate(input: $input) {
+        cart {
           id
-          webUrl
-          totalPrice { amount currencyCode }
-          lineItems(first: 50) {
+          checkoutUrl
+          cost {
+            totalAmount { amount currencyCode }
+            subtotalAmount { amount currencyCode }
+          }
+          lines(first: 50) {
             edges {
               node {
                 id
-                title
                 quantity
-                variant {
-                  id
-                  title
-                  price { amount }
-                  image { url }
+                merchandise {
+                  ... on ProductVariant {
+                    id
+                    title
+                    price { amount }
+                    image { url }
+                    product { title }
+                  }
                 }
               }
             }
           }
         }
-        checkoutUserErrors {
+        userErrors {
           code
           field
           message
@@ -481,16 +486,45 @@ export async function checkoutCreate(lineItems: CheckoutLineItem[], email?: stri
     }
   `;
 
-  const input: any = { lineItems };
-  if (email) input.email = email;
+  const input: any = { 
+    lines: lineItems.map(item => ({
+      merchandiseId: item.variantId,
+      quantity: item.quantity
+    }))
+  };
+  if (email) {
+    input.buyerIdentity = { email };
+  }
 
   const data = await shopifyFetch<any>(mutation, { input });
 
-  if (data.checkoutCreate.checkoutUserErrors?.length > 0) {
-    throw new Error(data.checkoutCreate.checkoutUserErrors.map((e: any) => e.message).join(", "));
+  if (data.cartCreate.userErrors?.length > 0) {
+    throw new Error(data.cartCreate.userErrors.map((e: any) => e.message).join(", "));
   }
 
-  return data.checkoutCreate.checkout;
+  const cart = data.cartCreate.cart;
+  
+  // Transform cart response to match ShopifyCheckout interface
+  return {
+    id: cart.id,
+    webUrl: cart.checkoutUrl,
+    totalPrice: cart.cost.totalAmount,
+    lineItems: {
+      edges: cart.lines.edges.map((edge: any) => ({
+        node: {
+          id: edge.node.id,
+          title: edge.node.merchandise.product?.title || edge.node.merchandise.title,
+          quantity: edge.node.quantity,
+          variant: {
+            id: edge.node.merchandise.id,
+            title: edge.node.merchandise.title,
+            price: edge.node.merchandise.price,
+            image: edge.node.merchandise.image
+          }
+        }
+      }))
+    }
+  };
 }
 
 // Add line items to checkout
