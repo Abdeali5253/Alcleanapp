@@ -38,11 +38,11 @@ export function UnifiedHeader({ cartCount }: UnifiedHeaderProps) {
 
   useEffect(() => {
     // Get initial cart count
-    setActualCartCount(cartService.getCartCount());
+    setActualCartCount(cartService.getItemCount());
 
     // Subscribe to cart changes
     const unsubscribe = cartService.subscribe(() => {
-      setActualCartCount(cartService.getCartCount());
+      setActualCartCount(cartService.getItemCount());
     });
 
     return unsubscribe;
