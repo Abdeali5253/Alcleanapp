@@ -115,8 +115,13 @@ export function Checkout() {
       return;
     }
 
-    // Note: Guest checkout is allowed - Shopify handles account creation on their end
-    // User can login on Shopify checkout page if they have an account
+    // Require login for order tracking
+    if (!user) {
+      authService.setRedirectAfterLogin("/checkout");
+      toast.info("Please login or create an account to track your orders");
+      navigate("/account");
+      return;
+    }
 
     setIsLoading(true);
 
