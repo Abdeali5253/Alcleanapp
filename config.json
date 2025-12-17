@@ -1,0 +1,13 @@
+{
+  "name": "AlClean eCommerce App",
+  "version": "1.0.0",
+  "description": "Mobile shopping app for AlClean cleaning products",
+  "frontend": {
+    "type": "expo",
+    "port": 3000
+  },
+  "backend": {
+    "type": "fastapi",
+    "port": 8001
+  }
+}
