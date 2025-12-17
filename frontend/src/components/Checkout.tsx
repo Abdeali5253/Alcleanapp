@@ -69,18 +69,17 @@ export function Checkout() {
   const total = subtotal + deliveryCharge;
 
   const openPaymentPage = async (url: string) => {
-    if (isCapacitor) {
+    if (isCapacitor && CapacitorBrowser) {
       // Mobile: Use Capacitor Browser for in-app browser
       try {
-        const { Browser } = await import('@capacitor/browser');
-        await Browser.open({ 
+        await CapacitorBrowser.open({ 
           url,
           toolbarColor: '#6DB33F',
           presentationStyle: 'popover',
         });
         
         // Listen for browser close
-        Browser.addListener('browserFinished', () => {
+        CapacitorBrowser.addListener('browserFinished', () => {
           setShowPaymentModal(false);
         });
       } catch (e) {
