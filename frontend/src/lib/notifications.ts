@@ -1,446 +1,287 @@
-// Notification service for AlClean App
-// Handles Firebase Cloud Messaging (FCM) integration
+// Push Notification Service for AlClean Mobile App
+// Supports Firebase Cloud Messaging (FCM) for Android
 
-import {
-  PushNotification,
-  NotificationSettings,
-  FCMToken,
-  SendNotificationRequest,
-} from "../types/notifications";
+import { 
+  initializeFirebase, 
+  requestNotificationPermission, 
+  onForegroundMessage 
+} from './firebase-config';
 
-// Firebase configuration from environment variables
-const getFirebaseConfig = () => {
-  // Safely access import.meta.env
-  const env = typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env : {};
-  
-  return {
-    apiKey: env.VITE_FIREBASE_API_KEY || "",
-    authDomain: env.VITE_FIREBASE_AUTH_DOMAIN || "",
-    projectId: env.VITE_FIREBASE_PROJECT_ID || "app-notification-5e56b",
-    storageBucket: env.VITE_FIREBASE_STORAGE_BUCKET || "",
-    messagingSenderId: env.VITE_FIREBASE_MESSAGING_SENDER_ID || "",
-    appId: env.VITE_FIREBASE_APP_ID || "",
-  };
-};
+export interface PushNotification {
+  id: string;
+  title: string;
+  body: string;
+  type: 'order_update' | 'promotion' | 'discount' | 'sale' | 'new_product' | 'delivery' | 'general';
+  timestamp: Date;
+  read: boolean;
+  data?: Record<string, any>;
+  imageUrl?: string;
+}
 
-const FIREBASE_CONFIG = getFirebaseConfig();
+export interface NotificationSegment {
+  id: string;
+  name: string;
+  description: string;
+}
+
+const NOTIFICATIONS_STORAGE_KEY = 'alclean_notifications';
+const FCM_TOKEN_STORAGE_KEY = 'alclean_fcm_token';
 
 class NotificationService {
   private fcmToken: string | null = null;
   private notifications: PushNotification[] = [];
-  private settings: NotificationSettings = {
-    enabled: true,
-    orderUpdates: true,
-    promotions: true,
-    newProducts: true,
-    deliveryAlerts: true,
-  };
+  private listeners: ((notifications: PushNotification[]) => void)[] = [];
+  private isInitialized = false;
 
-  /**
-   * Initialize notification service
-   * Call this when app starts
-   */
-  async initialize(): Promise<void> {
-    // Load saved settings
-    this.loadSettings();
-    
-    // Load notification history
+  constructor() {
     this.loadNotifications();
-
-    // Request permission and get token
-    if (this.settings.enabled) {
-      await this.requestPermission();
-    }
+    this.loadFCMToken();
   }
 
-  /**
-   * Request notification permission from user
-   */
-  async requestPermission(): Promise<boolean> {
-    if (!("Notification" in window)) {
-      console.log("This browser does not support notifications");
+  // Initialize Firebase and request permissions
+  async initialize(): Promise<boolean> {
+    if (this.isInitialized) return true;
+    
+    try {
+      console.log('[Notifications] Initializing...');
+      
+      // Initialize Firebase
+      const firebaseApp = initializeFirebase();
+      if (!firebaseApp) {
+        console.warn('[Notifications] Firebase not available');
+        return false;
+      }
+      
+      // Request notification permission and get token
+      const token = await requestNotificationPermission();
+      if (token) {
+        this.fcmToken = token;
+        this.saveFCMToken(token);
+        
+        // Register token with backend
+        await this.registerTokenWithBackend(token);
+      }
+      
+      // Listen for foreground messages
+      onForegroundMessage((payload) => {
+        this.handleIncomingNotification(payload);
+      });
+      
+      this.isInitialized = true;
+      console.log('[Notifications] Initialized successfully');
+      return true;
+    } catch (error) {
+      console.error('[Notifications] Initialization failed:', error);
       return false;
     }
-
-    if (Notification.permission === "granted") {
-      await this.getToken();
-      return true;
-    }
-
-    if (Notification.permission !== "denied") {
-      const permission = await Notification.requestPermission();
-      if (permission === "granted") {
-        await this.getToken();
-        return true;
-      }
-    }
-
-    return false;
   }
 
-  /**
-   * Get FCM token for this device
-   */
-  async getToken(): Promise<string | null> {
+  // Register FCM token with backend
+  private async registerTokenWithBackend(token: string): Promise<void> {
     try {
-      // Check if token is already cached
-      const cached = localStorage.getItem('fcm_token');
-      if (cached) {
-        this.fcmToken = cached;
-        return cached;
-      }
-
-      // Generate device-specific token
-      const deviceToken = this.generateDeviceToken();
-      this.fcmToken = deviceToken;
-      
-      // Save token to backend and local storage
-      await this.saveToken(deviceToken);
-      localStorage.setItem('fcm_token', deviceToken);
-      
-      return deviceToken;
-    } catch (error) {
-      console.error("Error getting FCM token:", error);
-      return null;
-    }
-  }
-
-  /**
-   * Generate device-specific token
-   */
-  private generateDeviceToken(): string {
-    const deviceId = this.getDeviceId();
-    const timestamp = Date.now();
-    const random = Math.random().toString(36).substring(2, 15);
-    return `fcm_${deviceId}_${timestamp}_${random}`;
-  }
-
-  /**
-   * Get or create device ID
-   */
-  private getDeviceId(): string {
-    let deviceId = localStorage.getItem('device_id');
-    if (!deviceId) {
-      deviceId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-      localStorage.setItem('device_id', deviceId);
-    }
-    return deviceId;
-  }
-
-  /**
-   * Save FCM token to backend
-   */
-  private async saveToken(token: string): Promise<void> {
-    try {
-      // Safely access import.meta.env
       const env = typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env : {};
       const apiUrl = env.VITE_API_URL || 'http://localhost:3001';
       
-      const userStr = localStorage.getItem('alclean_user');
-      const user = userStr ? JSON.parse(userStr) : null;
-
-      const response = await fetch(`${apiUrl}/api/notifications/subscribe`, {
+      const response = await fetch(`${apiUrl}/api/notifications/register`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           token,
-          userId: user?.id,
-          email: user?.email,
-          platform: 'web',
-          deviceId: this.getDeviceId(),
+          platform: this.getPlatform(),
+          timestamp: new Date().toISOString(),
         }),
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to save token');
+      
+      if (response.ok) {
+        console.log('[Notifications] Token registered with backend');
       }
-
-      console.log('[FCM] Token saved to backend');
     } catch (error) {
-      console.error('[FCM] Error saving token:', error);
-      // Don't fail if backend is not available
+      console.error('[Notifications] Failed to register token:', error);
     }
   }
 
-  /**
-   * Handle incoming notification
-   */
-  handleNotification(notification: PushNotification): void {
-    // Add to notification history
+  // Handle incoming notification
+  private handleIncomingNotification(payload: any): void {
+    const notification: PushNotification = {
+      id: this.generateId(),
+      title: payload.notification?.title || payload.data?.title || 'New Notification',
+      body: payload.notification?.body || payload.data?.body || '',
+      type: payload.data?.type || 'general',
+      timestamp: new Date(),
+      read: false,
+      data: payload.data,
+      imageUrl: payload.notification?.image || payload.data?.imageUrl,
+    };
+    
+    this.addNotification(notification);
+    
+    // Show browser notification if in foreground
+    if ('Notification' in window && Notification.permission === 'granted') {
+      new Notification(notification.title, {
+        body: notification.body,
+        icon: '/logo.png',
+        badge: '/logo.png',
+        tag: notification.id,
+      });
+    }
+  }
+
+  // Add notification to list
+  addNotification(notification: PushNotification): void {
     this.notifications.unshift(notification);
     this.saveNotifications();
-
-    // Show browser notification if permitted
-    if (Notification.permission === "granted") {
-      this.showBrowserNotification(notification);
-    }
-
-    // Trigger custom event for app to handle
-    window.dispatchEvent(
-      new CustomEvent("alclean-notification", { detail: notification })
-    );
+    this.notifyListeners();
   }
 
-  /**
-   * Show browser notification
-   */
-  private showBrowserNotification(notification: PushNotification): void {
-    const options: NotificationOptions = {
-      body: notification.body,
-      icon: "/icon-192.png",
-      badge: "/icon-192.png",
-      data: notification.data,
-      tag: notification.id,
-      requireInteraction: false,
-    };
-
-    if (notification.imageUrl) {
-      options.image = notification.imageUrl;
-    }
-
-    new Notification(notification.title, options);
-  }
-
-  /**
-   * Get all notifications
-   */
+  // Get all notifications
   getNotifications(): PushNotification[] {
-    return this.notifications;
+    return [...this.notifications];
   }
 
-  /**
-   * Get unread notifications count
-   */
+  // Get unread count
   getUnreadCount(): number {
-    return this.notifications.filter((n) => !n.read).length;
+    return this.notifications.filter(n => !n.read).length;
   }
 
-  /**
-   * Mark notification as read
-   */
-  markAsRead(notificationId: string): void {
-    const notification = this.notifications.find((n) => n.id === notificationId);
+  // Mark notification as read
+  markAsRead(id: string): void {
+    const notification = this.notifications.find(n => n.id === id);
     if (notification) {
       notification.read = true;
       this.saveNotifications();
+      this.notifyListeners();
     }
   }
 
-  /**
-   * Mark all notifications as read
-   */
+  // Mark all as read
   markAllAsRead(): void {
-    this.notifications.forEach((n) => (n.read = true));
+    this.notifications.forEach(n => n.read = true);
     this.saveNotifications();
+    this.notifyListeners();
   }
 
-  /**
-   * Delete notification
-   */
-  deleteNotification(notificationId: string): void {
-    this.notifications = this.notifications.filter((n) => n.id !== notificationId);
+  // Delete notification
+  deleteNotification(id: string): void {
+    this.notifications = this.notifications.filter(n => n.id !== id);
     this.saveNotifications();
+    this.notifyListeners();
   }
 
-  /**
-   * Clear all notifications
-   */
+  // Clear all notifications
   clearAll(): void {
     this.notifications = [];
     this.saveNotifications();
+    this.notifyListeners();
   }
 
-  /**
-   * Update notification settings
-   */
-  updateSettings(newSettings: Partial<NotificationSettings>): void {
-    this.settings = { ...this.settings, ...newSettings };
-    this.saveSettings();
-
-    // If notifications were disabled, clear token
-    if (!newSettings.enabled) {
-      this.fcmToken = null;
-      localStorage.removeItem("fcm_token");
-    }
-  }
-
-  /**
-   * Get current settings
-   */
-  getSettings(): NotificationSettings {
-    return { ...this.settings };
-  }
-
-  /**
-   * Send notification (admin function)
-   * In production, this should be called from your backend
-   */
-  async sendNotification(request: SendNotificationRequest): Promise<boolean> {
-    // This is a mock function for demonstration
-    // In production, this should be called from your backend server
-
-    console.log("Sending notification:", request);
-
-    // Mock: Create notification locally
-    const notification: PushNotification = {
-      id: this.generateId(),
-      title: request.title,
-      body: request.body,
-      type: request.type,
-      data: request.data,
-      imageUrl: request.imageUrl,
-      actionUrl: request.actionUrl,
-      timestamp: Date.now(),
-      read: false,
+  // Subscribe to notification changes
+  subscribe(callback: (notifications: PushNotification[]) => void): () => void {
+    this.listeners.push(callback);
+    return () => {
+      this.listeners = this.listeners.filter(l => l !== callback);
     };
+  }
 
-    // Simulate delay
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+  // Check if notifications are enabled
+  async checkPermission(): Promise<'granted' | 'denied' | 'default'> {
+    if (!('Notification' in window)) return 'denied';
+    return Notification.permission;
+  }
 
-    // Handle locally
-    this.handleNotification(notification);
-
-    return true;
-
-    /* 
-    // In production, use this code on your backend:
+  // Request permission
+  async requestPermission(): Promise<boolean> {
+    if (!('Notification' in window)) return false;
     
-    const message = {
-      notification: {
-        title: request.title,
-        body: request.body,
-        image: request.imageUrl
-      },
-      data: request.data || {},
-      topic: request.targetAudience === 'all' ? 'all_users' : 'specific',
-      // or use tokens for specific users
-      // tokens: userTokens
-    };
-
-    const response = await fetch('https://fcm.googleapis.com/fcm/send', {
-      method: 'POST',
-      headers: {
-        'Authorization': `key=${FCM_SERVER_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(message)
-    });
-
-    return response.ok;
-    */
-  }
-
-  /**
-   * Subscribe to notification topic
-   */
-  async subscribeToTopic(topic: string): Promise<void> {
-    if (!this.fcmToken) return;
-
-    // TODO: Implement topic subscription
-    // In production, send token to backend which subscribes to topic
-    console.log(`Subscribing to topic: ${topic}`);
-  }
-
-  /**
-   * Private helper methods
-   */
-
-  private loadSettings(): void {
-    const saved = localStorage.getItem("notification_settings");
-    if (saved) {
-      this.settings = JSON.parse(saved);
+    const permission = await Notification.requestPermission();
+    
+    if (permission === 'granted' && !this.fcmToken) {
+      const token = await requestNotificationPermission();
+      if (token) {
+        this.fcmToken = token;
+        this.saveFCMToken(token);
+        await this.registerTokenWithBackend(token);
+      }
     }
+    
+    return permission === 'granted';
   }
 
-  private saveSettings(): void {
-    localStorage.setItem("notification_settings", JSON.stringify(this.settings));
+  // Get FCM token
+  getFCMToken(): string | null {
+    return this.fcmToken;
   }
 
+  // Private methods
   private loadNotifications(): void {
-    const saved = localStorage.getItem("notifications");
-    if (saved) {
-      this.notifications = JSON.parse(saved);
-    } else {
-      // Add welcome notification
-      this.notifications = [
-        {
-          id: this.generateId(),
-          title: "Welcome to AlClean! 🧼",
-          body: "Get notified about exclusive discounts, new products, and order updates!",
-          type: "general",
-          timestamp: Date.now(),
-          read: false,
-        },
-      ];
-      this.saveNotifications();
+    try {
+      const stored = localStorage.getItem(NOTIFICATIONS_STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        this.notifications = parsed.map((n: any) => ({
+          ...n,
+          timestamp: new Date(n.timestamp),
+        }));
+      }
+    } catch (error) {
+      console.error('[Notifications] Failed to load:', error);
     }
   }
 
   private saveNotifications(): void {
-    // Only save last 100 notifications
-    const toSave = this.notifications.slice(0, 100);
-    localStorage.setItem("notifications", JSON.stringify(toSave));
+    try {
+      localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, JSON.stringify(this.notifications));
+    } catch (error) {
+      console.error('[Notifications] Failed to save:', error);
+    }
+  }
+
+  private loadFCMToken(): void {
+    try {
+      this.fcmToken = localStorage.getItem(FCM_TOKEN_STORAGE_KEY);
+    } catch (error) {
+      console.error('[Notifications] Failed to load FCM token:', error);
+    }
+  }
+
+  private saveFCMToken(token: string): void {
+    try {
+      localStorage.setItem(FCM_TOKEN_STORAGE_KEY, token);
+    } catch (error) {
+      console.error('[Notifications] Failed to save FCM token:', error);
+    }
+  }
+
+  private notifyListeners(): void {
+    this.listeners.forEach(callback => callback(this.getNotifications()));
   }
 
   private generateId(): string {
     return `notif_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }
 
-  private getPlatform(): "web" | "android" | "ios" {
-    // Detect platform
+  private getPlatform(): 'web' | 'android' | 'ios' {
     const userAgent = navigator.userAgent || '';
-    if (/android/i.test(userAgent)) return "android";
-    if (/iPad|iPhone|iPod/.test(userAgent)) return "ios";
-    return "web";
+    if (/android/i.test(userAgent)) return 'android';
+    if (/iPad|iPhone|iPod/.test(userAgent)) return 'ios';
+    return 'web';
+  }
+
+  // Create a test notification (for development)
+  async sendTestNotification(): Promise<void> {
+    this.handleIncomingNotification({
+      notification: {
+        title: '🎉 Test Notification',
+        body: 'Push notifications are working! You will receive order updates here.',
+      },
+      data: {
+        type: 'general',
+      },
+    });
   }
 }
 
 // Export singleton instance
 export const notificationService = new NotificationService();
 
-// Helper function to create test notifications (for development)
-export function createTestNotification(type: PushNotification["type"]): void {
-  const testNotifications = {
-    order_update: {
-      title: "Order Updated 📦",
-      body: "Your order #12345 has been dispatched and is on the way!",
-      type: "order_update" as const,
-      data: { orderId: "12345" },
-    },
-    discount: {
-      title: "Special Discount! 🎉",
-      body: "Get 20% off on all cleaning chemicals this weekend!",
-      type: "discount" as const,
-      data: { discountCode: "CLEAN20" },
-    },
-    sale: {
-      title: "Flash Sale! ⚡",
-      body: "Limited time offer: Buy 2 Get 1 Free on selected products!",
-      type: "sale" as const,
-    },
-    new_product: {
-      title: "New Product Alert! ✨",
-      body: "Check out our new eco-friendly multi-purpose cleaner!",
-      type: "new_product" as const,
-      data: { productId: "eco-cleaner-001" },
-    },
-    delivery: {
-      title: "Out for Delivery 🚚",
-      body: "Your order will be delivered today between 2-5 PM",
-      type: "delivery" as const,
-      data: { orderId: "12345" },
-    },
-  };
-
-  const notification = testNotifications[type];
-  if (notification) {
-    notificationService.handleNotification({
-      id: `test_${Date.now()}`,
-      ...notification,
-      timestamp: Date.now(),
-      read: false,
-    });
-  }
-}
+// Export types
+export type { NotificationSegment as NotificationSegmentType };
