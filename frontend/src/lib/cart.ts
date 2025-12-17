@@ -113,12 +113,20 @@ class CartService {
 
   // Add to cart
   addToCart(product: Product, quantity: number = 1): void {
+    // Ensure quantity is a valid number
+    const qty = typeof quantity === 'number' ? quantity : parseInt(String(quantity)) || 1;
+    
     const existingIndex = this.items.findIndex(item => item.product.id === product.id);
     
     if (existingIndex >= 0) {
-      this.items[existingIndex].quantity += quantity;
+      this.items[existingIndex].quantity = (this.items[existingIndex].quantity || 0) + qty;
     } else {
-      this.items.push({ product, quantity });
+      // Ensure product price is a number
+      const cleanProduct = {
+        ...product,
+        price: typeof product.price === 'number' ? product.price : parseFloat(String(product.price)) || 0
+      };
+      this.items.push({ product: cleanProduct, quantity: qty });
     }
     
     // Reset checkout when cart changes
