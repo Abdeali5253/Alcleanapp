@@ -1,22 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowLeft, Loader2, CheckCircle, XCircle, RefreshCw } from "lucide-react";
+import { Loader2, CheckCircle, XCircle, RefreshCw } from "lucide-react";
 import { Button } from "./ui/button";
 import { cartService } from "../lib/cart";
-import { toast } from "sonner";
-
-// For Capacitor (mobile app)
-let Browser: any = null;
-try {
-  // Dynamic import for Capacitor Browser
-  import('@capacitor/browser').then(module => {
-    Browser = module.Browser;
-  }).catch(() => {
-    console.log('[Checkout] Capacitor Browser not available, using web fallback');
-  });
-} catch (e) {
-  console.log('[Checkout] Running in web mode');
-}
 
 interface CheckoutWebViewProps {
   checkoutUrl: string;
@@ -37,36 +23,20 @@ export function CheckoutWebView({ checkoutUrl, onClose, onSuccess }: CheckoutWeb
     setError(null);
 
     try {
-      if (Browser) {
-        // Mobile: Use Capacitor Browser (in-app browser)
-        await Browser.open({ 
-          url: checkoutUrl,
-          windowName: '_blank',
-          toolbarColor: '#6DB33F',
-        });
-
-        // Listen for browser close event
-        Browser.addListener('browserFinished', () => {
-          console.log('[Checkout] Browser closed');
-          // Check if order was completed
-          checkOrderStatus();
-        });
+      // Web: Open in new window and poll for close
+      const checkoutWindow = window.open(checkoutUrl, 'shopify_checkout', 'width=500,height=700');
+      
+      if (checkoutWindow) {
+        // Poll to check if window is closed
+        const pollTimer = setInterval(() => {
+          if (checkoutWindow.closed) {
+            clearInterval(pollTimer);
+            checkOrderStatus();
+          }
+        }, 1000);
       } else {
-        // Web: Open in new window and poll for close
-        const checkoutWindow = window.open(checkoutUrl, 'shopify_checkout', 'width=500,height=700');
-        
-        if (checkoutWindow) {
-          // Poll to check if window is closed
-          const pollTimer = setInterval(() => {
-            if (checkoutWindow.closed) {
-              clearInterval(pollTimer);
-              checkOrderStatus();
-            }
-          }, 1000);
-        } else {
-          // Popup blocked, redirect instead
-          window.location.href = checkoutUrl;
-        }
+        // Popup blocked, redirect instead
+        window.location.href = checkoutUrl;
       }
     } catch (err: any) {
       console.error('[Checkout] Error opening checkout:', err);
@@ -78,8 +48,6 @@ export function CheckoutWebView({ checkoutUrl, onClose, onSuccess }: CheckoutWeb
 
   const checkOrderStatus = () => {
     // After checkout window closes, assume order might be complete
-    // In production, you'd verify with Shopify API
-    toast.success("Checkout completed! Check your email for order confirmation.");
     cartService.clearCart();
     onSuccess();
   };
