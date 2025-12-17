@@ -6,3 +6,4 @@ TODO.md
 google-services.json
 node_modules/
 dist/
+.idea/
