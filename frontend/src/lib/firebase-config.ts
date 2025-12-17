@@ -1,116 +1,118 @@
-/**
- * Firebase Configuration and Initialization
- * All sensitive keys are stored in environment variables
- */
+// Firebase Configuration for AlClean Mobile App
+// This file initializes Firebase for push notifications
 
-// Get Firebase configuration from environment variables
+import { initializeApp, FirebaseApp } from 'firebase/app';
+import { getMessaging, getToken, onMessage, Messaging } from 'firebase/messaging';
+
+// Get configuration from environment variables
 const getFirebaseConfig = () => {
   const env = typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env : {};
   
   return {
-    apiKey: env.VITE_FIREBASE_API_KEY || "",
-    authDomain: env.VITE_FIREBASE_AUTH_DOMAIN || "",
-    projectId: env.VITE_FIREBASE_PROJECT_ID || "",
-    storageBucket: env.VITE_FIREBASE_STORAGE_BUCKET || "",
-    messagingSenderId: env.VITE_FIREBASE_MESSAGING_SENDER_ID || "",
-    appId: env.VITE_FIREBASE_APP_ID || "",
+    apiKey: env.VITE_FIREBASE_API_KEY || '',
+    authDomain: env.VITE_FIREBASE_AUTH_DOMAIN || '',
+    projectId: env.VITE_FIREBASE_PROJECT_ID || 'app-notification-5e56b',
+    storageBucket: env.VITE_FIREBASE_STORAGE_BUCKET || '',
+    messagingSenderId: env.VITE_FIREBASE_MESSAGING_SENDER_ID || '310536726569',
+    appId: env.VITE_FIREBASE_APP_ID || '',
   };
 };
 
-export const firebaseConfig = getFirebaseConfig();
+const firebaseConfig = getFirebaseConfig();
 
-// VAPID key for web push notifications
-// Get this from Firebase Console > Project Settings > Cloud Messaging > Web Push certificates
-const getVapidKey = () => {
-  const env = typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env : {};
-  return env.VITE_FIREBASE_VAPID_KEY || '';
-};
+let app: FirebaseApp | null = null;
+let messaging: Messaging | null = null;
 
-export const VAPID_KEY = getVapidKey();
-
-/**
- * Firebase Cloud Messaging (FCM) Setup Instructions
- * 
- * To enable real push notifications:
- * 
- * 1. Install Firebase dependencies:
- *    npm install firebase
- * 
- * 2. Get your Firebase Cloud Messaging Server Key:
- *    - Go to Firebase Console (https://console.firebase.google.com)
- *    - Select your project
- *    - Go to Project Settings > Cloud Messaging
- *    - Copy the "Server key" under Cloud Messaging API (Legacy)
- *    - Add it to server/.env as FCM_SERVER_KEY
- * 
- * 3. Get your VAPID key for web push:
- *    - In the same Cloud Messaging settings
- *    - Under "Web Push certificates"
- *    - Generate a new key pair or use existing
- *    - Copy the "Key pair" value
- *    - Add it to .env as VITE_FIREBASE_VAPID_KEY
- * 
- * 4. Get Firebase web configuration:
- *    - Go to Project Settings > General
- *    - Scroll to "Your apps" section
- *    - Click on your web app or add a new one
- *    - Copy all the config values to your .env file
- * 
- * 5. For Android app:
- *    - Download google-services.json from Firebase Console
- *    - Place it in android/app/ directory
- *    - Firebase SDK will be automatically configured
- */
-
-// Initialize Firebase (uncomment when ready to use real Firebase)
-/*
-import { initializeApp } from 'firebase/app';
-import { getMessaging, getToken, onMessage } from 'firebase/messaging';
-
-const app = initializeApp(firebaseConfig);
-const messaging = getMessaging(app);
-
-export async function requestNotificationPermission() {
+// Initialize Firebase only if config is valid
+export function initializeFirebase(): FirebaseApp | null {
+  if (app) return app;
+  
+  if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
+    console.warn('[Firebase] Configuration missing, notifications disabled');
+    return null;
+  }
+  
   try {
-    const permission = await Notification.requestPermission();
-    
-    if (permission === 'granted') {
-      console.log('Notification permission granted.');
-      
-      // Get FCM token
-      const token = await getToken(messaging, { vapidKey: VAPID_KEY });
-      console.log('FCM Token:', token);
-      
-      // Send token to your server
-      const env = typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env : {};
-      const apiUrl = env.VITE_API_URL || 'http://localhost:3001';
-      
-      await fetch(`${apiUrl}/api/notifications/subscribe`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, platform: 'web' })
-      });
-      
-      return token;
-    } else {
-      console.log('Notification permission denied.');
-      return null;
-    }
+    app = initializeApp(firebaseConfig);
+    console.log('[Firebase] Initialized successfully');
+    return app;
   } catch (error) {
-    console.error('Error getting notification permission:', error);
+    console.error('[Firebase] Initialization failed:', error);
     return null;
   }
 }
 
-// Handle foreground messages
-export function onMessageListener() {
-  return new Promise((resolve) => {
-    onMessage(messaging, (payload) => {
-      console.log('Message received in foreground:', payload);
-      resolve(payload);
-    });
+// Get Firebase Messaging instance
+export function getFirebaseMessaging(): Messaging | null {
+  if (messaging) return messaging;
+  
+  const firebaseApp = initializeFirebase();
+  if (!firebaseApp) return null;
+  
+  try {
+    // Check if messaging is supported (requires HTTPS or localhost)
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      messaging = getMessaging(firebaseApp);
+      console.log('[Firebase] Messaging initialized');
+      return messaging;
+    }
+    console.warn('[Firebase] Messaging not supported in this environment');
+    return null;
+  } catch (error) {
+    console.error('[Firebase] Messaging initialization failed:', error);
+    return null;
+  }
+}
+
+// Request notification permission and get FCM token
+export async function requestNotificationPermission(): Promise<string | null> {
+  try {
+    // Check if notifications are supported
+    if (!('Notification' in window)) {
+      console.warn('[Firebase] Notifications not supported');
+      return null;
+    }
+    
+    // Request permission
+    const permission = await Notification.requestPermission();
+    
+    if (permission !== 'granted') {
+      console.warn('[Firebase] Notification permission denied');
+      return null;
+    }
+    
+    const messagingInstance = getFirebaseMessaging();
+    if (!messagingInstance) return null;
+    
+    // Get FCM token
+    const env = typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env : {};
+    const vapidKey = env.VITE_FIREBASE_VAPID_KEY || '';
+    
+    const token = await getToken(messagingInstance, { vapidKey });
+    
+    if (token) {
+      console.log('[Firebase] FCM Token obtained:', token.substring(0, 20) + '...');
+      return token;
+    }
+    
+    console.warn('[Firebase] No FCM token available');
+    return null;
+  } catch (error) {
+    console.error('[Firebase] Error getting FCM token:', error);
+    return null;
+  }
+}
+
+// Listen for foreground messages
+export function onForegroundMessage(callback: (payload: any) => void): (() => void) | null {
+  const messagingInstance = getFirebaseMessaging();
+  if (!messagingInstance) return null;
+  
+  return onMessage(messagingInstance, (payload) => {
+    console.log('[Firebase] Foreground message received:', payload);
+    callback(payload);
   });
 }
 
-export { messaging };
-*/
+// Export config for debugging
+export const getConfig = () => firebaseConfig;
