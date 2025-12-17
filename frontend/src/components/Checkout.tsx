@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, CreditCard, Truck, Shield, Loader2, ExternalLink } from "lucide-react";
+import { ArrowLeft, CreditCard, Truck, Shield, Loader2, ExternalLink, CheckCircle } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
@@ -9,12 +9,17 @@ import { cartService, CartItem } from "../lib/cart";
 import { authService, User } from "../lib/auth";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 
+// Check if running in Capacitor
+const isCapacitor = typeof (window as any).Capacitor !== 'undefined';
+
 export function Checkout() {
   const navigate = useNavigate();
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentCompleted, setPaymentCompleted] = useState(false);
   
   // Shipping form
   const [firstName, setFirstName] = useState("");
@@ -43,9 +48,63 @@ export function Checkout() {
     }
   }, [user]);
 
+  // Listen for focus event (when user returns from payment)
+  useEffect(() => {
+    const handleFocus = () => {
+      if (checkoutUrl && showPaymentModal) {
+        // User returned to the app, show completion options
+        setShowPaymentModal(false);
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [checkoutUrl, showPaymentModal]);
+
   const subtotal = cartService.getTotal();
   const deliveryCharge = subtotal >= 5000 ? 0 : 250;
   const total = subtotal + deliveryCharge;
+
+  const openPaymentPage = async (url: string) => {
+    if (isCapacitor) {
+      // Mobile: Use Capacitor Browser for in-app browser
+      try {
+        const { Browser } = await import('@capacitor/browser');
+        await Browser.open({ 
+          url,
+          toolbarColor: '#6DB33F',
+          presentationStyle: 'popover',
+        });
+        
+        // Listen for browser close
+        Browser.addListener('browserFinished', () => {
+          setShowPaymentModal(false);
+        });
+      } catch (e) {
+        // Fallback to window.open
+        window.open(url, '_blank');
+      }
+    } else {
+      // Web: Open in new window
+      const paymentWindow = window.open(url, 'shopify_checkout', 'width=500,height=700,scrollbars=yes');
+      
+      if (!paymentWindow) {
+        // Popup blocked, show link
+        toast.error("Please allow popups or click the link below");
+        return;
+      }
+
+      // Poll to check if window closed
+      const checkClosed = setInterval(() => {
+        if (paymentWindow.closed) {
+          clearInterval(checkClosed);
+          setShowPaymentModal(false);
+        }
+      }, 1000);
+    }
+    
+    setShowPaymentModal(true);
+  };
 
   const handleCheckout = async () => {
     // Validate form
@@ -66,9 +125,9 @@ export function Checkout() {
 
     try {
       // Create Shopify checkout
-      const { checkoutUrl, checkout } = await cartService.createCheckout();
+      const { checkoutUrl: url, checkout } = await cartService.createCheckout();
       
-      // Update shipping address
+      // Update shipping address on checkout
       await cartService.updateShippingAddress({
         firstName,
         lastName,
@@ -80,13 +139,13 @@ export function Checkout() {
         phone,
       });
 
-      // Store checkout URL
-      setCheckoutUrl(checkoutUrl);
+      console.log('[Checkout] Created checkout:', url);
+      setCheckoutUrl(url);
       
-      toast.success("Redirecting to payment...");
+      toast.success("Opening secure payment page...");
       
-      // Open Shopify checkout in new tab (or WebView in mobile app)
-      window.open(checkoutUrl, '_blank');
+      // Open payment page
+      await openPaymentPage(url);
       
     } catch (error: any) {
       console.error("[Checkout] Error:", error);
@@ -96,6 +155,65 @@ export function Checkout() {
     }
   };
 
+  const handlePaymentComplete = () => {
+    // Clear cart and show success
+    cartService.clearCart();
+    setPaymentCompleted(true);
+    toast.success("Order placed successfully!");
+  };
+
+  // Payment completed view
+  if (paymentCompleted) {
+    return (
+      <div className="min-h-screen bg-gray-50 pb-20">
+        <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
+          <div className="max-w-md mx-auto px-4 py-4 flex items-center gap-4">
+            <h1 className="text-xl font-bold text-gray-900">Order Confirmed</h1>
+          </div>
+        </header>
+        
+        <div className="max-w-md mx-auto px-4 py-12 text-center">
+          <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <CheckCircle size={56} className="text-green-500" />
+          </div>
+          
+          <h2 className="text-2xl font-bold text-gray-900 mb-3">
+            Thank You for Your Order!
+          </h2>
+          
+          <p className="text-gray-600 mb-8">
+            Your order has been placed successfully. You will receive an email
+            confirmation with your order details and tracking information.
+          </p>
+
+          <div className="bg-[#6DB33F]/10 rounded-xl p-4 mb-8">
+            <p className="text-sm text-[#6DB33F] font-medium">
+              Check your email for order confirmation and tracking details
+            </p>
+          </div>
+
+          <div className="space-y-3">
+            <Button 
+              onClick={() => navigate('/tracking')}
+              className="w-full bg-[#6DB33F] hover:bg-[#5da035] py-6"
+            >
+              Track My Orders
+            </Button>
+            
+            <Button 
+              onClick={() => navigate('/products')}
+              variant="outline"
+              className="w-full py-6"
+            >
+              Continue Shopping
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Empty cart view
   if (cartItems.length === 0) {
     return (
       <div className="min-h-screen bg-gray-50 pb-20">
@@ -277,7 +395,7 @@ export function Checkout() {
           {isLoading ? (
             <>
               <Loader2 size={20} className="animate-spin mr-2" />
-              Processing...
+              Creating Checkout...
             </>
           ) : (
             <>
@@ -287,21 +405,38 @@ export function Checkout() {
           )}
         </Button>
 
-        {/* Checkout URL (if created) */}
+        {/* Payment Page Link (shown after checkout created) */}
         {checkoutUrl && (
-          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-            <p className="text-sm text-blue-700 mb-2">
-              Payment page opened in new tab. If it didn't open, click below:
-            </p>
-            <a
-              href={checkoutUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-2 text-[#6DB33F] font-medium"
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 space-y-4">
+            <div>
+              <p className="text-sm text-blue-700 mb-2">
+                <strong>Payment page opened!</strong> Complete your payment in the new window/tab.
+              </p>
+              <p className="text-xs text-blue-600">
+                If the payment page didn't open, click the button below:
+              </p>
+            </div>
+            
+            <button
+              onClick={() => openPaymentPage(checkoutUrl)}
+              className="flex items-center justify-center gap-2 w-full bg-blue-600 text-white py-3 rounded-lg font-medium"
             >
-              <ExternalLink size={16} />
+              <ExternalLink size={18} />
               Open Payment Page
-            </a>
+            </button>
+
+            <div className="border-t border-blue-200 pt-4">
+              <p className="text-xs text-blue-600 mb-3">
+                After completing payment, click below:
+              </p>
+              <button
+                onClick={handlePaymentComplete}
+                className="flex items-center justify-center gap-2 w-full bg-green-600 text-white py-3 rounded-lg font-medium"
+              >
+                <CheckCircle size={18} />
+                I've Completed Payment
+              </button>
+            </div>
           </div>
         )}
 
