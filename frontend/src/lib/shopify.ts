@@ -630,9 +630,12 @@ export async function checkoutCustomerAssociateV2(
   };
 }
 
-// Update checkout shipping address
+// Update cart with delivery address (Cart API)
+// Note: Cart API doesn't directly support shipping address before checkout
+// The address is collected on the Shopify checkout page
+// This function updates buyer identity with delivery address preferences
 export async function checkoutShippingAddressUpdateV2(
-  checkoutId: string,
+  cartId: string,
   shippingAddress: {
     firstName: string;
     lastName: string;
@@ -644,15 +647,21 @@ export async function checkoutShippingAddressUpdateV2(
     phone: string;
   }
 ): Promise<ShopifyCheckout> {
+  // Cart API doesn't support shipping address update directly
+  // Instead, we update the delivery address preferences in buyer identity
+  // The actual address is entered on Shopify's checkout page
+  
   const mutation = `
-    mutation checkoutShippingAddressUpdateV2($checkoutId: ID!, $shippingAddress: MailingAddressInput!) {
-      checkoutShippingAddressUpdateV2(checkoutId: $checkoutId, shippingAddress: $shippingAddress) {
-        checkout {
+    mutation cartBuyerIdentityUpdate($cartId: ID!, $buyerIdentity: CartBuyerIdentityInput!) {
+      cartBuyerIdentityUpdate(cartId: $cartId, buyerIdentity: $buyerIdentity) {
+        cart {
           id
-          webUrl
-          totalPrice { amount currencyCode }
+          checkoutUrl
+          cost {
+            totalAmount { amount currencyCode }
+          }
         }
-        checkoutUserErrors {
+        userErrors {
           code
           field
           message
@@ -661,13 +670,57 @@ export async function checkoutShippingAddressUpdateV2(
     }
   `;
 
-  const data = await shopifyFetch<any>(mutation, { checkoutId, shippingAddress });
+  // Build delivery address preferences
+  const buyerIdentity = {
+    deliveryAddressPreferences: [{
+      deliveryAddress: {
+        firstName: shippingAddress.firstName,
+        lastName: shippingAddress.lastName,
+        address1: shippingAddress.address1,
+        city: shippingAddress.city,
+        province: shippingAddress.province,
+        country: shippingAddress.country,
+        zip: shippingAddress.zip,
+        phone: shippingAddress.phone,
+      }
+    }]
+  };
 
-  if (data.checkoutShippingAddressUpdateV2.checkoutUserErrors?.length > 0) {
-    throw new Error(data.checkoutShippingAddressUpdateV2.checkoutUserErrors.map((e: any) => e.message).join(", "));
+  try {
+    const data = await shopifyFetch<any>(mutation, { cartId, buyerIdentity });
+
+    if (data.cartBuyerIdentityUpdate?.userErrors?.length > 0) {
+      console.warn("[Shopify] Shipping address update warning:", data.cartBuyerIdentityUpdate.userErrors);
+    }
+
+    const cart = data.cartBuyerIdentityUpdate?.cart;
+    if (!cart) {
+      // If update fails, return a minimal checkout object
+      // The user will still be able to enter address on Shopify checkout page
+      return {
+        id: cartId,
+        webUrl: '',
+        totalPrice: { amount: '0', currencyCode: 'PKR' },
+        lineItems: { edges: [] }
+      };
+    }
+
+    return {
+      id: cart.id,
+      webUrl: cart.checkoutUrl,
+      totalPrice: cart.cost.totalAmount,
+      lineItems: { edges: [] }
+    };
+  } catch (error) {
+    console.warn("[Shopify] Shipping address update failed, user can enter on checkout page:", error);
+    // Return minimal object - address will be entered on Shopify checkout
+    return {
+      id: cartId,
+      webUrl: '',
+      totalPrice: { amount: '0', currencyCode: 'PKR' },
+      lineItems: { edges: [] }
+    };
   }
-
-  return data.checkoutShippingAddressUpdateV2.checkout;
 }
 
 // Get checkout URL (opens in WebView for payment)
