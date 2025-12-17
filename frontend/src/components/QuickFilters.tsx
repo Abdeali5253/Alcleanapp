@@ -27,6 +27,8 @@ export function QuickFilters({ onFilterChange, currentFilters, productCount }: Q
 
   const handleFilterChange = (key: keyof FilterState, value: any) => {
     onFilterChange({ ...currentFilters, [key]: value });
+    setShowPriceDropdown(false);
+    setShowSortDropdown(false);
   };
 
   const clearFilters = () => {
@@ -38,170 +40,171 @@ export function QuickFilters({ onFilterChange, currentFilters, productCount }: Q
     currentFilters.stockStatus !== 'all' ||
     currentFilters.onSale;
 
+  const activeFilterCount = [
+    currentFilters.priceRange !== 'all',
+    currentFilters.stockStatus === 'instock',
+    currentFilters.onSale,
+  ].filter(Boolean).length;
+
   const priceOptions = [
-    { value: 'all', label: 'All Prices' },
-    { value: 'under500', label: 'Under Rs.500' },
-    { value: '500to1000', label: 'Rs.500 - Rs.1,000' },
-    { value: '1000to5000', label: 'Rs.1,000 - Rs.5,000' },
-    { value: 'over5000', label: 'Over Rs.5,000' },
+    { value: 'all', label: 'All' },
+    { value: 'under500', label: '<Rs.500' },
+    { value: '500to1000', label: '500-1K' },
+    { value: '1000to5000', label: '1K-5K' },
+    { value: 'over5000', label: '>Rs.5K' },
   ];
 
   const sortOptions = [
     { value: 'featured', label: 'Featured' },
-    { value: 'price-low', label: 'Price: Low to High' },
-    { value: 'price-high', label: 'Price: High to Low' },
-    { value: 'name', label: 'Name: A to Z' },
-    { value: 'discount', label: 'Biggest Discount' },
+    { value: 'price-low', label: 'Price ↑' },
+    { value: 'price-high', label: 'Price ↓' },
+    { value: 'name', label: 'A-Z' },
+    { value: 'discount', label: 'Discount' },
   ];
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 p-4 mb-6 shadow-sm">
-      <div className="flex flex-wrap items-center gap-3">
+    <div className="mb-4">
+      {/* Compact Filter Row */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
         {/* Product Count */}
-        <div className="flex items-center gap-2 text-gray-600">
-          <SlidersHorizontal size={18} />
-          <span className="text-sm font-medium">{productCount} products</span>
+        <div className="flex-shrink-0 flex items-center gap-1 px-2 py-1.5 bg-gray-100 rounded-lg text-xs text-gray-600">
+          <SlidersHorizontal size={12} />
+          <span>{productCount}</span>
         </div>
 
-        <div className="h-6 w-px bg-gray-200 hidden sm:block" />
+        {/* On Sale Toggle */}
+        <button
+          onClick={() => handleFilterChange('onSale', !currentFilters.onSale)}
+          className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+            currentFilters.onSale
+              ? 'bg-red-500 text-white'
+              : 'bg-white border border-gray-200 text-gray-600'
+          }`}
+        >
+          🔥 Sale
+        </button>
 
-        {/* Quick Filter Pills */}
-        <div className="flex flex-wrap gap-2 flex-1">
-          {/* On Sale Toggle */}
+        {/* In Stock Toggle */}
+        <button
+          onClick={() => handleFilterChange('stockStatus', 
+            currentFilters.stockStatus === 'instock' ? 'all' : 'instock'
+          )}
+          className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+            currentFilters.stockStatus === 'instock'
+              ? 'bg-green-500 text-white'
+              : 'bg-white border border-gray-200 text-gray-600'
+          }`}
+        >
+          ✓ Stock
+        </button>
+
+        {/* Price Dropdown */}
+        <div className="relative flex-shrink-0">
           <button
-            onClick={() => handleFilterChange('onSale', !currentFilters.onSale)}
-            className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-              currentFilters.onSale
-                ? 'bg-red-500 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            onClick={() => {
+              setShowPriceDropdown(!showPriceDropdown);
+              setShowSortDropdown(false);
+            }}
+            className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              currentFilters.priceRange !== 'all'
+                ? 'bg-[#6DB33F] text-white'
+                : 'bg-white border border-gray-200 text-gray-600'
             }`}
           >
-            🔥 On Sale
+            Price
+            <ChevronDown size={12} className={showPriceDropdown ? 'rotate-180' : ''} />
           </button>
-
-          {/* In Stock Toggle */}
-          <button
-            onClick={() => handleFilterChange('stockStatus', 
-              currentFilters.stockStatus === 'instock' ? 'all' : 'instock'
-            )}
-            className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-              currentFilters.stockStatus === 'instock'
-                ? 'bg-green-500 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            ✓ In Stock
-          </button>
-
-          {/* Price Dropdown */}
-          <div className="relative">
-            <button
-              onClick={() => {
-                setShowPriceDropdown(!showPriceDropdown);
-                setShowSortDropdown(false);
-              }}
-              className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                currentFilters.priceRange !== 'all'
-                  ? 'bg-[#6DB33F] text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              Price
-              <ChevronDown size={16} className={showPriceDropdown ? 'rotate-180' : ''} />
-            </button>
-            
-            {showPriceDropdown && (
-              <div className="absolute top-full left-0 mt-2 bg-white rounded-xl shadow-lg border border-gray-200 py-2 z-20 min-w-[180px]">
+          
+          {showPriceDropdown && (
+            <>
+              <div className="fixed inset-0 z-10" onClick={() => setShowPriceDropdown(false)} />
+              <div className="absolute top-full left-0 mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-20 min-w-[100px]">
                 {priceOptions.map((option) => (
                   <button
                     key={option.value}
-                    onClick={() => {
-                      handleFilterChange('priceRange', option.value as FilterState['priceRange']);
-                      setShowPriceDropdown(false);
-                    }}
-                    className="flex items-center justify-between w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                    onClick={() => handleFilterChange('priceRange', option.value as FilterState['priceRange'])}
+                    className="flex items-center justify-between w-full px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
                   >
                     {option.label}
                     {currentFilters.priceRange === option.value && (
-                      <Check size={16} className="text-[#6DB33F]" />
+                      <Check size={12} className="text-[#6DB33F]" />
                     )}
                   </button>
                 ))}
               </div>
-            )}
-          </div>
+            </>
+          )}
+        </div>
 
-          {/* Sort Dropdown */}
-          <div className="relative ml-auto">
-            <button
-              onClick={() => {
-                setShowSortDropdown(!showSortDropdown);
-                setShowPriceDropdown(false);
-              }}
-              className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-all"
-            >
-              Sort: {sortOptions.find(o => o.value === currentFilters.sortBy)?.label}
-              <ChevronDown size={16} className={showSortDropdown ? 'rotate-180' : ''} />
-            </button>
-            
-            {showSortDropdown && (
-              <div className="absolute top-full right-0 mt-2 bg-white rounded-xl shadow-lg border border-gray-200 py-2 z-20 min-w-[180px]">
+        {/* Sort Dropdown */}
+        <div className="relative flex-shrink-0 ml-auto">
+          <button
+            onClick={() => {
+              setShowSortDropdown(!showSortDropdown);
+              setShowPriceDropdown(false);
+            }}
+            className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-white border border-gray-200 text-gray-600"
+          >
+            {sortOptions.find(o => o.value === currentFilters.sortBy)?.label}
+            <ChevronDown size={12} className={showSortDropdown ? 'rotate-180' : ''} />
+          </button>
+          
+          {showSortDropdown && (
+            <>
+              <div className="fixed inset-0 z-10" onClick={() => setShowSortDropdown(false)} />
+              <div className="absolute top-full right-0 mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-20 min-w-[100px]">
                 {sortOptions.map((option) => (
                   <button
                     key={option.value}
-                    onClick={() => {
-                      handleFilterChange('sortBy', option.value as FilterState['sortBy']);
-                      setShowSortDropdown(false);
-                    }}
-                    className="flex items-center justify-between w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                    onClick={() => handleFilterChange('sortBy', option.value as FilterState['sortBy'])}
+                    className="flex items-center justify-between w-full px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
                   >
                     {option.label}
                     {currentFilters.sortBy === option.value && (
-                      <Check size={16} className="text-[#6DB33F]" />
+                      <Check size={12} className="text-[#6DB33F]" />
                     )}
                   </button>
                 ))}
               </div>
-            )}
-          </div>
+            </>
+          )}
         </div>
 
-        {/* Clear Filters */}
+        {/* Clear Button */}
         {hasActiveFilters && (
           <button
             onClick={clearFilters}
-            className="flex items-center gap-1 px-3 py-2 text-sm text-gray-500 hover:text-red-500 transition-colors"
+            className="flex-shrink-0 p-1.5 text-gray-400 hover:text-red-500 transition-colors"
           >
-            <X size={16} />
-            Clear
+            <X size={14} />
           </button>
         )}
       </div>
 
-      {/* Active Filter Tags */}
+      {/* Active Filter Tags - Compact */}
       {hasActiveFilters && (
-        <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-gray-100">
+        <div className="flex flex-wrap gap-1 mt-2">
           {currentFilters.onSale && (
-            <span className="inline-flex items-center gap-1 px-3 py-1 bg-red-100 text-red-600 rounded-full text-xs font-medium">
-              On Sale
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-100 text-red-600 rounded-full text-[10px] font-medium">
+              Sale
               <button onClick={() => handleFilterChange('onSale', false)}>
-                <X size={12} />
+                <X size={10} />
               </button>
             </span>
           )}
-          {currentFilters.stockStatus !== 'all' && (
-            <span className="inline-flex items-center gap-1 px-3 py-1 bg-green-100 text-green-600 rounded-full text-xs font-medium">
-              {currentFilters.stockStatus === 'instock' ? 'In Stock' : 'Out of Stock'}
+          {currentFilters.stockStatus === 'instock' && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-600 rounded-full text-[10px] font-medium">
+              In Stock
               <button onClick={() => handleFilterChange('stockStatus', 'all')}>
-                <X size={12} />
+                <X size={10} />
               </button>
             </span>
           )}
           {currentFilters.priceRange !== 'all' && (
-            <span className="inline-flex items-center gap-1 px-3 py-1 bg-[#6DB33F]/10 text-[#6DB33F] rounded-full text-xs font-medium">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#6DB33F]/10 text-[#6DB33F] rounded-full text-[10px] font-medium">
               {priceOptions.find(o => o.value === currentFilters.priceRange)?.label}
               <button onClick={() => handleFilterChange('priceRange', 'all')}>
-                <X size={12} />
+                <X size={10} />
               </button>
             </span>
           )}
