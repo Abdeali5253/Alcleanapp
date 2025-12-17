@@ -121,42 +121,73 @@ async function shopifyFetch<T>(query: string, variables?: Record<string, any>): 
 function categorizeProduct(title: string, productType: string, tags: string[]): { category: string; subcategory: string } {
   const tagsLower = tags.map(t => t.toLowerCase().trim().replace(/\s+/g, '-'));
   const productTypeLower = productType.toLowerCase().trim().replace(/\s+/g, '-');
+  const titleLower = title.toLowerCase();
   
-  // First, check tags for category
+  // PRIORITY 1: Equipment detection based on title keywords (MOST RELIABLE)
+  const equipmentKeywords = [
+    "mop", "bucket", "broom", "brush", "squeegee", "glove", "cloth",
+    "wiper", "sponge", "scrubber", "duster", "picker", "trolley",
+    "handle", "stick", "pole", "holder", "dispenser", "bin", "dustbin",
+    "microfiber", "towel", "dustpan", "scoop", "mat", "cart", "caddy",
+    "dryer", "hand dryer", "tissue", "roll", "basket", "janitor",
+    "scraper", "spray bottle", "container", "window cleaning", "viper"
+  ];
+  
+  const isEquipment = equipmentKeywords.some(kw => titleLower.includes(kw));
+  
+  if (isEquipment) {
+    // Determine equipment subcategory
+    if (titleLower.includes("mop") || titleLower.includes("bucket") || titleLower.includes("trolley")) {
+      return { category: "cleaning-equipment", subcategory: "mop-bucket-trolley" };
+    }
+    if (titleLower.includes("broom") || titleLower.includes("brush") || titleLower.includes("scrubber")) {
+      return { category: "cleaning-equipment", subcategory: "brooms-brushes" };
+    }
+    if (titleLower.includes("window") || titleLower.includes("squeegee") || titleLower.includes("viper")) {
+      return { category: "cleaning-equipment", subcategory: "window-cleaning" };
+    }
+    if (titleLower.includes("bin") || titleLower.includes("dustbin") || titleLower.includes("garbage")) {
+      return { category: "cleaning-equipment", subcategory: "waste-bins" };
+    }
+    return { category: "cleaning-equipment", subcategory: "cleaning-tools" };
+  }
+  
+  // PRIORITY 2: Check tags for category
   for (const tag of tagsLower) {
-    // Check if tag directly maps to a category
     if (TAG_TO_CATEGORY[tag]) {
       const category = TAG_TO_CATEGORY[tag];
       return { category, subcategory: tag };
     }
   }
   
-  // Check product type
+  // PRIORITY 3: Check product type for chemicals
   if (productTypeLower) {
-    if (productTypeLower.includes('equipment') || productTypeLower.includes('tool')) {
-      return { category: "cleaning-equipment", subcategory: productTypeLower };
-    }
-    if (productTypeLower.includes('chemical') || productTypeLower.includes('cleaner') || productTypeLower.includes('detergent')) {
+    if (productTypeLower.includes('chemical') || productTypeLower.includes('cleaner') || 
+        productTypeLower.includes('detergent') || productTypeLower.includes('liquid')) {
       return { category: "cleaning-chemicals", subcategory: productTypeLower };
     }
   }
   
-  // Fallback: check title for equipment keywords
-  const titleLower = title.toLowerCase();
-  const equipmentKeywords = [
-    "mop", "bucket", "broom", "brush", "squeegee", "glove", "cloth",
-    "wiper", "sponge", "scrubber", "duster", "picker", "trolley",
-    "handle", "stick", "pole", "holder", "dispenser", "bin", "dustbin",
-    "microfiber", "towel", "dustpan", "scoop", "mat", "cart", "caddy"
+  // PRIORITY 4: Check title for chemical keywords
+  const chemicalKeywords = [
+    "cleaner", "detergent", "liquid", "gel", "solution", "sanitizer",
+    "disinfectant", "polish", "shampoo", "softener", "degreaser"
   ];
   
-  const isEquipment = equipmentKeywords.some(kw => titleLower.includes(kw));
+  const isChemical = chemicalKeywords.some(kw => titleLower.includes(kw));
   
-  if (isEquipment) {
-    return { category: "cleaning-equipment", subcategory: "cleaning-tools" };
+  if (isChemical) {
+    // Determine chemical subcategory
+    if (titleLower.includes("floor")) return { category: "cleaning-chemicals", subcategory: "floor-cleaner" };
+    if (titleLower.includes("glass")) return { category: "cleaning-chemicals", subcategory: "glass-cleaner" };
+    if (titleLower.includes("bathroom") || titleLower.includes("toilet")) return { category: "bathroom-cleaning", subcategory: "bathroom-cleaner" };
+    if (titleLower.includes("car") || titleLower.includes("shampoo")) return { category: "car-washing", subcategory: "car-cleaning-solution" };
+    if (titleLower.includes("dish") || titleLower.includes("kitchen")) return { category: "dishwashing", subcategory: "dish-wash" };
+    if (titleLower.includes("fabric") || titleLower.includes("softener")) return { category: "fabric-cleaning", subcategory: "fabric-washing" };
+    return { category: "cleaning-chemicals", subcategory: "multi-purpose-chemicals" };
   }
   
-  // Default to chemicals
+  // Default to chemicals (most products are chemicals)
   return { category: "cleaning-chemicals", subcategory: "multi-purpose-chemicals" };
 }
 
