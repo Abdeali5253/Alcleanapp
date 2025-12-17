@@ -23,10 +23,14 @@ app.get('/health', (req, res) => {
     environment: process.env.NODE_ENV || 'development',
     services: {
       notifications: {
-        configured: !!process.env.FIREBASE_SERVER_KEY,
+        configured: !!process.env.FCM_SERVER_KEY,
+        fcmKeyPresent: !!process.env.FCM_SERVER_KEY,
+      },
+      shopify: {
+        adminApiConfigured: !!process.env.SHOPIFY_ADMIN_API_TOKEN,
       },
     },
-    info: 'Storefront API is used directly from frontend - no admin API needed',
+    info: 'Storefront API is used directly from frontend - Admin API for order creation',
   });
 });
 
