@@ -181,6 +181,92 @@ FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n..."
 FIREBASE_CLIENT_EMAIL=firebase-adminsdk-xxx@app-notification-5e56b.iam.gserviceaccount.com
 ```
 
+### Step 4: Testing Notifications Manually
+
+#### Option A: Using Firebase Console (Easiest)
+1. Go to https://console.firebase.google.com
+2. Select project `app-notification-5e56b`
+3. Go to **Engage** → **Messaging** (Cloud Messaging)
+4. Click **"Create your first campaign"** or **"New campaign"**
+5. Select **"Firebase Notification messages"**
+6. Enter:
+   - Title: `🎉 Test Notification`
+   - Body: `Your AlClean order is ready!`
+7. Click **"Send test message"**
+8. Enter the FCM token from your app (check console logs)
+9. Click **"Test"**
+
+#### Option B: Using cURL (For Developers)
+```bash
+# Get your Server Key from Firebase Console → Project Settings → Cloud Messaging
+
+# Send notification
+curl -X POST https://fcm.googleapis.com/fcm/send \
+  -H "Authorization: key=YOUR_SERVER_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "to": "FCM_DEVICE_TOKEN",
+    "notification": {
+      "title": "🛒 Order Update",
+      "body": "Your order #1234 has been shipped!"
+    },
+    "data": {
+      "type": "order_update",
+      "orderId": "1234"
+    }
+  }'
+```
+
+#### Option C: Using Firebase Admin SDK (Node.js)
+```javascript
+const admin = require('firebase-admin');
+
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount)
+});
+
+const message = {
+  notification: {
+    title: '🎉 Special Offer!',
+    body: '50% off on all cleaning products!'
+  },
+  topic: 'all_users'
+};
+
+admin.messaging().send(message)
+  .then((response) => console.log('Sent:', response))
+  .catch((error) => console.error('Error:', error));
+```
+
+### Step 5: Automating Notifications (Production)
+
+1. **Order Updates**: Send notification when order status changes
+   ```javascript
+   // In your order update webhook/endpoint
+   if (order.status === 'shipped') {
+     await sendNotification(userId, {
+       title: '📦 Order Shipped!',
+       body: `Your order #${order.id} is on its way!`,
+       data: { type: 'delivery', orderId: order.id }
+     });
+   }
+   ```
+
+2. **Promotional Notifications**: Schedule campaigns in Firebase Console
+   - Go to Messaging → Create Campaign
+   - Set target audience
+   - Schedule delivery time
+   - Enable A/B testing if needed
+
+3. **Topic-Based Notifications**: Subscribe users to topics
+   ```javascript
+   // Subscribe user to promotions topic
+   firebase.messaging().subscribeToTopic(fcmToken, 'promotions');
+   
+   // Send to all subscribed users
+   admin.messaging().sendToTopic('promotions', message);
+   ```
+
 ---
 
 ## Building for Android
