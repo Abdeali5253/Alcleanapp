@@ -1,148 +1,211 @@
-// Cart management service with localStorage persistence
+// Cart Service with Shopify Checkout Integration
 import { Product } from "../types/shopify";
+import { 
+  checkoutCreate, 
+  checkoutLineItemsAdd, 
+  checkoutCustomerAssociateV2,
+  checkoutShippingAddressUpdateV2,
+  ShopifyCheckout,
+  CheckoutLineItem
+} from "./shopify";
+import { authService } from "./auth";
 
 export interface CartItem {
   product: Product;
   quantity: number;
 }
 
-const CART_STORAGE_KEY = "alclean_cart";
+const CART_STORAGE_KEY = 'alclean_cart';
+const CHECKOUT_STORAGE_KEY = 'alclean_checkout_id';
 
 class CartService {
-  private listeners: Set<() => void> = new Set();
+  private items: CartItem[] = [];
+  private checkoutId: string | null = null;
+  private listeners: ((items: CartItem[]) => void)[] = [];
 
-  // Validate and migrate cart items to ensure they have variant IDs
-  private validateAndMigrateCart(cart: CartItem[]): CartItem[] {
-    const validCart = cart.filter(item => {
-      if (!item.product.variantId || item.product.variantId === '') {
-        console.warn('[Cart] ⚠️ Removing item without variant ID:', item.product.title);
-        console.warn('[Cart] → Please re-add this product to your cart');
-        return false;
-      }
-      return true;
-    });
-    
-    if (validCart.length !== cart.length) {
-      const removedCount = cart.length - validCart.length;
-      console.log(`[Cart] 🔄 Cart migration complete: removed ${removedCount} item${removedCount > 1 ? 's' : ''} without variant IDs`);
-      console.log('[Cart] ℹ️ These items were added before the checkout system was updated.');
-      console.log('[Cart] ℹ️ Please browse the products again and re-add them to your cart.');
-    }
-    
-    return validCart;
+  constructor() {
+    this.loadCart();
+    this.loadCheckoutId();
   }
 
-  // Get all cart items
-  getCart(): CartItem[] {
+  private loadCart(): void {
     try {
       const stored = localStorage.getItem(CART_STORAGE_KEY);
-      const cart = stored ? JSON.parse(stored) : [];
-      
-      // Validate and migrate cart
-      const validCart = this.validateAndMigrateCart(cart);
-      
-      // Save cleaned cart if items were removed
-      if (validCart.length !== cart.length) {
-        this.saveCart(validCart);
+      if (stored) {
+        this.items = JSON.parse(stored);
       }
-      
-      return validCart;
     } catch (error) {
-      console.error("Error reading cart:", error);
-      return [];
+      console.error("[Cart] Failed to load:", error);
     }
   }
 
-  // Save cart to localStorage
-  private saveCart(cart: CartItem[]) {
+  private saveCart(): void {
     try {
-      localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cart));
+      localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(this.items));
       this.notifyListeners();
     } catch (error) {
-      console.error("Error saving cart:", error);
+      console.error("[Cart] Failed to save:", error);
     }
   }
 
-  // Add item to cart
-  addToCart(product: Product, quantity: number = 1): void {
-    const cart = this.getCart();
-    const existingIndex = cart.findIndex(item => item.product.id === product.id);
-
-    if (existingIndex > -1) {
-      // Update quantity if item exists
-      cart[existingIndex].quantity += quantity;
-    } else {
-      // Add new item
-      cart.push({ product, quantity });
+  private loadCheckoutId(): void {
+    try {
+      this.checkoutId = localStorage.getItem(CHECKOUT_STORAGE_KEY);
+    } catch (error) {
+      console.error("[Cart] Failed to load checkout:", error);
     }
-
-    this.saveCart(cart);
   }
 
-  // Update item quantity
-  updateQuantity(productId: string, quantity: number): void {
-    const cart = this.getCart();
-    const index = cart.findIndex(item => item.product.id === productId);
-
-    if (index > -1) {
-      if (quantity <= 0) {
-        cart.splice(index, 1);
+  private saveCheckoutId(id: string | null): void {
+    try {
+      if (id) {
+        localStorage.setItem(CHECKOUT_STORAGE_KEY, id);
       } else {
-        cart[index].quantity = quantity;
+        localStorage.removeItem(CHECKOUT_STORAGE_KEY);
       }
-      this.saveCart(cart);
+      this.checkoutId = id;
+    } catch (error) {
+      console.error("[Cart] Failed to save checkout:", error);
     }
   }
 
-  // Remove item from cart
-  removeFromCart(productId: string): void {
-    const cart = this.getCart();
-    const filtered = cart.filter(item => item.product.id !== productId);
-    this.saveCart(filtered);
+  private notifyListeners(): void {
+    this.listeners.forEach(callback => callback(this.getItems()));
   }
 
-  // Clear entire cart
-  clearCart(): void {
-    this.saveCart([]);
-  }
-
-  // Get cart count
-  getCartCount(): number {
-    const cart = this.getCart();
-    return cart.reduce((sum, item) => sum + item.quantity, 0);
-  }
-
-  // Get cart total
-  getCartTotal(): number {
-    const cart = this.getCart();
-    return cart.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
-  }
-
-  // Subscribe to cart changes
-  subscribe(callback: () => void): () => void {
-    this.listeners.add(callback);
-    // Return unsubscribe function
+  subscribe(callback: (items: CartItem[]) => void): () => void {
+    this.listeners.push(callback);
+    callback(this.getItems());
     return () => {
-      this.listeners.delete(callback);
+      this.listeners = this.listeners.filter(l => l !== callback);
     };
   }
 
-  // Notify all listeners
-  private notifyListeners(): void {
-    this.listeners.forEach(callback => callback());
+  // Get cart items
+  getItems(): CartItem[] {
+    return [...this.items];
   }
 
-  // Check if product is in cart
-  isInCart(productId: string): boolean {
-    const cart = this.getCart();
-    return cart.some(item => item.product.id === productId);
+  // Get cart count
+  getItemCount(): number {
+    return this.items.reduce((sum, item) => sum + item.quantity, 0);
   }
 
-  // Get quantity of specific product in cart
-  getProductQuantity(productId: string): number {
-    const cart = this.getCart();
-    const item = cart.find(item => item.product.id === productId);
-    return item ? item.quantity : 0;
+  // Get cart total
+  getTotal(): number {
+    return this.items.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
+  }
+
+  // Add to cart
+  addToCart(product: Product, quantity: number = 1): void {
+    const existingIndex = this.items.findIndex(item => item.product.id === product.id);
+    
+    if (existingIndex >= 0) {
+      this.items[existingIndex].quantity += quantity;
+    } else {
+      this.items.push({ product, quantity });
+    }
+    
+    // Reset checkout when cart changes
+    this.saveCheckoutId(null);
+    this.saveCart();
+  }
+
+  // Update quantity
+  updateQuantity(productId: string, quantity: number): void {
+    const index = this.items.findIndex(item => item.product.id === productId);
+    
+    if (index >= 0) {
+      if (quantity <= 0) {
+        this.items.splice(index, 1);
+      } else {
+        this.items[index].quantity = quantity;
+      }
+      this.saveCheckoutId(null);
+      this.saveCart();
+    }
+  }
+
+  // Remove from cart
+  removeFromCart(productId: string): void {
+    this.items = this.items.filter(item => item.product.id !== productId);
+    this.saveCheckoutId(null);
+    this.saveCart();
+  }
+
+  // Clear cart
+  clearCart(): void {
+    this.items = [];
+    this.saveCheckoutId(null);
+    this.saveCart();
+  }
+
+  // Create Shopify Checkout and get WebView URL
+  async createCheckout(): Promise<{ checkoutUrl: string; checkout: ShopifyCheckout }> {
+    if (this.items.length === 0) {
+      throw new Error("Cart is empty");
+    }
+
+    // Convert cart items to checkout line items
+    const lineItems: CheckoutLineItem[] = this.items.map(item => ({
+      variantId: item.product.variantId,
+      quantity: item.quantity,
+    }));
+
+    const user = authService.getUser();
+    
+    // Create checkout
+    const checkout = await checkoutCreate(lineItems, user?.email);
+    this.saveCheckoutId(checkout.id);
+
+    // Associate customer if logged in
+    if (user?.accessToken) {
+      try {
+        await checkoutCustomerAssociateV2(checkout.id, user.accessToken);
+      } catch (error) {
+        console.warn("[Cart] Failed to associate customer:", error);
+      }
+    }
+
+    return {
+      checkoutUrl: checkout.webUrl,
+      checkout,
+    };
+  }
+
+  // Update shipping address on checkout
+  async updateShippingAddress(address: {
+    firstName: string;
+    lastName: string;
+    address1: string;
+    city: string;
+    province: string;
+    country: string;
+    zip: string;
+    phone: string;
+  }): Promise<ShopifyCheckout | null> {
+    if (!this.checkoutId) {
+      console.warn("[Cart] No checkout to update");
+      return null;
+    }
+
+    try {
+      return await checkoutShippingAddressUpdateV2(this.checkoutId, address);
+    } catch (error) {
+      console.error("[Cart] Failed to update shipping:", error);
+      return null;
+    }
+  }
+
+  // Get existing checkout URL
+  getCheckoutId(): string | null {
+    return this.checkoutId;
+  }
+
+  // Clear checkout after successful order
+  clearCheckout(): void {
+    this.clearCart();
+    this.saveCheckoutId(null);
   }
 }
 
