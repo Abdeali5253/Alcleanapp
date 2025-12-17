@@ -170,10 +170,13 @@ class CartService {
     }
 
     // Convert cart items to checkout line items
+    // Ensure quantity is always an integer
     const lineItems: CheckoutLineItem[] = this.items.map(item => ({
       variantId: item.product.variantId,
-      quantity: item.quantity,
+      quantity: Math.max(1, Math.floor(Number(item.quantity) || 1)),
     }));
+
+    console.log("[Cart] Creating checkout with line items:", lineItems);
 
     const user = authService.getUser();
     
