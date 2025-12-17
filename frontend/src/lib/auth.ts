@@ -190,6 +190,11 @@ class AuthService {
     }
   }
 
+  // Get current user (for order service)
+  getCurrentUser(): User | null {
+    return this.user;
+  }
+
   // Redirect management
   setRedirectAfterLogin(path: string): void {
     localStorage.setItem(REDIRECT_STORAGE_KEY, path);
