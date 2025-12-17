@@ -8,14 +8,9 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-<<<<<<< HEAD
 // CORS configuration
-const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000' , "http://localhost:5173"];
-=======
-// Middleware
->>>>>>> de0de505e4014953e8f2ba505d9abc568a55f9ac
 app.use(cors({
-  origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'],
+  origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000', 'http://localhost:5173'],
   credentials: true,
 }));
 app.use(express.json());
