@@ -1,200 +1,92 @@
-// src/lib/shopify.ts
+// Shopify Storefront API Service
+// Uses ONLY Storefront API - No Admin API needed!
+
 import { Product } from "../types/shopify";
 
-// Get configuration from environment variables
-const SHOPIFY_DOMAIN = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SHOPIFY_STORE_DOMAIN) || '';
-const SHOPIFY_TOKEN = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SHOPIFY_STOREFRONT_TOKEN) || '';
-const SHOPIFY_API_VERSION = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SHOPIFY_API_VERSION) || "2025-07";
+// Configuration from environment
+const SHOPIFY_DOMAIN = import.meta.env?.VITE_SHOPIFY_STORE_DOMAIN || '';
+const SHOPIFY_TOKEN = import.meta.env?.VITE_SHOPIFY_STOREFRONT_TOKEN || '';
+const SHOPIFY_API_VERSION = import.meta.env?.VITE_SHOPIFY_API_VERSION || '2025-01';
 
-const SHOPIFY_URL = SHOPIFY_DOMAIN ? `https://${SHOPIFY_DOMAIN}/api/${SHOPIFY_API_VERSION}/graphql.json` : '';
+const SHOPIFY_URL = SHOPIFY_DOMAIN 
+  ? `https://${SHOPIFY_DOMAIN}/api/${SHOPIFY_API_VERSION}/graphql.json`
+  : '';
 
-// Collection handles from your Shopify store (extracted from your screenshots)
-export const COLLECTION_HANDLES = {
-  // Main Categories
-  "cleaning-chemicals": "cleaning-chemicals",
-  "cleaning-equipment": "cleaning-equipment",
-  "dishwashing": "dish-wash",
-  "car-washing": "car-wash-shampoo",
-  "fabric-cleaning": "fabric-washing",
-  "bathroom-cleaning": "bathroom-cleaner",
-  
-  // Subcategories - Chemicals
-  "floor-cleaner": "floor-cleaner",
-  "glass-cleaner": "glass-cleaner",
-  "surface-cleaner": "surface-cleaner",
-  "toilet-bowl-cleaner": "toilet-bowl-cleaner",
-  "multi-purpose-chemicals": "multi-purpose-chemicals",
-  "industrial-cleaning-chemicals": "industrial-cleaning-chemicals",
-  "fabric-detergent": "fabric-detergent",
-  "fabric-softener": "fabric-softener-enhancer",
-  "kitchen-degreaser": "kitchen-degreaser",
-  "car-cleaning-solution": "car-cleaning-solution",
-  "bathroom-cleaning-solution": "bathroom-cleaning-solution",
-  "kitchen-cleaning-solution": "kitchen-cleaning-solution",
-  
-  // Subcategories - Equipment
-  "cleaning-tools": "cleaning-tools",
-  "mop-bucket-trolley": "mop-buckets-wringers-cleaning-janitorial-trolleys",
-  "floor-cleaning-equipment": "floor-cleaning-vipers-brushes-wet-mops-dry-mops",
-  "industrial-wet-mop": "industrial-wet-mop",
-  "industrial-floor-brush": "industrial-floor-brush",
-  "bathroom-cleaning-equipment": "bathroom-cleaning-equipment",
-  "solar-panel-equipment": "solar-panel-glass-window-cleaning-equipments",
-  
-  // Special
-  "top-cleaning-equipment": "top-cleaning-equipments",
-  "top-cleaning-chemicals": "top-cleaning-chemicals",
-  "supreme-offer": "supreme-offer",
-};
-
-// Tag-based category mapping from Shopify
-const TAG_TO_CATEGORY: Record<string, string> = {
-  // Chemicals
-  "cleaning-chemicals": "cleaning-chemicals",
-  "floor-cleaner": "cleaning-chemicals",
-  "glass-cleaner": "cleaning-chemicals",
-  "surface-cleaner": "cleaning-chemicals",
-  "toilet-bowl-cleaner": "cleaning-chemicals",
-  "bathroom-cleaner": "cleaning-chemicals",
-  "multi-purpose-chemicals": "cleaning-chemicals",
-  "industrial-cleaning-chemicals": "cleaning-chemicals",
-  "car-wash-shampoo": "car-washing",
-  "car-cleaning-solution": "car-washing",
-  "fabric-detergent": "fabric-cleaning",
-  "fabric-softener": "fabric-cleaning",
-  "fabric-washing": "fabric-cleaning",
-  "fabric-cleaner": "fabric-cleaning",
-  "fabric-cleaning-chemical": "fabric-cleaning",
-  "dish-wash": "dishwashing",
-  "kitchen-degreaser": "dishwashing",
-  "bathroom-cleaning-chemical": "bathroom-cleaning",
-  "bathroom-cleaning-solution": "bathroom-cleaning",
-  "kitchen-cleaning-solution": "dishwashing",
-  
-  // Equipment - these tags mean EQUIPMENT
-  "cleaning-equipment": "cleaning-equipment",
-  "cleaning-tools": "cleaning-equipment",
-  "mop-buckets": "cleaning-equipment",
-  "floor-cleaning": "cleaning-equipment",
-  "industrial-wet-mop": "cleaning-equipment",
-  "industrial-floor-brush": "cleaning-equipment",
-  "bathroom-cleaning-equipment": "cleaning-equipment",
-  "solar-panel": "cleaning-equipment",
-  "window-cleaning": "cleaning-equipment",
-};
-
-interface ShopifyResponse<T> {
-  data?: T;
-  errors?: { message: string }[];
-}
-
-// Check if Shopify is configured
-function isShopifyConfigured(): boolean {
+// Check if configured
+export function isShopifyConfigured(): boolean {
   return !!(SHOPIFY_DOMAIN && SHOPIFY_TOKEN);
 }
 
+// GraphQL fetch helper
 async function shopifyFetch<T>(query: string, variables?: Record<string, any>): Promise<T> {
   if (!isShopifyConfigured()) {
-    throw new Error("Shopify is not configured. Please add VITE_SHOPIFY_STORE_DOMAIN and VITE_SHOPIFY_STOREFRONT_TOKEN to your .env file.");
+    throw new Error("Shopify not configured");
   }
 
-  const res = await fetch(SHOPIFY_URL, {
+  const response = await fetch(SHOPIFY_URL, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "X-Shopify-Storefront-Access-Token": SHOPIFY_TOKEN!,
+      "X-Shopify-Storefront-Access-Token": SHOPIFY_TOKEN,
     },
     body: JSON.stringify({ query, variables }),
   });
 
-  const json = (await res.json()) as ShopifyResponse<T>;
+  const json = await response.json();
 
   if (json.errors?.length) {
     console.error("[Shopify] GraphQL errors:", json.errors);
-    throw new Error(json.errors.map(e => e.message).join(", "));
+    throw new Error(json.errors.map((e: any) => e.message).join(", "));
   }
 
-  return json.data!;
+  return json.data;
 }
 
-// Categorize product based on Shopify TAGS (not keywords)
+// Equipment detection keywords
+const EQUIPMENT_KEYWORDS = [
+  "mop", "bucket", "broom", "brush", "squeegee", "glove", "cloth",
+  "wiper", "sponge", "scrubber", "duster", "picker", "trolley",
+  "handle", "stick", "pole", "holder", "dispenser", "bin", "dustbin",
+  "microfiber", "towel", "dustpan", "scoop", "mat", "cart", "caddy",
+  "dryer", "hand dryer", "tissue", "roll", "basket", "janitor",
+  "scraper", "spray bottle", "container", "window cleaning", "viper",
+  "grinding", "grinder", "machine", "polisher", "vacuum", "sweeper",
+  "rubber strip", "strip", "pad", "refill", "head", "attachment",
+  "hose", "nozzle", "connector", "wheel", "caster", "frame"
+];
+
+// Categorize product
 function categorizeProduct(title: string, productType: string, tags: string[]): { category: string; subcategory: string } {
-  const tagsLower = tags.map(t => t.toLowerCase().trim().replace(/\s+/g, '-'));
-  const productTypeLower = productType.toLowerCase().trim().replace(/\s+/g, '-');
   const titleLower = title.toLowerCase();
   
-  // PRIORITY 1: Equipment detection based on title keywords (MOST RELIABLE)
-  const equipmentKeywords = [
-    "mop", "bucket", "broom", "brush", "squeegee", "glove", "cloth",
-    "wiper", "sponge", "scrubber", "duster", "picker", "trolley",
-    "handle", "stick", "pole", "holder", "dispenser", "bin", "dustbin",
-    "microfiber", "towel", "dustpan", "scoop", "mat", "cart", "caddy",
-    "dryer", "hand dryer", "tissue", "roll", "basket", "janitor",
-    "scraper", "spray bottle", "container", "window cleaning", "viper",
-    "grinding", "grinder", "machine", "polisher", "vacuum", "sweeper",
-    "rubber strip", "strip", "pad", "refill", "head", "attachment",
-    "hose", "nozzle", "connector", "wheel", "caster", "frame"
-  ];
-  
-  const isEquipment = equipmentKeywords.some(kw => titleLower.includes(kw));
+  // Check for equipment keywords
+  const isEquipment = EQUIPMENT_KEYWORDS.some(kw => titleLower.includes(kw));
   
   if (isEquipment) {
-    // Determine equipment subcategory
-    if (titleLower.includes("mop") || titleLower.includes("bucket") || titleLower.includes("trolley")) {
+    if (titleLower.includes("mop") || titleLower.includes("bucket")) {
       return { category: "cleaning-equipment", subcategory: "mop-bucket-trolley" };
     }
-    if (titleLower.includes("broom") || titleLower.includes("brush") || titleLower.includes("scrubber")) {
+    if (titleLower.includes("broom") || titleLower.includes("brush")) {
       return { category: "cleaning-equipment", subcategory: "brooms-brushes" };
     }
-    if (titleLower.includes("window") || titleLower.includes("squeegee") || titleLower.includes("viper")) {
+    if (titleLower.includes("window") || titleLower.includes("squeegee")) {
       return { category: "cleaning-equipment", subcategory: "window-cleaning" };
-    }
-    if (titleLower.includes("bin") || titleLower.includes("dustbin") || titleLower.includes("garbage")) {
-      return { category: "cleaning-equipment", subcategory: "waste-bins" };
     }
     return { category: "cleaning-equipment", subcategory: "cleaning-tools" };
   }
   
-  // PRIORITY 2: Check tags for category
-  for (const tag of tagsLower) {
-    if (TAG_TO_CATEGORY[tag]) {
-      const category = TAG_TO_CATEGORY[tag];
-      return { category, subcategory: tag };
-    }
-  }
+  // Check for chemical keywords
+  if (titleLower.includes("floor")) return { category: "cleaning-chemicals", subcategory: "floor-cleaner" };
+  if (titleLower.includes("glass")) return { category: "cleaning-chemicals", subcategory: "glass-cleaner" };
+  if (titleLower.includes("bathroom") || titleLower.includes("toilet")) return { category: "bathroom-cleaning", subcategory: "bathroom-cleaner" };
+  if (titleLower.includes("car") || titleLower.includes("shampoo")) return { category: "car-washing", subcategory: "car-shampoo" };
+  if (titleLower.includes("dish") || titleLower.includes("kitchen")) return { category: "dishwashing", subcategory: "dish-wash" };
+  if (titleLower.includes("fabric") || titleLower.includes("softener")) return { category: "fabric-cleaning", subcategory: "fabric-washing" };
   
-  // PRIORITY 3: Check product type for chemicals
-  if (productTypeLower) {
-    if (productTypeLower.includes('chemical') || productTypeLower.includes('cleaner') || 
-        productTypeLower.includes('detergent') || productTypeLower.includes('liquid')) {
-      return { category: "cleaning-chemicals", subcategory: productTypeLower };
-    }
-  }
-  
-  // PRIORITY 4: Check title for chemical keywords
-  const chemicalKeywords = [
-    "cleaner", "detergent", "liquid", "gel", "solution", "sanitizer",
-    "disinfectant", "polish", "shampoo", "softener", "degreaser"
-  ];
-  
-  const isChemical = chemicalKeywords.some(kw => titleLower.includes(kw));
-  
-  if (isChemical) {
-    // Determine chemical subcategory
-    if (titleLower.includes("floor")) return { category: "cleaning-chemicals", subcategory: "floor-cleaner" };
-    if (titleLower.includes("glass")) return { category: "cleaning-chemicals", subcategory: "glass-cleaner" };
-    if (titleLower.includes("bathroom") || titleLower.includes("toilet")) return { category: "bathroom-cleaning", subcategory: "bathroom-cleaner" };
-    if (titleLower.includes("car") || titleLower.includes("shampoo")) return { category: "car-washing", subcategory: "car-cleaning-solution" };
-    if (titleLower.includes("dish") || titleLower.includes("kitchen")) return { category: "dishwashing", subcategory: "dish-wash" };
-    if (titleLower.includes("fabric") || titleLower.includes("softener")) return { category: "fabric-cleaning", subcategory: "fabric-washing" };
-    return { category: "cleaning-chemicals", subcategory: "multi-purpose-chemicals" };
-  }
-  
-  // Default to chemicals (most products are chemicals)
-  return { category: "cleaning-chemicals", subcategory: "multi-purpose-chemicals" };
+  return { category: "cleaning-chemicals", subcategory: "multi-purpose" };
 }
 
-// Transform Shopify product node to our Product type
+// Transform Shopify product to our Product type
 function transformProduct(node: any): Product {
   const variant = node.variants?.edges?.[0]?.node;
   const priceAmount = parseFloat(variant?.price?.amount || "0");
@@ -202,11 +94,7 @@ function transformProduct(node: any): Product {
   const quantityAvailable = variant?.quantityAvailable ?? 0;
   
   const tags = node.tags || [];
-  const { category, subcategory } = categorizeProduct(
-    node.title || '',
-    node.productType || '',
-    tags
-  );
+  const { category, subcategory } = categorizeProduct(node.title || '', node.productType || '', tags);
 
   const onSale = compareAtPrice !== null && compareAtPrice > priceAmount;
   const discountPercent = onSale && compareAtPrice 
@@ -238,10 +126,11 @@ function transformProduct(node: any): Product {
   };
 }
 
-// Get all products from Shopify
+// ==================== PRODUCT QUERIES ====================
+
 export async function getAllProducts(first: number = 250): Promise<Product[]> {
   const query = `
-    query GetAllProducts($first: Int!) {
+    query GetProducts($first: Int!) {
       products(first: $first) {
         edges {
           node {
@@ -252,15 +141,9 @@ export async function getAllProducts(first: number = 250): Promise<Product[]> {
             productType
             vendor
             tags
-            featuredImage {
-              url
-            }
+            featuredImage { url }
             images(first: 5) {
-              edges {
-                node {
-                  url
-                }
-              }
+              edges { node { url } }
             }
             variants(first: 1) {
               edges {
@@ -268,13 +151,8 @@ export async function getAllProducts(first: number = 250): Promise<Product[]> {
                   id
                   title
                   sku
-                  price {
-                    amount
-                    currencyCode
-                  }
-                  compareAtPrice {
-                    amount
-                  }
+                  price { amount currencyCode }
+                  compareAtPrice { amount }
                   availableForSale
                   quantityAvailable
                   weight
@@ -292,142 +170,6 @@ export async function getAllProducts(first: number = 250): Promise<Product[]> {
   return data.products.edges.map(edge => transformProduct(edge.node));
 }
 
-// Get products by collection handle
-export async function getProductsByCollection(collectionHandle: string, first: number = 50): Promise<Product[]> {
-  const query = `
-    query GetCollectionProducts($handle: String!, $first: Int!) {
-      collection(handle: $handle) {
-        id
-        title
-        products(first: $first) {
-          edges {
-            node {
-              id
-              title
-              description
-              handle
-              productType
-              vendor
-              tags
-              featuredImage {
-                url
-              }
-              images(first: 5) {
-                edges {
-                  node {
-                    url
-                  }
-                }
-              }
-              variants(first: 1) {
-                edges {
-                  node {
-                    id
-                    title
-                    sku
-                    price {
-                      amount
-                      currencyCode
-                    }
-                    compareAtPrice {
-                      amount
-                    }
-                    availableForSale
-                    quantityAvailable
-                    weight
-                    weightUnit
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  `;
-
-  try {
-    const data = await shopifyFetch<{ collection: { products: { edges: { node: any }[] } } | null }>(
-      query, 
-      { handle: collectionHandle, first }
-    );
-    
-    if (!data.collection) {
-      console.warn(`[Shopify] Collection "${collectionHandle}" not found`);
-      return [];
-    }
-    
-    return data.collection.products.edges.map(edge => transformProduct(edge.node));
-  } catch (error) {
-    console.error(`[Shopify] Error fetching collection "${collectionHandle}":`, error);
-    return [];
-  }
-}
-
-// Get products by tag
-export async function getProductsByTag(tag: string, first: number = 50): Promise<Product[]> {
-  const query = `
-    query GetProductsByTag($query: String!, $first: Int!) {
-      products(first: $first, query: $query) {
-        edges {
-          node {
-            id
-            title
-            description
-            handle
-            productType
-            vendor
-            tags
-            featuredImage {
-              url
-            }
-            images(first: 5) {
-              edges {
-                node {
-                  url
-                }
-              }
-            }
-            variants(first: 1) {
-              edges {
-                node {
-                  id
-                  title
-                  sku
-                  price {
-                    amount
-                    currencyCode
-                  }
-                  compareAtPrice {
-                    amount
-                  }
-                  availableForSale
-                  quantityAvailable
-                  weight
-                  weightUnit
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  `;
-
-  try {
-    const data = await shopifyFetch<{ products: { edges: { node: any }[] } }>(
-      query, 
-      { query: `tag:${tag}`, first }
-    );
-    
-    return data.products.edges.map(edge => transformProduct(edge.node));
-  } catch (error) {
-    console.error(`[Shopify] Error fetching products by tag "${tag}":`, error);
-    return [];
-  }
-}
-
-// Get single product by ID
 export async function getProductById(productId: string): Promise<Product | null> {
   const query = `
     query GetProduct($id: ID!) {
@@ -439,15 +181,9 @@ export async function getProductById(productId: string): Promise<Product | null>
         productType
         vendor
         tags
-        featuredImage {
-          url
-        }
+        featuredImage { url }
         images(first: 10) {
-          edges {
-            node {
-              url
-            }
-          }
+          edges { node { url } }
         }
         variants(first: 10) {
           edges {
@@ -455,13 +191,8 @@ export async function getProductById(productId: string): Promise<Product | null>
               id
               title
               sku
-              price {
-                amount
-                currencyCode
-              }
-              compareAtPrice {
-                amount
-              }
+              price { amount currencyCode }
+              compareAtPrice { amount }
               availableForSale
               quantityAvailable
               weight
@@ -474,13 +205,351 @@ export async function getProductById(productId: string): Promise<Product | null>
   `;
 
   try {
-    const data = await shopifyFetch<{ product: any | null }>(query, { id: productId });
+    const data = await shopifyFetch<{ product: any }>(query, { id: productId });
     return data.product ? transformProduct(data.product) : null;
   } catch (error) {
-    console.error(`[Shopify] Error fetching product "${productId}":`, error);
+    console.error("[Shopify] Error fetching product:", error);
     return null;
   }
 }
 
-// Export configuration check
-export { isShopifyConfigured };
+// ==================== CUSTOMER AUTH ====================
+
+export interface ShopifyCustomer {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  phone: string | null;
+  accessToken: string;
+}
+
+// Create new customer (Sign Up)
+export async function customerCreate(
+  email: string, 
+  password: string, 
+  firstName: string, 
+  lastName: string, 
+  phone?: string
+): Promise<ShopifyCustomer> {
+  const mutation = `
+    mutation customerCreate($input: CustomerCreateInput!) {
+      customerCreate(input: $input) {
+        customer {
+          id
+          email
+          firstName
+          lastName
+          phone
+        }
+        customerUserErrors {
+          code
+          field
+          message
+        }
+      }
+    }
+  `;
+
+  const data = await shopifyFetch<any>(mutation, {
+    input: { email, password, firstName, lastName, phone, acceptsMarketing: true }
+  });
+
+  if (data.customerCreate.customerUserErrors?.length > 0) {
+    throw new Error(data.customerCreate.customerUserErrors.map((e: any) => e.message).join(", "));
+  }
+
+  // Now log in to get access token
+  const accessToken = await customerAccessTokenCreate(email, password);
+  
+  return {
+    ...data.customerCreate.customer,
+    accessToken
+  };
+}
+
+// Create access token (Login)
+export async function customerAccessTokenCreate(email: string, password: string): Promise<string> {
+  const mutation = `
+    mutation customerAccessTokenCreate($input: CustomerAccessTokenCreateInput!) {
+      customerAccessTokenCreate(input: $input) {
+        customerAccessToken {
+          accessToken
+          expiresAt
+        }
+        customerUserErrors {
+          code
+          field
+          message
+        }
+      }
+    }
+  `;
+
+  const data = await shopifyFetch<any>(mutation, { input: { email, password } });
+
+  if (data.customerAccessTokenCreate.customerUserErrors?.length > 0) {
+    throw new Error(data.customerAccessTokenCreate.customerUserErrors.map((e: any) => e.message).join(", "));
+  }
+
+  return data.customerAccessTokenCreate.customerAccessToken.accessToken;
+}
+
+// Get customer info
+export async function getCustomer(accessToken: string): Promise<any> {
+  const query = `
+    query getCustomer($accessToken: String!) {
+      customer(customerAccessToken: $accessToken) {
+        id
+        email
+        firstName
+        lastName
+        phone
+        orders(first: 20, sortKey: PROCESSED_AT, reverse: true) {
+          edges {
+            node {
+              id
+              orderNumber
+              processedAt
+              financialStatus
+              fulfillmentStatus
+              totalPrice { amount currencyCode }
+              lineItems(first: 10) {
+                edges {
+                  node {
+                    title
+                    quantity
+                    variant {
+                      price { amount }
+                      image { url }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  `;
+
+  const data = await shopifyFetch<any>(query, { accessToken });
+  return data.customer;
+}
+
+// Password recovery
+export async function customerRecover(email: string): Promise<void> {
+  const mutation = `
+    mutation customerRecover($email: String!) {
+      customerRecover(email: $email) {
+        customerUserErrors {
+          code
+          field
+          message
+        }
+      }
+    }
+  `;
+
+  const data = await shopifyFetch<any>(mutation, { email });
+
+  if (data.customerRecover.customerUserErrors?.length > 0) {
+    throw new Error(data.customerRecover.customerUserErrors.map((e: any) => e.message).join(", "));
+  }
+}
+
+// ==================== CHECKOUT (Storefront API) ====================
+
+export interface CheckoutLineItem {
+  variantId: string;
+  quantity: number;
+}
+
+export interface ShopifyCheckout {
+  id: string;
+  webUrl: string;
+  totalPrice: { amount: string; currencyCode: string };
+  lineItems: {
+    edges: {
+      node: {
+        id: string;
+        title: string;
+        quantity: number;
+        variant: {
+          id: string;
+          title: string;
+          price: { amount: string };
+          image: { url: string } | null;
+        };
+      };
+    }[];
+  };
+}
+
+// Create checkout
+export async function checkoutCreate(lineItems: CheckoutLineItem[], email?: string): Promise<ShopifyCheckout> {
+  const mutation = `
+    mutation checkoutCreate($input: CheckoutCreateInput!) {
+      checkoutCreate(input: $input) {
+        checkout {
+          id
+          webUrl
+          totalPrice { amount currencyCode }
+          lineItems(first: 50) {
+            edges {
+              node {
+                id
+                title
+                quantity
+                variant {
+                  id
+                  title
+                  price { amount }
+                  image { url }
+                }
+              }
+            }
+          }
+        }
+        checkoutUserErrors {
+          code
+          field
+          message
+        }
+      }
+    }
+  `;
+
+  const input: any = { lineItems };
+  if (email) input.email = email;
+
+  const data = await shopifyFetch<any>(mutation, { input });
+
+  if (data.checkoutCreate.checkoutUserErrors?.length > 0) {
+    throw new Error(data.checkoutCreate.checkoutUserErrors.map((e: any) => e.message).join(", "));
+  }
+
+  return data.checkoutCreate.checkout;
+}
+
+// Add line items to checkout
+export async function checkoutLineItemsAdd(
+  checkoutId: string, 
+  lineItems: CheckoutLineItem[]
+): Promise<ShopifyCheckout> {
+  const mutation = `
+    mutation checkoutLineItemsAdd($checkoutId: ID!, $lineItems: [CheckoutLineItemInput!]!) {
+      checkoutLineItemsAdd(checkoutId: $checkoutId, lineItems: $lineItems) {
+        checkout {
+          id
+          webUrl
+          totalPrice { amount currencyCode }
+          lineItems(first: 50) {
+            edges {
+              node {
+                id
+                title
+                quantity
+                variant {
+                  id
+                  title
+                  price { amount }
+                  image { url }
+                }
+              }
+            }
+          }
+        }
+        checkoutUserErrors {
+          code
+          field
+          message
+        }
+      }
+    }
+  `;
+
+  const data = await shopifyFetch<any>(mutation, { checkoutId, lineItems });
+
+  if (data.checkoutLineItemsAdd.checkoutUserErrors?.length > 0) {
+    throw new Error(data.checkoutLineItemsAdd.checkoutUserErrors.map((e: any) => e.message).join(", "));
+  }
+
+  return data.checkoutLineItemsAdd.checkout;
+}
+
+// Update checkout with customer info
+export async function checkoutCustomerAssociateV2(
+  checkoutId: string, 
+  customerAccessToken: string
+): Promise<ShopifyCheckout> {
+  const mutation = `
+    mutation checkoutCustomerAssociateV2($checkoutId: ID!, $customerAccessToken: String!) {
+      checkoutCustomerAssociateV2(checkoutId: $checkoutId, customerAccessToken: $customerAccessToken) {
+        checkout {
+          id
+          webUrl
+          totalPrice { amount currencyCode }
+        }
+        checkoutUserErrors {
+          code
+          field
+          message
+        }
+      }
+    }
+  `;
+
+  const data = await shopifyFetch<any>(mutation, { checkoutId, customerAccessToken });
+
+  if (data.checkoutCustomerAssociateV2.checkoutUserErrors?.length > 0) {
+    throw new Error(data.checkoutCustomerAssociateV2.checkoutUserErrors.map((e: any) => e.message).join(", "));
+  }
+
+  return data.checkoutCustomerAssociateV2.checkout;
+}
+
+// Update checkout shipping address
+export async function checkoutShippingAddressUpdateV2(
+  checkoutId: string,
+  shippingAddress: {
+    firstName: string;
+    lastName: string;
+    address1: string;
+    city: string;
+    province: string;
+    country: string;
+    zip: string;
+    phone: string;
+  }
+): Promise<ShopifyCheckout> {
+  const mutation = `
+    mutation checkoutShippingAddressUpdateV2($checkoutId: ID!, $shippingAddress: MailingAddressInput!) {
+      checkoutShippingAddressUpdateV2(checkoutId: $checkoutId, shippingAddress: $shippingAddress) {
+        checkout {
+          id
+          webUrl
+          totalPrice { amount currencyCode }
+        }
+        checkoutUserErrors {
+          code
+          field
+          message
+        }
+      }
+    }
+  `;
+
+  const data = await shopifyFetch<any>(mutation, { checkoutId, shippingAddress });
+
+  if (data.checkoutShippingAddressUpdateV2.checkoutUserErrors?.length > 0) {
+    throw new Error(data.checkoutShippingAddressUpdateV2.checkoutUserErrors.map((e: any) => e.message).join(", "));
+  }
+
+  return data.checkoutShippingAddressUpdateV2.checkout;
+}
+
+// Get checkout URL (opens in WebView for payment)
+export function getCheckoutWebUrl(checkout: ShopifyCheckout): string {
+  return checkout.webUrl;
+}
