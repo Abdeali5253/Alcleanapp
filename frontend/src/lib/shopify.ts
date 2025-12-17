@@ -213,6 +213,67 @@ export async function getProductById(productId: string): Promise<Product | null>
   }
 }
 
+// Get products by collection handle
+export async function getProductsByCollection(collectionHandle: string, first: number = 20): Promise<Product[]> {
+  const query = `
+    query GetCollectionProducts($handle: String!, $first: Int!) {
+      collectionByHandle(handle: $handle) {
+        id
+        title
+        products(first: $first) {
+          edges {
+            node {
+              id
+              title
+              description
+              handle
+              productType
+              vendor
+              tags
+              featuredImage { url }
+              images(first: 5) {
+                edges { node { url } }
+              }
+              variants(first: 1) {
+                edges {
+                  node {
+                    id
+                    title
+                    sku
+                    price { amount currencyCode }
+                    compareAtPrice { amount }
+                    availableForSale
+                    quantityAvailable
+                    weight
+                    weightUnit
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  `;
+
+  try {
+    const data = await shopifyFetch<{ collectionByHandle: { products: { edges: { node: any }[] } } | null }>(
+      query, 
+      { handle: collectionHandle, first }
+    );
+    
+    if (!data.collectionByHandle) {
+      console.warn(`[Shopify] Collection "${collectionHandle}" not found`);
+      return [];
+    }
+    
+    return data.collectionByHandle.products.edges.map(edge => transformProduct(edge.node));
+  } catch (error) {
+    console.error("[Shopify] Error fetching collection products:", error);
+    return [];
+  }
+}
+
 // ==================== CUSTOMER AUTH ====================
 
 export interface ShopifyCustomer {
