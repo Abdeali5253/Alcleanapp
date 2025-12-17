@@ -115,13 +115,8 @@ export function Checkout() {
       return;
     }
 
-    if (!user) {
-      // Save current page and redirect to login
-      authService.setRedirectAfterLogin("/checkout");
-      toast.info("Please login to continue checkout");
-      navigate("/account");
-      return;
-    }
+    // Note: Guest checkout is allowed - Shopify handles account creation on their end
+    // User can login on Shopify checkout page if they have an account
 
     setIsLoading(true);
 
