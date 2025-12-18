@@ -374,7 +374,7 @@ export function Products() {
 
         {/* Products Grid */}
         {loading ? (
-          <div className={`grid ${viewMode === 'compact' ? 'grid-cols-3 md:grid-cols-6' : 'grid-cols-2 md:grid-cols-4'} gap-4 md:gap-6`}>
+          <div className={`grid ${viewMode === 'compact' ? 'grid-cols-3 gap-2' : 'grid-cols-2 gap-3'} sm:gap-4 md:gap-6 ${viewMode === 'compact' ? 'md:grid-cols-4 lg:grid-cols-6' : 'md:grid-cols-3 lg:grid-cols-4'}`}>
             {Array.from({ length: 12 }, (_, index) => (
               <ProductCardSkeleton key={index} />
             ))}
@@ -396,7 +396,7 @@ export function Products() {
             </Button>
           </div>
         ) : (
-          <div className={`grid ${viewMode === 'compact' ? 'grid-cols-3 md:grid-cols-6' : 'grid-cols-2 md:grid-cols-4'} gap-4 md:gap-6`}>
+          <div className={`grid ${viewMode === 'compact' ? 'grid-cols-3 gap-2' : 'grid-cols-2 gap-3'} sm:gap-4 md:gap-6 ${viewMode === 'compact' ? 'md:grid-cols-4 lg:grid-cols-6' : 'md:grid-cols-3 lg:grid-cols-4'}`}>
             {sortedProducts.map((product) => (
               <ProductCard
                 key={product.id}

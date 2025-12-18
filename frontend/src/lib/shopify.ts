@@ -58,31 +58,91 @@ const EQUIPMENT_KEYWORDS = [
 // Categorize product
 function categorizeProduct(title: string, productType: string, tags: string[]): { category: string; subcategory: string } {
   const titleLower = title.toLowerCase();
+  const productTypeLower = productType.toLowerCase();
+  const tagsLower = tags.map(t => t.toLowerCase());
   
-  // Check for equipment keywords
-  const isEquipment = EQUIPMENT_KEYWORDS.some(kw => titleLower.includes(kw));
-  
-  if (isEquipment) {
-    if (titleLower.includes("mop") || titleLower.includes("bucket")) {
-      return { category: "cleaning-equipment", subcategory: "mop-bucket-trolley" };
-    }
-    if (titleLower.includes("broom") || titleLower.includes("brush")) {
-      return { category: "cleaning-equipment", subcategory: "brooms-brushes" };
-    }
-    if (titleLower.includes("window") || titleLower.includes("squeegee")) {
-      return { category: "cleaning-equipment", subcategory: "window-cleaning" };
-    }
-    return { category: "cleaning-equipment", subcategory: "cleaning-tools" };
+  // Priority 1: Check productType from Shopify (most reliable)
+  if (productTypeLower.includes('equipment') || productTypeLower.includes('tool')) {
+    return categorizeEquipment(titleLower);
+  }
+  if (productTypeLower.includes('chemical') || productTypeLower.includes('cleaner') || productTypeLower.includes('detergent')) {
+    return categorizeChemical(titleLower);
   }
   
-  // Check for chemical keywords
-  if (titleLower.includes("floor")) return { category: "cleaning-chemicals", subcategory: "floor-cleaner" };
-  if (titleLower.includes("glass")) return { category: "cleaning-chemicals", subcategory: "glass-cleaner" };
-  if (titleLower.includes("bathroom") || titleLower.includes("toilet")) return { category: "bathroom-cleaning", subcategory: "bathroom-cleaner" };
-  if (titleLower.includes("car") || titleLower.includes("shampoo")) return { category: "car-washing", subcategory: "car-shampoo" };
-  if (titleLower.includes("dish") || titleLower.includes("kitchen")) return { category: "dishwashing", subcategory: "dish-wash" };
-  if (titleLower.includes("fabric") || titleLower.includes("softener")) return { category: "fabric-cleaning", subcategory: "fabric-washing" };
+  // Priority 2: Check specific chemical indicators (liquids, acids, etc.)
+  const chemicalIndicators = ['liter', 'litre', 'ml', 'gallon', 'acid', 'liquid', 'gel', 'solution', 'cleaner', 'detergent', 'soap', 'wash'];
+  const isChemical = chemicalIndicators.some(kw => titleLower.includes(kw));
   
+  // Priority 3: Check equipment keywords (physical tools)
+  const isEquipment = EQUIPMENT_KEYWORDS.some(kw => titleLower.includes(kw));
+  
+  // Chemicals take priority over equipment if both match
+  if (isChemical && !isEquipment) {
+    return categorizeChemical(titleLower);
+  }
+  
+  if (isEquipment && !isChemical) {
+    return categorizeEquipment(titleLower);
+  }
+  
+  // If both match, decide based on more specific context
+  if (isChemical && isEquipment) {
+    // If it has volume measurements, it's likely a chemical
+    if (/\d+\s*(ml|liter|litre|gallon)/i.test(title)) {
+      return categorizeChemical(titleLower);
+    }
+    return categorizeEquipment(titleLower);
+  }
+  
+  // Default to chemicals
+  return categorizeChemical(titleLower);
+}
+
+function categorizeEquipment(titleLower: string): { category: string; subcategory: string } {
+  if (titleLower.includes("mop") || titleLower.includes("bucket") || titleLower.includes("trolley")) {
+    return { category: "cleaning-equipment", subcategory: "mop-bucket-trolley" };
+  }
+  if (titleLower.includes("broom") || titleLower.includes("brush") || titleLower.includes("scrubber")) {
+    return { category: "cleaning-equipment", subcategory: "brooms-brushes" };
+  }
+  if (titleLower.includes("window") || titleLower.includes("squeegee") || titleLower.includes("viper")) {
+    return { category: "cleaning-equipment", subcategory: "window-cleaning" };
+  }
+  if (titleLower.includes("vacuum") || titleLower.includes("sweeper") || titleLower.includes("machine")) {
+    return { category: "cleaning-equipment", subcategory: "machines" };
+  }
+  if (titleLower.includes("garbage") || titleLower.includes("bin") || titleLower.includes("waste") || titleLower.includes("picker")) {
+    return { category: "cleaning-equipment", subcategory: "waste-management" };
+  }
+  return { category: "cleaning-equipment", subcategory: "cleaning-tools" };
+}
+
+function categorizeChemical(titleLower: string): { category: string; subcategory: string } {
+  // Bathroom
+  if (titleLower.includes("bathroom") || titleLower.includes("toilet") || titleLower.includes("wc")) {
+    return { category: "bathroom-cleaning", subcategory: "bathroom-cleaner" };
+  }
+  // Car
+  if (titleLower.includes("car") || titleLower.includes("vehicle") || titleLower.includes("automotive")) {
+    return { category: "car-washing", subcategory: "car-shampoo" };
+  }
+  // Dish
+  if (titleLower.includes("dish") || titleLower.includes("kitchen") || titleLower.includes("utensil")) {
+    return { category: "dishwashing", subcategory: "dish-wash" };
+  }
+  // Fabric
+  if (titleLower.includes("fabric") || titleLower.includes("softener") || titleLower.includes("laundry") || titleLower.includes("cloth")) {
+    return { category: "fabric-cleaning", subcategory: "fabric-washing" };
+  }
+  // Floor
+  if (titleLower.includes("floor") || titleLower.includes("tile") || titleLower.includes("marble")) {
+    return { category: "cleaning-chemicals", subcategory: "floor-cleaner" };
+  }
+  // Glass
+  if (titleLower.includes("glass") || titleLower.includes("mirror") || titleLower.includes("window cleaner")) {
+    return { category: "cleaning-chemicals", subcategory: "glass-cleaner" };
+  }
+  // Default to multi-purpose
   return { category: "cleaning-chemicals", subcategory: "multi-purpose" };
 }
 
