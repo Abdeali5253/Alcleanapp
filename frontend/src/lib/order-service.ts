@@ -411,27 +411,10 @@ class OrderService {
           if (tracking.status?.toLowerCase().includes('delivered')) {
             order.status = 'delivered';
             
-            // Send delivery notification
-            if (previousStatus !== 'delivered') {
-              notificationService.sendNotification({
-                title: 'Order Delivered! ✅',
-                body: `Your order ${order.orderNumber} has been delivered. Thank you for shopping with AlClean!`,
-                type: 'delivery',
-                data: { orderId: order.orderNumber },
-                targetAudience: 'specific',
-              });
-            }
+            // Notifications handled by backend
           } else if (tracking.tracking_number && previousTracking !== tracking.tracking_number) {
             order.status = 'in-transit';
-            
-            // Send tracking notification
-            notificationService.sendNotification({
-              title: 'Order Shipped! 📦',
-              body: `Your order ${order.orderNumber} is now in transit via ${tracking.courier}.`,
-              type: 'delivery',
-              data: { orderId: order.orderNumber, trackingNumber: tracking.tracking_number },
-              targetAudience: 'specific',
-            });
+            // Notifications handled by backend
           }
         }
       }
