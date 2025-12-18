@@ -18,16 +18,16 @@ export function SupremeOffers() {
       try {
         setLoading(true);
         
-        // Fetch from supreme-offer collection (only active products)
+        // Fetch from supreme-offer collection (all products in collection)
         let offerProducts = await getProductsByCollection("supreme-offer", 250);
         
-        console.log(`[SupremeOffers] Loaded ${offerProducts.length} active products from supreme-offer collection`);
+        console.log(`[SupremeOffers] Loaded ${offerProducts.length} products from supreme-offer collection`);
         
         // If no products in supreme-offer, show all products on sale
         if (offerProducts.length === 0) {
           const { getAllProducts } = await import("../lib/shopify");
           const allProducts = await getAllProducts(250);
-          offerProducts = allProducts.filter(p => p.onSale && p.inStock);
+          offerProducts = allProducts.filter(p => p.onSale);
           console.log(`[SupremeOffers] No supreme-offer collection, showing ${offerProducts.length} products on sale`);
         }
         
