@@ -160,20 +160,17 @@ class OrderService {
       
       // Show helpful debugging info
       if (error instanceof TypeError && error.message.includes('fetch')) {
-        const env = typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env : {};
-        const apiUrl = env.VITE_API_URL || 'http://localhost:3001';
         console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
         console.error('🚨 BACKEND CONNECTION ERROR');
         console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
         console.error('');
         console.error('❌ Cannot connect to backend server');
-        console.error(`📍 Expected URL: ${apiUrl}`);
+        console.error(`📍 Endpoint: /api/shopify/create-order`);
         console.error('');
         console.error('📋 TO FIX THIS:');
-        console.error('1. Make sure backend server is running');
-        console.error('2. Run: cd server && npm install && npm run dev');
-        console.error('3. Check .env file has VITE_API_URL set');
-        console.error('4. Verify backend is accessible at the URL above');
+        console.error('1. Make sure backend server is running on port 8001');
+        console.error('2. Verify backend service status');
+        console.error('3. Check backend logs for errors');
         console.error('');
         console.error('💡 The order is saved locally and will sync once backend is ready');
         console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
