@@ -430,8 +430,13 @@ export function AttractiveHome() {
               ? Array.from({ length: 4 }, (_, index) => (
                   <ProductCardSkeleton key={index} />
                 ))
-              : products
-                  .filter((product) => product.subcategory === "mop-buckets")
+              : mopBucketProducts.length === 0
+              ? (
+                  <div className="col-span-2 md:col-span-4 text-center py-8">
+                    <p className="text-gray-500">No products available in this category</p>
+                  </div>
+                )
+              : mopBucketProducts
                   .slice(0, 4)
                   .map((product) => (
                     <ProductCard
@@ -445,16 +450,18 @@ export function AttractiveHome() {
                   ))}
           </div>
 
-          <div className="mt-4 md:hidden">
-            <Link to="/products?category=cleaning-equipment&subcategory=mop-buckets">
-              <Button
-                variant="outline"
-                className="w-full border-2 border-[#6DB33F] text-[#6DB33F] hover:bg-[#6DB33F] hover:text-white font-semibold py-6 rounded-xl"
-              >
-                View All Equipment →
-              </Button>
-            </Link>
-          </div>
+          {mopBucketProducts.length > 0 && (
+            <div className="mt-4 md:hidden">
+              <Link to="/products?category=cleaning-equipment">
+                <Button
+                  variant="outline"
+                  className="w-full border-2 border-[#6DB33F] text-[#6DB33F] hover:bg-[#6DB33F] hover:text-white font-semibold py-6 rounded-xl"
+                >
+                  View All Equipment →
+                </Button>
+              </Link>
+            </div>
+          )}
         </section>
 
         {/* CTA Section */}
