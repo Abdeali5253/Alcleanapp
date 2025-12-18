@@ -79,10 +79,8 @@ class NotificationService {
   // Register FCM token with backend
   private async registerTokenWithBackend(token: string): Promise<void> {
     try {
-      const env = typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env : {};
-      const apiUrl = env.VITE_API_URL || 'http://localhost:3001';
-      
-      const response = await fetch(`${apiUrl}/api/notifications/register`, {
+      // Use relative path - Kubernetes ingress routes /api/* to backend
+      const response = await fetch(`/api/notifications/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -94,9 +92,11 @@ class NotificationService {
       
       if (response.ok) {
         console.log('[Notifications] Token registered with backend');
+      } else {
+        console.log('[Notifications] Backend returned:', response.status);
       }
     } catch (error) {
-      console.error('[Notifications] Failed to register token:', error);
+      console.log('[Notifications] Backend not available, will retry later');
     }
   }
 
