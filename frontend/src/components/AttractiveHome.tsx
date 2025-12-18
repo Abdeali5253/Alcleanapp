@@ -95,6 +95,7 @@ export function AttractiveHome() {
   const [supremeOffers, setSupremeOffers] = useState<Product[]>([]);
   const [fabricProducts, setFabricProducts] = useState<Product[]>([]);
   const [mopBucketProducts, setMopBucketProducts] = useState<Product[]>([]);
+  const [cleaningChemicals, setCleaningChemicals] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -103,7 +104,7 @@ export function AttractiveHome() {
         setLoading(true);
         
         // Fetch from different Shopify collections
-        const [offers, fabric, mopBuckets] = await Promise.all([
+        const [offers, fabric, mopBuckets, chemicals] = await Promise.all([
           // Supreme offers collection
           getProductsByCollection("supreme-offer", 250),
           // Fabric washing collection
@@ -111,12 +112,17 @@ export function AttractiveHome() {
           // Mop buckets collection - try multiple collection handles
           getProductsByCollection("home-page-mop-buckets", 50)
             .then(products => products.length > 0 ? products : getProductsByCollection("mop-buckets-wringers-cleaning-janitorial-trolleys", 50)),
+          // Cleaning chemicals - try multiple collection handles
+          getProductsByCollection("top-cleaning-chemicals", 50)
+            .then(products => products.length > 0 ? products : getProductsByCollection("industrial-cleaning-chemicals", 50))
+            .then(products => products.length > 0 ? products : getProductsByCollection("cleaning-equipment", 50)),
         ]);
         
         console.log('[Home] Loaded collections:', {
           supremeOffers: offers.length,
           fabricProducts: fabric.length,
           mopBuckets: mopBuckets.length,
+          cleaningChemicals: chemicals.length,
         });
         
         // Sort supreme offers by discount percentage
@@ -125,6 +131,7 @@ export function AttractiveHome() {
         setSupremeOffers(offers);
         setFabricProducts(fabric);
         setMopBucketProducts(mopBuckets);
+        setCleaningChemicals(chemicals);
       } catch (error) {
         console.error("Failed to fetch products:", error);
         toast.error("Failed to load products. Please refresh the page.", {
