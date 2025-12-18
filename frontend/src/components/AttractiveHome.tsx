@@ -341,8 +341,13 @@ export function AttractiveHome() {
               ? Array.from({ length: 4 }, (_, index) => (
                   <ProductCardSkeleton key={index} />
                 ))
-              : products
-                  .filter((product) => product.subcategory === "fabric-washing")
+              : fabricProducts.length === 0
+              ? (
+                  <div className="col-span-2 md:col-span-4 text-center py-8">
+                    <p className="text-gray-500">No products available in this category</p>
+                  </div>
+                )
+              : fabricProducts
                   .slice(0, 4)
                   .map((product) => (
                     <ProductCard
