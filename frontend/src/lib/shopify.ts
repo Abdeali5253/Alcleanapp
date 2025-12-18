@@ -327,12 +327,11 @@ export async function getProductsByCollection(collectionHandle: string, first: n
       return [];
     }
     
-    // Transform and filter only active products (availableForSale = true)
+    // Transform products (don't filter by inStock to show all products in collection)
     const products = data.collectionByHandle.products.edges
-      .map(edge => transformProduct(edge.node))
-      .filter(product => product.inStock); // Only include products that are available for sale
+      .map(edge => transformProduct(edge.node));
     
-    console.log(`[Shopify] Collection "${collectionHandle}": ${products.length} active products out of ${data.collectionByHandle.products.edges.length} total`);
+    console.log(`[Shopify] Collection "${collectionHandle}": ${products.length} products fetched`);
     
     return products;
   } catch (error) {
