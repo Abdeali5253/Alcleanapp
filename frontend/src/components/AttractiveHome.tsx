@@ -270,7 +270,7 @@ export function AttractiveHome() {
               ? Array.from({ length: 4 }, (_, index) => (
                   <ProductCardSkeleton key={index} />
                 ))
-              : products.length === 0
+              : supremeOffers.length === 0
               ? (
                   <div className="col-span-2 md:col-span-4 text-center py-12">
                     <div className="bg-gradient-to-br from-orange-50 to-red-50 rounded-2xl p-8 md:p-12 border-2 border-dashed border-orange-200">
@@ -289,7 +289,7 @@ export function AttractiveHome() {
                     </div>
                   </div>
                 )
-              : products
+              : supremeOffers
                   .slice(0, 4)
                   .map((product) => (
                     <ProductCard
@@ -303,7 +303,7 @@ export function AttractiveHome() {
                   ))}
           </div>
 
-          {products.length > 0 && (
+          {supremeOffers.length > 0 && (
             <div className="mt-4 md:hidden">
               <Link to="/supreme-offers">
                 <Button
