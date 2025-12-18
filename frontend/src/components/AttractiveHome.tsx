@@ -92,7 +92,9 @@ export function AttractiveHome() {
   const [wishlist, setWishlist] = useState<string[]>([]);
   const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
   const [quantities, setQuantities] = useState<Record<string, number>>({});
-  const [products, setProducts] = useState<Product[]>([]);
+  const [supremeOffers, setSupremeOffers] = useState<Product[]>([]);
+  const [fabricProducts, setFabricProducts] = useState<Product[]>([]);
+  const [mopBucketProducts, setMopBucketProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -100,22 +102,29 @@ export function AttractiveHome() {
       try {
         setLoading(true);
         
-        // Fetch supreme offers first
-        let offerProducts = await getProductsByCollection("supreme-offer", 100);
+        // Fetch from different Shopify collections
+        const [offers, fabric, mopBuckets] = await Promise.all([
+          // Supreme offers collection
+          getProductsByCollection("supreme-offer", 250),
+          // Fabric washing collection
+          getProductsByCollection("fabric-washing", 50),
+          // Mop buckets collection - try multiple collection handles
+          getProductsByCollection("home-page-mop-buckets", 50)
+            .then(products => products.length > 0 ? products : getProductsByCollection("mop-buckets-wringers-cleaning-janitorial-trolleys", 50)),
+        ]);
         
-        // If no supreme offers, get all products on sale
-        if (offerProducts.length === 0) {
-          const allProducts = await getAllProducts(250);
-          offerProducts = allProducts.filter(p => p.onSale);
-          console.log('[Home] No supreme-offer collection, showing products on sale:', offerProducts.length);
-        } else {
-          console.log('[Home] Loaded supreme offers:', offerProducts.length);
-        }
+        console.log('[Home] Loaded collections:', {
+          supremeOffers: offers.length,
+          fabricProducts: fabric.length,
+          mopBuckets: mopBuckets.length,
+        });
         
-        // Sort by discount percentage
-        offerProducts.sort((a, b) => b.discountPercent - a.discountPercent);
+        // Sort supreme offers by discount percentage
+        offers.sort((a, b) => b.discountPercent - a.discountPercent);
         
-        setProducts(offerProducts);
+        setSupremeOffers(offers);
+        setFabricProducts(fabric);
+        setMopBucketProducts(mopBuckets);
       } catch (error) {
         console.error("Failed to fetch products:", error);
         toast.error("Failed to load products. Please refresh the page.", {
