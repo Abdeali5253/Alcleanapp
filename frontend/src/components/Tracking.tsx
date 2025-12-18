@@ -160,15 +160,12 @@ export function Tracking() {
                 <div className="flex items-start justify-between mb-4">
                   <div>
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="text-gray-900 font-mono">#{order.orderNumber}</span>
-                      <span className={`text-xs px-2 py-1 rounded-full border ${getStatusColor(order.status)}`}>
-                        {order.status.replace('-', ' ').toUpperCase()}
-                      </span>
+                      <span className="text-gray-900 font-mono font-semibold">{order.orderNumber}</span>
                     </div>
                     <p className="text-sm text-gray-500">Ordered on {formatDate(order.createdAt)}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-gray-900">Rs.{order.total.toLocaleString()}</p>
+                    <p className="text-gray-900 font-bold">Rs.{order.total.toLocaleString()}</p>
                     <p className="text-xs text-gray-500">{order.items.length} items</p>
                   </div>
                 </div>
