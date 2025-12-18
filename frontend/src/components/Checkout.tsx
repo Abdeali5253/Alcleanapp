@@ -32,6 +32,9 @@ export function Checkout() {
   const [city, setCity] = useState("");
   const [postalCode, setPostalCode] = useState("");
 
+  // Major cities with fixed delivery charge
+  const majorCities = ['karachi', 'lahore', 'islamabad', 'rawalpindi'];
+  
   useEffect(() => {
     const unsubscribeCart = cartService.subscribe(setCartItems);
     const unsubscribeAuth = authService.subscribe(setUser);
@@ -64,8 +67,57 @@ export function Checkout() {
     return () => window.removeEventListener('focus', handleFocus);
   }, [checkoutUrl, showPaymentModal]);
 
+  // Calculate total weight in kg from cart items
+  const calculateTotalWeight = (): number => {
+    let totalWeight = 0;
+    cartItems.forEach(item => {
+      // Extract weight from product.weight (format: "5.0 KILOGRAMS" or "500 GRAMS")
+      const weightStr = item.product.weight || '';
+      const weightMatch = weightStr.match(/(\d+\.?\d*)\s*(KILOGRAMS|KG|GRAMS|G)/i);
+      
+      if (weightMatch) {
+        const value = parseFloat(weightMatch[1]);
+        const unit = weightMatch[2].toUpperCase();
+        
+        // Convert to kg
+        let weightInKg = 0;
+        if (unit.includes('KILOGRAM') || unit === 'KG') {
+          weightInKg = value;
+        } else if (unit.includes('GRAM') || unit === 'G') {
+          weightInKg = value / 1000;
+        }
+        
+        totalWeight += weightInKg * item.quantity;
+      }
+    });
+    
+    // Default to 1kg per item if no weight specified
+    if (totalWeight === 0) {
+      totalWeight = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+    }
+    
+    return totalWeight;
+  };
+
+  // Calculate delivery charge based on city and weight
+  const calculateDeliveryCharge = (): number => {
+    if (!city) return 0;
+    
+    const cityLower = city.toLowerCase().trim();
+    const isMajorCity = majorCities.some(mc => cityLower.includes(mc));
+    
+    if (isMajorCity) {
+      // Fixed 200 Rs for major cities
+      return 200;
+    } else {
+      // 50 Rs per kg for other cities
+      const totalWeight = calculateTotalWeight();
+      return Math.ceil(totalWeight) * 50;
+    }
+  };
+
   const subtotal = cartService.getTotal();
-  const deliveryCharge = subtotal >= 5000 ? 0 : 250;
+  const deliveryCharge = calculateDeliveryCharge();
   const total = subtotal + deliveryCharge;
 
   const openPaymentPage = async (url: string) => {
