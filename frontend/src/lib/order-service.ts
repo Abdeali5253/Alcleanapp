@@ -241,15 +241,9 @@ class OrderService {
     this.orders.unshift(order);
     this.saveOrders();
 
-    // Send push notification
-    await notificationService.sendNotification({
-      title: 'Order Placed Successfully! 🎉',
-      body: `Your order ${order.orderNumber} has been placed. Total: Rs.${total.toLocaleString()}`,
-      type: 'order_update',
-      data: { orderId: order.orderNumber },
-      targetAudience: 'specific',
-    });
-
+    // Note: Push notifications are handled by backend when order status changes
+    // No need to send notification here as it will be triggered by backend
+    
     return order;
   }
 
