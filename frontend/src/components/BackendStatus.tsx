@@ -16,10 +16,8 @@ export function BackendStatus() {
     setErrorMessage('');
 
     try {
-      // Safely access import.meta.env
-      const env = typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env : {};
-      const apiUrl = env.VITE_API_URL || 'http://localhost:3001';
-      const response = await fetch(`${apiUrl}/health`);
+      // Use /api prefix - Kubernetes ingress routes to backend on port 8001
+      const response = await fetch(`/api/health`);
 
       if (response.ok) {
         const data = await response.json();
@@ -34,9 +32,9 @@ export function BackendStatus() {
         setErrorMessage(`HTTP ${response.status}`);
       }
     } catch (error) {
-      setStatus('error');
+      setStatus('not-found');
       if (error instanceof TypeError && error.message.includes('fetch')) {
-        setErrorMessage('Cannot connect to backend server');
+        setErrorMessage('Backend service not available (check if port 8001 is running)');
       } else {
         setErrorMessage(error instanceof Error ? error.message : 'Unknown error');
       }
