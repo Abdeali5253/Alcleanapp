@@ -273,8 +273,8 @@ export async function getProductById(productId: string): Promise<Product | null>
   }
 }
 
-// Get products by collection handle
-export async function getProductsByCollection(collectionHandle: string, first: number = 20): Promise<Product[]> {
+// Get products by collection handle (only active products)
+export async function getProductsByCollection(collectionHandle: string, first: number = 250): Promise<Product[]> {
   const query = `
     query GetCollectionProducts($handle: String!, $first: Int!) {
       collectionByHandle(handle: $handle) {
@@ -327,7 +327,14 @@ export async function getProductsByCollection(collectionHandle: string, first: n
       return [];
     }
     
-    return data.collectionByHandle.products.edges.map(edge => transformProduct(edge.node));
+    // Transform and filter only active products (availableForSale = true)
+    const products = data.collectionByHandle.products.edges
+      .map(edge => transformProduct(edge.node))
+      .filter(product => product.inStock); // Only include products that are available for sale
+    
+    console.log(`[Shopify] Collection "${collectionHandle}": ${products.length} active products out of ${data.collectionByHandle.products.edges.length} total`);
+    
+    return products;
   } catch (error) {
     console.error("[Shopify] Error fetching collection products:", error);
     return [];
