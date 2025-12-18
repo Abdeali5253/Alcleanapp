@@ -344,19 +344,12 @@ export function Checkout() {
               <span>Rs.{subtotal.toLocaleString()}</span>
             </div>
             <div className="flex justify-between text-gray-600">
-              <span>
-                Delivery
-                {city && deliveryCharge > 0 && (
-                  <span className="text-xs ml-1">
-                    ({majorCities.some(mc => city.toLowerCase().includes(mc)) ? 'Fixed 200 Rs' : `${Math.ceil(calculateTotalWeight())} kg × 50 Rs`})
-                  </span>
-                )}
-              </span>
-              <span>{city ? `Rs.${deliveryCharge}` : 'Select city'}</span>
+              <span>Delivery</span>
+              <span>{city ? `Rs.${deliveryCharge}` : 'Enter city'}</span>
             </div>
             {!city && (
               <p className="text-xs text-amber-600">
-                Please select a city to calculate delivery charges
+                Please enter your city to calculate delivery charges
               </p>
             )}
             <div className="flex justify-between font-bold text-gray-900 text-base pt-2 border-t">
