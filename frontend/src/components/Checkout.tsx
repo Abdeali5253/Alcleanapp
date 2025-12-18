@@ -403,13 +403,27 @@ export function Checkout() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label htmlFor="city">City *</Label>
-                <Input
+                <select
                   id="city"
                   value={city}
                   onChange={(e) => setCity(e.target.value)}
-                  placeholder="Karachi"
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                   required
-                />
+                >
+                  <option value="">Select City</option>
+                  <option value="Karachi">Karachi (200 Rs)</option>
+                  <option value="Lahore">Lahore (200 Rs)</option>
+                  <option value="Islamabad">Islamabad (200 Rs)</option>
+                  <option value="Rawalpindi">Rawalpindi (200 Rs)</option>
+                  <option value="Faisalabad">Faisalabad (50 Rs/kg)</option>
+                  <option value="Multan">Multan (50 Rs/kg)</option>
+                  <option value="Hyderabad">Hyderabad (50 Rs/kg)</option>
+                  <option value="Peshawar">Peshawar (50 Rs/kg)</option>
+                  <option value="Quetta">Quetta (50 Rs/kg)</option>
+                  <option value="Sialkot">Sialkot (50 Rs/kg)</option>
+                  <option value="Gujranwala">Gujranwala (50 Rs/kg)</option>
+                  <option value="Other">Other City (50 Rs/kg)</option>
+                </select>
               </div>
               <div>
                 <Label htmlFor="postalCode">Postal Code</Label>
