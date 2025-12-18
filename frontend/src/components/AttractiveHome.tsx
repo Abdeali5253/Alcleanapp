@@ -390,8 +390,8 @@ export function AttractiveHome() {
               ? Array.from({ length: 4 }, (_, index) => (
                   <ProductCardSkeleton key={index} />
                 ))
-              : products
-                  .filter((product) => product.subcategory === "floor-cleaner")
+              : supremeOffers
+                  .filter((product) => product.category === "cleaning-chemicals")
                   .slice(0, 4)
                   .map((product) => (
                     <ProductCard
