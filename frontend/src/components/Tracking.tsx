@@ -16,15 +16,20 @@ export function Tracking() {
     loadOrders();
   }, []);
 
-  const loadOrders = () => {
+  const loadOrders = async () => {
     if (!authService.isLoggedIn()) {
       setIsLoading(false);
       return;
     }
 
-    const userOrders = orderService.getUserOrders();
-    setOrders(userOrders);
-    setIsLoading(false);
+    try {
+      const userOrders = await orderService.getUserOrders();
+      setOrders(userOrders);
+    } catch (error) {
+      console.error('[Tracking] Error loading orders:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleSync = async () => {
