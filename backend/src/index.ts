@@ -16,7 +16,7 @@ app.use(cors({
 app.use(express.json());
 
 // Health check
-app.get('/health', (req, res) => {
+const healthCheck = (req: any, res: any) => {
   res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
@@ -32,7 +32,10 @@ app.get('/health', (req, res) => {
     },
     info: 'Storefront API is used directly from frontend - Admin API for order creation',
   });
-});
+};
+
+app.get('/health', healthCheck);
+app.get('/api/health', healthCheck);
 
 // Routes
 app.use('/api/notifications', notificationRoutes);
