@@ -379,16 +379,7 @@ class OrderService {
       order.status = 'in-transit';
       this.saveOrders();
 
-      // Send notification if status changed
-      if (previousStatus !== 'in-transit') {
-        await notificationService.sendNotification({
-          title: 'Order Shipped! 📦',
-          body: `Your order ${orderNumber} is now in transit via ${courier}. Tracking #: ${trackingNumber}`,
-          type: 'delivery',
-          data: { orderId: orderNumber, trackingNumber, courier },
-          targetAudience: 'specific',
-        });
-      }
+      // Notifications are handled by backend
     }
   }
 
