@@ -133,6 +133,10 @@ export function Checkout() {
         // Listen for browser close
         CapacitorBrowser.addListener('browserFinished', () => {
           setShowPaymentModal(false);
+          // Prompt user to confirm payment completion
+          setTimeout(() => {
+            toast.info("Did you complete the payment? Click 'I've Completed Payment' button below if yes.");
+          }, 500);
         });
       } catch (e) {
         // Fallback to window.open
@@ -153,6 +157,10 @@ export function Checkout() {
         if (paymentWindow.closed) {
           clearInterval(checkClosed);
           setShowPaymentModal(false);
+          // Prompt user to confirm payment completion
+          setTimeout(() => {
+            toast.info("Window closed. If you completed payment, click 'I've Completed Payment' button.");
+          }, 500);
         }
       }, 1000);
     }
