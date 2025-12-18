@@ -101,10 +101,8 @@ class OrderService {
    */
   private async createShopifyDraftOrder(order: Order): Promise<{ draftOrderId: string; orderId?: string } | null> {
     try {
-      // Safely access import.meta.env
-      const env = typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env : {};
-      const apiUrl = env.VITE_API_URL || 'http://localhost:3001';
-      const endpoint = `${apiUrl}/api/shopify/create-order`;
+      // Use relative path - Kubernetes ingress routes /api/* to backend
+      const endpoint = `/api/shopify/create-order`;
       
       console.log('[Shopify] Creating order via backend:', endpoint);
       console.log('[Shopify] Order data:', {
