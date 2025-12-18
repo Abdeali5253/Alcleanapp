@@ -259,14 +259,102 @@ class OrderService {
   }
 
   /**
-   * Get all orders for current user
+   * Fetch orders from Shopify for current user
    */
-  getUserOrders(): Order[] {
+  async fetchShopifyOrders(): Promise<Order[]> {
+    const user = authService.getCurrentUser();
+    if (!user || !user.accessToken) {
+      console.log('[Orders] No user or access token');
+      return [];
+    }
+
+    try {
+      // Import getCustomer from shopify
+      const { getCustomer } = await import('./shopify');
+      const customerData = await getCustomer(user.accessToken);
+      
+      if (!customerData || !customerData.orders) {
+        console.log('[Orders] No orders found in Shopify');
+        return [];
+      }
+
+      // Transform Shopify orders to our Order format
+      const shopifyOrders: Order[] = customerData.orders.edges.map((edge: any) => {
+        const order = edge.node;
+        const lineItems = order.lineItems.edges.map((itemEdge: any) => {
+          const item = itemEdge.node;
+          return {
+            product: {
+              id: item.variant?.id || '',
+              title: item.title,
+              image: item.variant?.image?.url || '',
+              price: parseFloat(item.variant?.price?.amount || '0'),
+              variantId: item.variant?.id || '',
+            },
+            quantity: item.quantity,
+          };
+        });
+
+        return {
+          id: order.id,
+          orderNumber: `#${order.orderNumber}`,
+          customerName: `${customerData.firstName} ${customerData.lastName}`,
+          customerEmail: customerData.email,
+          customerPhone: customerData.phone || '',
+          customerAddress: '', // Shopify doesn't return address in order list
+          city: '',
+          items: lineItems,
+          subtotal: parseFloat(order.totalPrice.amount),
+          deliveryCharge: 0, // Not available in Shopify order
+          total: parseFloat(order.totalPrice.amount),
+          paymentMethod: 'cod', // Default
+          status: this.mapShopifyStatus(order.financialStatus, order.fulfillmentStatus),
+          createdAt: order.processedAt,
+          shopifyOrderId: order.id,
+        };
+      });
+
+      console.log(`[Orders] Fetched ${shopifyOrders.length} orders from Shopify`);
+      return shopifyOrders;
+    } catch (error) {
+      console.error('[Orders] Error fetching Shopify orders:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Map Shopify status to our status
+   */
+  private mapShopifyStatus(financialStatus: string, fulfillmentStatus: string): Order['status'] {
+    if (fulfillmentStatus === 'FULFILLED') return 'delivered';
+    if (fulfillmentStatus === 'PARTIALLY_FULFILLED' || fulfillmentStatus === 'IN_PROGRESS') return 'in-transit';
+    if (financialStatus === 'PAID' || financialStatus === 'PARTIALLY_PAID') return 'processing';
+    return 'pending';
+  }
+
+  /**
+   * Get all orders for current user (combines local and Shopify)
+   */
+  async getUserOrders(): Promise<Order[]> {
     const user = authService.getCurrentUser();
     if (!user) return [];
 
-    // Filter orders by user email
-    return this.orders.filter(order => order.customerEmail === user.email);
+    // Get local orders
+    const localOrders = this.orders.filter(order => order.customerEmail === user.email);
+
+    // Fetch Shopify orders
+    const shopifyOrders = await this.fetchShopifyOrders();
+
+    // Combine and deduplicate (prefer Shopify orders)
+    const allOrders = [...shopifyOrders, ...localOrders];
+    const uniqueOrders = allOrders.filter((order, index, self) =>
+      index === self.findIndex(o => o.orderNumber === order.orderNumber)
+    );
+
+    // Sort by date (newest first)
+    uniqueOrders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+    return uniqueOrders;
   }
 
   /**
