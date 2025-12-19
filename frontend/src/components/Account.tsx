@@ -426,7 +426,10 @@ export function Account() {
   // Logged in - Show Account Menu
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
-      <header className="bg-[#6DB33F] text-white">
+      <UnifiedHeader />
+      
+      {/* User Profile Section */}
+      <div className="bg-[#6DB33F] text-white">
         <div className="max-w-md mx-auto px-4 py-6">
           <div className="flex items-center gap-4">
             <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center">
@@ -441,7 +444,7 @@ export function Account() {
             </div>
           </div>
         </div>
-      </header>
+      </div>
 
       <main className="max-w-md mx-auto px-4 py-6">
         <div className="bg-white rounded-2xl border border-gray-200 divide-y divide-gray-100">

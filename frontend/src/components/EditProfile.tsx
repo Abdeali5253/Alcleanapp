@@ -34,19 +34,18 @@ export function EditProfile() {
       const firstName = nameParts[0] || '';
       const lastName = nameParts.slice(1).join(' ') || '';
 
-      // Update in Shopify if user has access token
+      // Try to update in Shopify if user has access token (optional - won't block if fails)
       if (currentUser?.accessToken) {
-        const { updateCustomer } = await import("../lib/shopify");
-        const shopifySuccess = await updateCustomer(currentUser.accessToken, {
-          firstName,
-          lastName,
-          phone
-        });
-
-        if (!shopifySuccess) {
-          toast.error("Failed to update profile in Shopify");
-          setIsSaving(false);
-          return;
+        try {
+          const { updateCustomer } = await import("../lib/shopify");
+          await updateCustomer(currentUser.accessToken, {
+            firstName,
+            lastName,
+            phone
+          });
+          console.log('[EditProfile] Shopify profile updated');
+        } catch (error) {
+          console.log('[EditProfile] Shopify update not available, continuing with local update');
         }
       }
 

@@ -18,19 +18,17 @@ export function SupremeOffers() {
       try {
         setLoading(true);
         
-        // Fetch ALL products and get supreme offers
-        const { getAllProductsFromShopify, categorizeProducts } = await import("../lib/shopify");
-        const allProducts = await getAllProductsFromShopify(250);
-        const categorized = categorizeProducts(allProducts);
+        // Fetch from supreme-offer collection
+        let offerProducts = await getProductsByCollection("supreme-offer", 250);
         
-        let offerProducts = categorized.supremeOffers;
+        console.log(`[SupremeOffers] Loaded ${offerProducts.length} products from supreme-offer collection`);
         
-        console.log(`[SupremeOffers] Loaded ${offerProducts.length} supreme offer products`);
-        
-        // If no supreme offers, show all products on sale
+        // If no products in supreme-offer, show all products on sale
         if (offerProducts.length === 0) {
+          const { getAllProducts } = await import("../lib/shopify");
+          const allProducts = await getAllProducts(250);
           offerProducts = allProducts.filter(p => p.onSale);
-          console.log(`[SupremeOffers] No supreme offers found, showing ${offerProducts.length} products on sale`);
+          console.log(`[SupremeOffers] No supreme-offer collection, showing ${offerProducts.length} products on sale`);
         }
         
         // Sort by discount percentage

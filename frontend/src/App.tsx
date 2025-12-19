@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
-import { AttractiveHome } from "./components/AttractiveHome";
+import { Home } from "./components/Home";
 import { Products } from "./components/Products";
 import { ProductDetail } from "./components/ProductDetail";
 import { Cart } from "./components/Cart";
@@ -48,7 +48,7 @@ export default function App() {
     <Router>
       <div className="min-h-screen bg-gray-50">
         <Routes>
-          <Route path="/" element={<AttractiveHome />} />
+          <Route path="/" element={<Home />} />
           <Route
             path="/preview_page.html"
             element={<Navigate to="/" replace />}

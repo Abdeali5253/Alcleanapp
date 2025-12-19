@@ -1,145 +1,183 @@
-diff --git a/frontend/src/components/AttractiveHome.tsx b/frontend/src/components/AttractiveHome.tsx
-index 38261fa..847c6e9 100644
---- a/frontend/src/components/AttractiveHome.tsx
-+++ b/frontend/src/components/AttractiveHome.tsx
-@@ -103,35 +103,26 @@ export function AttractiveHome() {
-       try {
-         setLoading(true);
-         
--        // Fetch from different Shopify collections
--        const [offers, fabric, mopBuckets, chemicals] = await Promise.all([
--          // Supreme offers collection
--          getProductsByCollection("supreme-offer", 250),
--          // Fabric washing collection
--          getProductsByCollection("fabric-washing", 50),
--          // Mop buckets collection - try multiple collection handles
--          getProductsByCollection("home-page-mop-buckets", 50)
--            .then(products => products.length > 0 ? products : getProductsByCollection("mop-buckets-wringers-cleaning-janitorial-trolleys", 50)),
--          // Cleaning chemicals - fetch from specific chemical collections only
--          getProductsByCollection("top-cleaning-chemicals", 50)
--            .then(products => products.length > 0 ? products : getProductsByCollection("industrial-cleaning-chemicals", 50))
--            .then(products => products.length > 0 ? products : getProductsByCollection("multi-purpose-chemicals", 50)),
--        ]);
-+        // Fetch ALL products from Shopify and categorize them
-+        const { getAllProductsFromShopify, categorizeProducts } = await import("../lib/shopify");
-+        const allProducts = await getAllProductsFromShopify(250);
-+        const categorized = categorizeProducts(allProducts);
-         
--        console.log('[Home] Loaded collections:', {
--          supremeOffers: offers.length,
--          fabricProducts: fabric.length,
--          mopBuckets: mopBuckets.length,
--          cleaningChemicals: chemicals.length,
-+        console.log('[Home] Product categorization:', {
-+          supremeOffers: categorized.supremeOffers.length,
-+          fabricWashing: categorized.fabricWashing.length,
-+          mopBuckets: categorized.mopBuckets.length,
-+          cleaningChemicals: categorized.cleaningChemicals.length,
-+          total: allProducts.length,
-         });
-         
-         // Sort supreme offers by discount percentage
--        offers.sort((a, b) => b.discountPercent - a.discountPercent);
-+        categorized.supremeOffers.sort((a, b) => b.discountPercent - a.discountPercent);
-         
--        setSupremeOffers(offers);
--        setFabricProducts(fabric);
--        setMopBucketProducts(mopBuckets);
--        setCleaningChemicals(chemicals);
-+        setSupremeOffers(categorized.supremeOffers);
-+        setFabricProducts(categorized.fabricWashing);
-+        setMopBucketProducts(categorized.mopBuckets);
-+        setCleaningChemicals(categorized.cleaningChemicals);
-       } catch (error) {
-         console.error("Failed to fetch products:", error);
-         toast.error("Failed to load products. Please refresh the page.", {
+diff --git a/frontend/src/components/Account.tsx b/frontend/src/components/Account.tsx
+index 30eda3b..b4f06ae 100644
+--- a/frontend/src/components/Account.tsx
++++ b/frontend/src/components/Account.tsx
+@@ -23,6 +23,7 @@ import { Input } from "./ui/input";
+ import { Label } from "./ui/label";
+ import { toast } from "sonner";
+ import { Logo } from "./Logo";
++import { UnifiedHeader } from "./UnifiedHeader";
+ 
+ const menuItems = [
+   {
+@@ -425,7 +426,10 @@ export function Account() {
+   // Logged in - Show Account Menu
+   return (
+     <div className="min-h-screen bg-gray-50 pb-20">
+-      <header className="bg-[#6DB33F] text-white">
++      <UnifiedHeader />
++      
++      {/* User Profile Section */}
++      <div className="bg-[#6DB33F] text-white">
+         <div className="max-w-md mx-auto px-4 py-6">
+           <div className="flex items-center gap-4">
+             <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center">
+@@ -440,7 +444,7 @@ export function Account() {
+             </div>
+           </div>
+         </div>
+-      </header>
++      </div>
+ 
+       <main className="max-w-md mx-auto px-4 py-6">
+         <div className="bg-white rounded-2xl border border-gray-200 divide-y divide-gray-100">
 diff --git a/model.patch b/model.patch
-index e822ae7..e69de29 100644
+index 4d284f9..e69de29 100644
 --- a/model.patch
 +++ b/model.patch
-@@ -1,85 +0,0 @@
--diff --git a/frontend/src/components/Tracking.tsx b/frontend/src/components/Tracking.tsx
--index 5ffa3eb..d53b869 100644
----- a/frontend/src/components/Tracking.tsx
--+++ b/frontend/src/components/Tracking.tsx
--@@ -31,18 +31,6 @@ export function Tracking() {
--     }
--   };
-- 
---  const handleSync = async () => {
---    setIsSyncing(true);
---    try {
---      await orderService.syncTrackingData();
---      loadOrders();
---    } catch (error) {
---      console.error("Sync error:", error);
---    } finally {
---      setIsSyncing(false);
---    }
---  };
---
--   const getStatusIcon = (status: string) => {
--     switch (status) {
--       case 'delivered':
+@@ -1,145 +0,0 @@
+-diff --git a/frontend/src/components/AttractiveHome.tsx b/frontend/src/components/AttractiveHome.tsx
+-index 38261fa..847c6e9 100644
+---- a/frontend/src/components/AttractiveHome.tsx
+-+++ b/frontend/src/components/AttractiveHome.tsx
+-@@ -103,35 +103,26 @@ export function AttractiveHome() {
+-       try {
+-         setLoading(true);
+-         
+--        // Fetch from different Shopify collections
+--        const [offers, fabric, mopBuckets, chemicals] = await Promise.all([
+--          // Supreme offers collection
+--          getProductsByCollection("supreme-offer", 250),
+--          // Fabric washing collection
+--          getProductsByCollection("fabric-washing", 50),
+--          // Mop buckets collection - try multiple collection handles
+--          getProductsByCollection("home-page-mop-buckets", 50)
+--            .then(products => products.length > 0 ? products : getProductsByCollection("mop-buckets-wringers-cleaning-janitorial-trolleys", 50)),
+--          // Cleaning chemicals - fetch from specific chemical collections only
+--          getProductsByCollection("top-cleaning-chemicals", 50)
+--            .then(products => products.length > 0 ? products : getProductsByCollection("industrial-cleaning-chemicals", 50))
+--            .then(products => products.length > 0 ? products : getProductsByCollection("multi-purpose-chemicals", 50)),
+--        ]);
+-+        // Fetch ALL products from Shopify and categorize them
+-+        const { getAllProductsFromShopify, categorizeProducts } = await import("../lib/shopify");
+-+        const allProducts = await getAllProductsFromShopify(250);
+-+        const categorized = categorizeProducts(allProducts);
+-         
+--        console.log('[Home] Loaded collections:', {
+--          supremeOffers: offers.length,
+--          fabricProducts: fabric.length,
+--          mopBuckets: mopBuckets.length,
+--          cleaningChemicals: chemicals.length,
+-+        console.log('[Home] Product categorization:', {
+-+          supremeOffers: categorized.supremeOffers.length,
+-+          fabricWashing: categorized.fabricWashing.length,
+-+          mopBuckets: categorized.mopBuckets.length,
+-+          cleaningChemicals: categorized.cleaningChemicals.length,
+-+          total: allProducts.length,
+-         });
+-         
+-         // Sort supreme offers by discount percentage
+--        offers.sort((a, b) => b.discountPercent - a.discountPercent);
+-+        categorized.supremeOffers.sort((a, b) => b.discountPercent - a.discountPercent);
+-         
+--        setSupremeOffers(offers);
+--        setFabricProducts(fabric);
+--        setMopBucketProducts(mopBuckets);
+--        setCleaningChemicals(chemicals);
+-+        setSupremeOffers(categorized.supremeOffers);
+-+        setFabricProducts(categorized.fabricWashing);
+-+        setMopBucketProducts(categorized.mopBuckets);
+-+        setCleaningChemicals(categorized.cleaningChemicals);
+-       } catch (error) {
+-         console.error("Failed to fetch products:", error);
+-         toast.error("Failed to load products. Please refresh the page.", {
 -diff --git a/model.patch b/model.patch
--index f42bf83..e69de29 100644
+-index e822ae7..e69de29 100644
 ---- a/model.patch
 -+++ b/model.patch
--@@ -1,57 +0,0 @@
---diff --git a/frontend/src/lib/shopify.ts b/frontend/src/lib/shopify.ts
---index d3b61f7..18992fd 100644
------ a/frontend/src/lib/shopify.ts
---+++ b/frontend/src/lib/shopify.ts
---@@ -793,3 +793,52 @@ export async function checkoutShippingAddressUpdateV2(
--- export function getCheckoutWebUrl(checkout: ShopifyCheckout): string {
---   return checkout.webUrl;
--- }
---+
---+export function getCheckoutUrl(checkout: ShopifyCheckout): string {
---+  return checkout.webUrl;
---+}
---+
---+/**
---+ * Update customer information in Shopify
---+ */
---+export async function updateCustomer(accessToken: string, updates: {
---+  firstName?: string;
---+  lastName?: string;
---+  phone?: string;
---+}): Promise<boolean> {
---+  const mutation = `
---+    mutation customerUpdate($customerAccessToken: String!, $customer: CustomerUpdateInput!) {
---+      customerUpdate(customerAccessToken: $customerAccessToken, customer: $customer) {
---+        customer {
---+          id
---+          firstName
---+          lastName
---+          phone
---+        }
---+        customerUserErrors {
---+          code
---+          field
---+          message
---+        }
---+      }
---+    }
---+  `;
---+
---+  try {
---+    const data = await shopifyFetch<any>(mutation, {
---+      customerAccessToken: accessToken,
---+      customer: updates
---+    });
---+
---+    if (data.customerUpdate?.customerUserErrors?.length > 0) {
---+      console.error('[Shopify] Customer update errors:', data.customerUpdate.customerUserErrors);
---+      return false;
---+    }
---+
---+    console.log('[Shopify] Customer updated successfully');
---+    return true;
---+  } catch (error) {
---+    console.error('[Shopify] Failed to update customer:', error);
---+    return false;
---+  }
---+}
+-@@ -1,85 +0,0 @@
+--diff --git a/frontend/src/components/Tracking.tsx b/frontend/src/components/Tracking.tsx
+--index 5ffa3eb..d53b869 100644
+----- a/frontend/src/components/Tracking.tsx
+--+++ b/frontend/src/components/Tracking.tsx
+--@@ -31,18 +31,6 @@ export function Tracking() {
+--     }
+--   };
+-- 
+---  const handleSync = async () => {
+---    setIsSyncing(true);
+---    try {
+---      await orderService.syncTrackingData();
+---      loadOrders();
+---    } catch (error) {
+---      console.error("Sync error:", error);
+---    } finally {
+---      setIsSyncing(false);
+---    }
+---  };
+---
+--   const getStatusIcon = (status: string) => {
+--     switch (status) {
+--       case 'delivered':
+--diff --git a/model.patch b/model.patch
+--index f42bf83..e69de29 100644
+----- a/model.patch
+--+++ b/model.patch
+--@@ -1,57 +0,0 @@
+---diff --git a/frontend/src/lib/shopify.ts b/frontend/src/lib/shopify.ts
+---index d3b61f7..18992fd 100644
+------ a/frontend/src/lib/shopify.ts
+---+++ b/frontend/src/lib/shopify.ts
+---@@ -793,3 +793,52 @@ export async function checkoutShippingAddressUpdateV2(
+--- export function getCheckoutWebUrl(checkout: ShopifyCheckout): string {
+---   return checkout.webUrl;
+--- }
+---+
+---+export function getCheckoutUrl(checkout: ShopifyCheckout): string {
+---+  return checkout.webUrl;
+---+}
+---+
+---+/**
+---+ * Update customer information in Shopify
+---+ */
+---+export async function updateCustomer(accessToken: string, updates: {
+---+  firstName?: string;
+---+  lastName?: string;
+---+  phone?: string;
+---+}): Promise<boolean> {
+---+  const mutation = `
+---+    mutation customerUpdate($customerAccessToken: String!, $customer: CustomerUpdateInput!) {
+---+      customerUpdate(customerAccessToken: $customerAccessToken, customer: $customer) {
+---+        customer {
+---+          id
+---+          firstName
+---+          lastName
+---+          phone
+---+        }
+---+        customerUserErrors {
+---+          code
+---+          field
+---+          message
+---+        }
+---+      }
+---+    }
+---+  `;
+---+
+---+  try {
+---+    const data = await shopifyFetch<any>(mutation, {
+---+      customerAccessToken: accessToken,
+---+      customer: updates
+---+    });
+---+
+---+    if (data.customerUpdate?.customerUserErrors?.length > 0) {
+---+      console.error('[Shopify] Customer update errors:', data.customerUpdate.customerUserErrors);
+---+      return false;
+---+    }
+---+
+---+    console.log('[Shopify] Customer updated successfully');
+---+    return true;
+---+  } catch (error) {
+---+    console.error('[Shopify] Failed to update customer:', error);
+---+    return false;
+---+  }
+---+}

@@ -82,53 +82,21 @@ export function Products() {
     const fetchProducts = async () => {
       try {
         setLoading(true);
+        const products = await getAllProducts(250);
         
-        // Fetch ALL products and categorize them
-        const { getAllProductsFromShopify, categorizeProducts } = await import("../lib/shopify");
-        const allProductsFromShopify = await getAllProductsFromShopify(250);
-        const categorized = categorizeProducts(allProductsFromShopify);
-        
-        // Map categorized products to app categories
-        const productsWithCategories = allProductsFromShopify.map(product => {
-          let category = 'cleaning-chemicals';
-          let subcategory = '';
-          
-          // Check which category this product belongs to
-          if (categorized.fabricWashing.some(p => p.id === product.id)) {
-            category = 'fabric-cleaning';
-            subcategory = 'fabric-washing';
-          } else if (categorized.mopBuckets.some(p => p.id === product.id)) {
-            category = 'cleaning-equipment';
-            subcategory = 'mop-buckets';
-          } else if (categorized.cleaningEquipment.some(p => p.id === product.id)) {
-            category = 'cleaning-equipment';
-          } else if (categorized.cleaningChemicals.some(p => p.id === product.id)) {
-            category = 'cleaning-chemicals';
-          } else if (categorized.dishwashing.some(p => p.id === product.id)) {
-            category = 'dishwashing';
-          } else if (categorized.carWashing.some(p => p.id === product.id)) {
-            category = 'car-washing';
-          } else if (categorized.bathroomCleaning.some(p => p.id === product.id)) {
-            category = 'bathroom-cleaning';
-          }
-          
-          return { ...product, category, subcategory };
-        });
-        
-        console.log('[Products] Loaded and categorized products:', {
-          total: productsWithCategories.length,
+        console.log('[Products] Loaded products:', {
+          total: products.length,
           byCategory: {
-            chemicals: categorized.cleaningChemicals.length,
-            equipment: categorized.cleaningEquipment.length,
-            carWashing: categorized.carWashing.length,
-            bathroom: categorized.bathroomCleaning.length,
-            fabric: categorized.fabricWashing.length,
-            dishwashing: categorized.dishwashing.length,
-            mopBuckets: categorized.mopBuckets.length,
+            chemicals: products.filter(p => p.category === 'cleaning-chemicals').length,
+            equipment: products.filter(p => p.category === 'cleaning-equipment').length,
+            carWashing: products.filter(p => p.category === 'car-washing').length,
+            bathroom: products.filter(p => p.category === 'bathroom-cleaning').length,
+            fabric: products.filter(p => p.category === 'fabric-cleaning').length,
+            dishwashing: products.filter(p => p.category === 'dishwashing').length,
           },
         });
         
-        setAllProducts(productsWithCategories);
+        setAllProducts(products);
       } catch (error) {
         console.error("Failed to fetch products from Shopify:", error);
         toast.error("Failed to load products. Please refresh the page.", {
