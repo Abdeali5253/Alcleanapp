@@ -48,7 +48,7 @@ export default function App() {
     <Router>
       <div className="min-h-screen bg-gray-50">
         <Routes>
-          <Route path="/" element={<AttractiveHome />} />
+          <Route path="/" element={<Home />} />
           <Route
             path="/preview_page.html"
             element={<Navigate to="/" replace />}
