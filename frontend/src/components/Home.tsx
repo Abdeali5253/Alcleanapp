@@ -88,7 +88,7 @@ const trustFeatures = [
   },
 ];
 
-export function AttractiveHome() {
+export function Home() {
   const [wishlist, setWishlist] = useState<string[]>([]);
   const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
   const [quantities, setQuantities] = useState<Record<string, number>>({});
