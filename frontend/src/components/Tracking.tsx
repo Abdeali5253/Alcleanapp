@@ -121,18 +121,8 @@ export function Tracking() {
       <UnifiedHeader />
 
       <main className="max-w-4xl mx-auto px-4 py-6">
-        <div className="flex items-center justify-between mb-6">
+        <div className="mb-6">
           <h1 className="text-gray-900 text-2xl">Track Your Orders</h1>
-          <Button
-            onClick={handleSync}
-            disabled={isSyncing}
-            variant="outline"
-            size="sm"
-            className="flex items-center gap-2"
-          >
-            <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
-            Sync
-          </Button>
         </div>
 
         {orders.length === 0 ? (
