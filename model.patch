@@ -1,57 +1,85 @@
-diff --git a/frontend/src/lib/shopify.ts b/frontend/src/lib/shopify.ts
-index d3b61f7..18992fd 100644
---- a/frontend/src/lib/shopify.ts
-+++ b/frontend/src/lib/shopify.ts
-@@ -793,3 +793,52 @@ export async function checkoutShippingAddressUpdateV2(
- export function getCheckoutWebUrl(checkout: ShopifyCheckout): string {
-   return checkout.webUrl;
- }
-+
-+export function getCheckoutUrl(checkout: ShopifyCheckout): string {
-+  return checkout.webUrl;
-+}
-+
-+/**
-+ * Update customer information in Shopify
-+ */
-+export async function updateCustomer(accessToken: string, updates: {
-+  firstName?: string;
-+  lastName?: string;
-+  phone?: string;
-+}): Promise<boolean> {
-+  const mutation = `
-+    mutation customerUpdate($customerAccessToken: String!, $customer: CustomerUpdateInput!) {
-+      customerUpdate(customerAccessToken: $customerAccessToken, customer: $customer) {
-+        customer {
-+          id
-+          firstName
-+          lastName
-+          phone
-+        }
-+        customerUserErrors {
-+          code
-+          field
-+          message
-+        }
-+      }
-+    }
-+  `;
-+
-+  try {
-+    const data = await shopifyFetch<any>(mutation, {
-+      customerAccessToken: accessToken,
-+      customer: updates
-+    });
-+
-+    if (data.customerUpdate?.customerUserErrors?.length > 0) {
-+      console.error('[Shopify] Customer update errors:', data.customerUpdate.customerUserErrors);
-+      return false;
-+    }
-+
-+    console.log('[Shopify] Customer updated successfully');
-+    return true;
-+  } catch (error) {
-+    console.error('[Shopify] Failed to update customer:', error);
-+    return false;
-+  }
-+}
+diff --git a/frontend/src/components/Tracking.tsx b/frontend/src/components/Tracking.tsx
+index 5ffa3eb..d53b869 100644
+--- a/frontend/src/components/Tracking.tsx
++++ b/frontend/src/components/Tracking.tsx
+@@ -31,18 +31,6 @@ export function Tracking() {
+     }
+   };
+ 
+-  const handleSync = async () => {
+-    setIsSyncing(true);
+-    try {
+-      await orderService.syncTrackingData();
+-      loadOrders();
+-    } catch (error) {
+-      console.error("Sync error:", error);
+-    } finally {
+-      setIsSyncing(false);
+-    }
+-  };
+-
+   const getStatusIcon = (status: string) => {
+     switch (status) {
+       case 'delivered':
+diff --git a/model.patch b/model.patch
+index f42bf83..e69de29 100644
+--- a/model.patch
++++ b/model.patch
+@@ -1,57 +0,0 @@
+-diff --git a/frontend/src/lib/shopify.ts b/frontend/src/lib/shopify.ts
+-index d3b61f7..18992fd 100644
+---- a/frontend/src/lib/shopify.ts
+-+++ b/frontend/src/lib/shopify.ts
+-@@ -793,3 +793,52 @@ export async function checkoutShippingAddressUpdateV2(
+- export function getCheckoutWebUrl(checkout: ShopifyCheckout): string {
+-   return checkout.webUrl;
+- }
+-+
+-+export function getCheckoutUrl(checkout: ShopifyCheckout): string {
+-+  return checkout.webUrl;
+-+}
+-+
+-+/**
+-+ * Update customer information in Shopify
+-+ */
+-+export async function updateCustomer(accessToken: string, updates: {
+-+  firstName?: string;
+-+  lastName?: string;
+-+  phone?: string;
+-+}): Promise<boolean> {
+-+  const mutation = `
+-+    mutation customerUpdate($customerAccessToken: String!, $customer: CustomerUpdateInput!) {
+-+      customerUpdate(customerAccessToken: $customerAccessToken, customer: $customer) {
+-+        customer {
+-+          id
+-+          firstName
+-+          lastName
+-+          phone
+-+        }
+-+        customerUserErrors {
+-+          code
+-+          field
+-+          message
+-+        }
+-+      }
+-+    }
+-+  `;
+-+
+-+  try {
+-+    const data = await shopifyFetch<any>(mutation, {
+-+      customerAccessToken: accessToken,
+-+      customer: updates
+-+    });
+-+
+-+    if (data.customerUpdate?.customerUserErrors?.length > 0) {
+-+      console.error('[Shopify] Customer update errors:', data.customerUpdate.customerUserErrors);
+-+      return false;
+-+    }
+-+
+-+    console.log('[Shopify] Customer updated successfully');
+-+    return true;
+-+  } catch (error) {
+-+    console.error('[Shopify] Failed to update customer:', error);
+-+    return false;
+-+  }
+-+}
