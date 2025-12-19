@@ -1,80 +1,56 @@
 // Firebase Cloud Messaging Service Worker
-// This handles background push notifications
-
 importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js');
 
-// Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyCMZrTCi1giFF6hJOC-MuOBbsqqKp6G6rU",
+  apiKey: "AIzaSyBHsieStommdpkhabXZPlmdAuBS13MI8sA",
   authDomain: "app-notification-5e56b.firebaseapp.com",
   projectId: "app-notification-5e56b",
   storageBucket: "app-notification-5e56b.firebasestorage.app",
   messagingSenderId: "310536726569",
-  appId: "1:310536726569:android:eb53b3a97416f36ef71438"
+  appId: "1:310536726569:web:243b4e36ef095da0f71438"
 };
 
-// Initialize Firebase
 firebase.initializeApp(firebaseConfig);
-
-// Initialize messaging
 const messaging = firebase.messaging();
 
 // Handle background messages
 messaging.onBackgroundMessage((payload) => {
-  console.log('[Firebase SW] Background message received:', payload);
+  console.log('[SW] Background message:', payload);
 
-  const notificationTitle = payload.notification?.title || 'AlClean';
-  const notificationOptions = {
+  const title = payload.notification?.title || 'AlClean';
+  const options = {
     body: payload.notification?.body || 'You have a new notification',
     icon: '/logo.png',
     badge: '/logo.png',
     tag: payload.data?.type || 'general',
     data: payload.data,
     actions: [
-      {
-        action: 'open',
-        title: 'Open App'
-      },
-      {
-        action: 'dismiss',
-        title: 'Dismiss'
-      }
+      { action: 'open', title: 'Open' },
+      { action: 'dismiss', title: 'Dismiss' }
     ]
   };
 
-  self.registration.showNotification(notificationTitle, notificationOptions);
+  self.registration.showNotification(title, options);
 });
 
 // Handle notification click
 self.addEventListener('notificationclick', (event) => {
-  console.log('[Firebase SW] Notification clicked:', event);
-  
   event.notification.close();
   
-  // Handle action buttons
   if (event.action === 'open' || !event.action) {
-    // Open the app
     event.waitUntil(
-      clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
-        // Check if app is already open
+      clients.matchAll({ type: 'window' }).then((windowClients) => {
         for (const client of windowClients) {
           if (client.url.includes(self.location.origin) && 'focus' in client) {
             return client.focus();
           }
         }
-        // Open new window if not
         if (clients.openWindow) {
+          const type = event.notification.data?.type;
           let url = '/';
-          
-          // Navigate based on notification type
-          const notificationType = event.notification.data?.type;
-          if (notificationType === 'order_update') {
-            url = '/orders';
-          } else if (notificationType === 'promotion' || notificationType === 'sale') {
-            url = '/products';
-          }
-          
+          if (type === 'order_update') url = '/orders';
+          if (type === 'promotion') url = '/products';
           return clients.openWindow(url);
         }
       })
@@ -82,15 +58,7 @@ self.addEventListener('notificationclick', (event) => {
   }
 });
 
-// Log service worker installation
-self.addEventListener('install', (event) => {
-  console.log('[Firebase SW] Installing...');
-  self.skipWaiting();
-});
+self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('activate', (event) => event.waitUntil(clients.claim()));
 
-self.addEventListener('activate', (event) => {
-  console.log('[Firebase SW] Activated');
-  event.waitUntil(clients.claim());
-});
-
-console.log('[Firebase SW] Service worker loaded');
+console.log('[SW] Firebase messaging service worker loaded');

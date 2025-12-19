@@ -82,21 +82,77 @@ export function Products() {
     const fetchProducts = async () => {
       try {
         setLoading(true);
-        const products = await getAllProducts(250);
+        const products = await getAllProducts(700);
         
-        console.log('[Products] Loaded products:', {
-          total: products.length,
+        // Categorize products based on their collections
+        const categorizedProducts = products.map(product => {
+          const collections = (product as any).collections || [];
+          const collectionHandles = collections.map((c: any) => c.handle.toLowerCase());
+          
+          let category = 'cleaning-chemicals';
+          let subcategory = '';
+          
+          // Check collection membership to assign category
+          if (collectionHandles.some((h: string) => 
+            h.includes('cleaning-equipment') || 
+            h.includes('cleaning-machines') || 
+            h.includes('vacuum') ||
+            h.includes('floor-cleaning-equipments') ||
+            h.includes('polish-machine')
+          )) {
+            category = 'cleaning-equipment';
+          } else if (collectionHandles.some((h: string) => 
+            h.includes('fabric') || 
+            h.includes('washing') || 
+            h.includes('detergent')
+          )) {
+            category = 'fabric-cleaning';
+            subcategory = 'fabric-washing';
+          } else if (collectionHandles.some((h: string) => 
+            h.includes('mop') || 
+            h.includes('bucket')
+          )) {
+            category = 'cleaning-equipment';
+            subcategory = 'mop-buckets';
+          } else if (collectionHandles.some((h: string) => 
+            h.includes('dish') || 
+            h.includes('kitchen')
+          )) {
+            category = 'dishwashing';
+          } else if (collectionHandles.some((h: string) => 
+            h.includes('car-') || 
+            h.includes('vehicle')
+          )) {
+            category = 'car-washing';
+          } else if (collectionHandles.some((h: string) => 
+            h.includes('bathroom') || 
+            h.includes('toilet')
+          )) {
+            category = 'bathroom-cleaning';
+          } else if (collectionHandles.some((h: string) => 
+            h.includes('chemical') || 
+            h.includes('cleaner') ||
+            h.includes('cleaning')
+          )) {
+            category = 'cleaning-chemicals';
+          }
+          
+          return { ...product, category, subcategory };
+        });
+        
+        console.log('[Products] Loaded and categorized ALL products:', {
+          total: categorizedProducts.length,
           byCategory: {
-            chemicals: products.filter(p => p.category === 'cleaning-chemicals').length,
-            equipment: products.filter(p => p.category === 'cleaning-equipment').length,
-            carWashing: products.filter(p => p.category === 'car-washing').length,
-            bathroom: products.filter(p => p.category === 'bathroom-cleaning-').length,
-            fabric: products.filter(p => p.category === 'fabric-cleaning').length,
-            dishwashing: products.filter(p => p.category === 'dishwashing').length,
+            chemicals: categorizedProducts.filter(p => p.category === 'cleaning-chemicals').length,
+            equipment: categorizedProducts.filter(p => p.category === 'cleaning-equipment').length,
+            carWashing: categorizedProducts.filter(p => p.category === 'car-washing').length,
+            bathroom: categorizedProducts.filter(p => p.category === 'bathroom-cleaning').length,
+            fabric: categorizedProducts.filter(p => p.category === 'fabric-cleaning').length,
+            dishwashing: categorizedProducts.filter(p => p.category === 'dishwashing').length,
           },
         });
         
-        setAllProducts(products);
+        setAllProducts(categorizedProducts);
       } catch (error) {
         console.error("Failed to fetch products from Shopify:", error);
         toast.error("Failed to load products. Please refresh the page.", {
