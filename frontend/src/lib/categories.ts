@@ -66,7 +66,7 @@ export const categories: Category[] = [
       },
       {
         id: "cleaning-tools",
-        name: "Cleaning Tools",
+        name: "CLEANING TOOLS",
       },
       {
         id: "floor-cleaning-vipers",

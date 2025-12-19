@@ -34,7 +34,7 @@ const faqs: FAQ[] = [
   {
     category: "Delivery",
     question: "What are your delivery charges?",
-    answer: "Delivery charges vary by location:\n\n• Karachi, Lahore, Islamabad, Rawalpindi: Fixed Rs. 200\n• Other cities: Rs. 50 per kg\n\nFree delivery on orders above Rs. 5,000 (selected areas only). Delivery charges are calculated automatically at checkout based on your location and order weight."
+    answer: "Delivery charges vary by location:\n\n• Karachi, Lahore, Islamabad, Rawalpindi: Fixed Rs. 200\n• Other cities: Rs. 50 per kg\n\nDelivery charges are calculated automatically at checkout based on your location and order weight."
   },
   {
     category: "Store Information",
