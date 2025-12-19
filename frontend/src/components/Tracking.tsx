@@ -1,4 +1,4 @@
-import { Package, MapPin, Clock, Truck, CheckCircle, RefreshCw } from "lucide-react";
+import { Package, MapPin, Clock, Truck, CheckCircle } from "lucide-react";
 import { Button } from "./ui/button";
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
