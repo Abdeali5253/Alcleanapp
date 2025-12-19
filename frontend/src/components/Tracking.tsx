@@ -10,7 +10,6 @@ export function Tracking() {
   const navigate = useNavigate();
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isSyncing, setIsSyncing] = useState(false);
 
   useEffect(() => {
     loadOrders();
