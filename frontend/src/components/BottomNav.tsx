@@ -6,14 +6,27 @@ import {
   Package,
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { cartService } from "../lib/cart";
 
 export function BottomNav() {
   const location = useLocation();
+  const [cartCount, setCartCount] = useState(0);
+
+  useEffect(() => {
+    // Subscribe to cart changes
+    const unsubscribe = cartService.subscribe((items) => {
+      const count = items.reduce((sum, item) => sum + item.quantity, 0);
+      setCartCount(count);
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   const navItems = [
     { path: "/", icon: Home, label: "Home" },
     { path: "/products", icon: ShoppingBag, label: "Products" },
-    { path: "/cart", icon: ShoppingCart, label: "Cart" },
+    { path: "/cart", icon: ShoppingCart, label: "Cart", badge: cartCount },
     { path: "/tracking", icon: Package, label: "Tracking" },
     { path: "/account", icon: User, label: "Account" },
   ];
