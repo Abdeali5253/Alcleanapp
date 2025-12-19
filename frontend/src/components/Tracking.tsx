@@ -31,18 +31,6 @@ export function Tracking() {
     }
   };
 
-  const handleSync = async () => {
-    setIsSyncing(true);
-    try {
-      await orderService.syncTrackingData();
-      loadOrders();
-    } catch (error) {
-      console.error("Sync error:", error);
-    } finally {
-      setIsSyncing(false);
-    }
-  };
-
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'delivered':
