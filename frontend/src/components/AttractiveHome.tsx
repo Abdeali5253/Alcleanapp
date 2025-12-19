@@ -103,26 +103,32 @@ export function AttractiveHome() {
       try {
         setLoading(true);
         
-        // Fetch ALL products from Shopify and categorize them
-        const { getAllProductsFromShopify, categorizeProducts } = await import("../lib/shopify");
-        const allProducts = await getAllProductsFromShopify(250);
-        const categorized = categorizeProducts(allProducts);
+        // Fetch from Shopify COLLECTIONS (primary source)
+        const { getProductsByCollection } = await import("../lib/shopify");
         
-        console.log('[Home] Product categorization:', {
-          supremeOffers: categorized.supremeOffers.length,
-          fabricWashing: categorized.fabricWashing.length,
-          mopBuckets: categorized.mopBuckets.length,
-          cleaningChemicals: categorized.cleaningChemicals.length,
-          total: allProducts.length,
+        const [offers, fabric, mopBuckets, chemicals] = await Promise.all([
+          getProductsByCollection("supreme-offer", 250),
+          getProductsByCollection("fabric-washing", 100),
+          getProductsByCollection("home-page-mop-buckets", 100)
+            .then(p => p.length > 0 ? p : getProductsByCollection("mop-buckets-wringers-cleaning-janitorial-trolleys", 100)),
+          getProductsByCollection("top-cleaning-chemicals", 100)
+            .then(p => p.length > 0 ? p : getProductsByCollection("industrial-cleaning-chemicals", 100)),
+        ]);
+        
+        console.log('[Home] Loaded from collections:', {
+          supremeOffers: offers.length,
+          fabricWashing: fabric.length,
+          mopBuckets: mopBuckets.length,
+          cleaningChemicals: chemicals.length,
         });
         
-        // Sort supreme offers by discount percentage
-        categorized.supremeOffers.sort((a, b) => b.discountPercent - a.discountPercent);
+        // Sort supreme offers by discount
+        offers.sort((a, b) => b.discountPercent - a.discountPercent);
         
-        setSupremeOffers(categorized.supremeOffers);
-        setFabricProducts(categorized.fabricWashing);
-        setMopBucketProducts(categorized.mopBuckets);
-        setCleaningChemicals(categorized.cleaningChemicals);
+        setSupremeOffers(offers);
+        setFabricProducts(fabric);
+        setMopBucketProducts(mopBuckets);
+        setCleaningChemicals(chemicals);
       } catch (error) {
         console.error("Failed to fetch products:", error);
         toast.error("Failed to load products. Please refresh the page.", {
