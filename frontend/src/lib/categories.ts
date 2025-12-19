@@ -15,40 +15,40 @@ export const categories: Category[] = [
     name: "Cleaning Chemicals",
     subcategories: [
       {
-        id: "fabric-washing",
-        name: "Fabric Washing",
+        id: "floor-cleaning-chemical",
+        name: "Floor Cleaning Chemical",
       },
       {
-        id: "multi-purpose-cleaner",
-        name: "Multi Purpose Cleaner",
+        id: "multi-purpose-chemicals",
+        name: "Multi Purpose Chemicals",
       },
       {
-        id: "kitchen-cleaning",
+        id: "industrial-cleaning-chemicals",
+        name: "Industrial Cleaning Chemicals",
+      },
+      {
+        id: "top-cleaning-chemicals",
+        name: "Top Cleaning Chemicals",
+      },
+      {
+        id: "home-page-industrial-cleaning-chemical",
+        name: "Industrial Cleaning Chemical (Home Page)",
+      },
+      {
+        id: "fabric-cleaning-chemical",
+        name: "Fabric Cleaning Chemical",
+      },
+      {
+        id: "bathroom-cleaning-chemical",
+        name: "Bathroom Cleaning Chemical",
+      },
+      {
+        id: "hand-washing-cleaning",
+        name: "Hand Washing Cleaning",
+      },
+      {
+        id: "kitchen-cleaning-solution",
         name: "Kitchen Cleaning Solution",
-      },
-      {
-        id: "hand-washing",
-        name: "Hand Washing Chemical",
-      },
-      {
-        id: "bathroom-cleaning",
-        name: "Bathroom Cleaning Solution",
-      },
-      {
-        id: "car-cleaning",
-        name: "Car Cleaning Solution",
-      },
-      {
-        id: "solar-panel-cleaning",
-        name: "Solar Panel Cleaning Solution",
-      },
-      {
-        id: "industrial-floor-degreaser",
-        name: "Industrial Floor Degreaser",
-      },
-      {
-        id: "food-grade-cleaning",
-        name: "Food Grade Cleaning Solution",
       },
     ],
   },
