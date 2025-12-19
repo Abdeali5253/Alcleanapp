@@ -103,17 +103,27 @@ export function Home() {
       try {
         setLoading(true);
         
-        // Fetch from Shopify COLLECTIONS (primary source)
-        const { getProductsByCollection } = await import("../lib/shopify");
+        // Fetch ALL products and categorize by collections
+        const { getAllProducts } = await import("../lib/shopify");
+        const allProducts = await getAllProducts(700);
         
-        const [offers, fabric, mopBuckets, chemicals] = await Promise.all([
-          getProductsByCollection("supreme-offer", 250),
-          getProductsByCollection("fabric-washing", 100),
-          getProductsByCollection("home-page-mop-buckets", 100)
-            .then(p => p.length > 0 ? p : getProductsByCollection("mop-buckets-wringers-cleaning-janitorial-trolleys", 100)),
-          getProductsByCollection("top-cleaning-chemicals", 100)
-            .then(p => p.length > 0 ? p : getProductsByCollection("industrial-cleaning-chemicals", 100)),
-        ]);
+        // Helper to get products from collections
+        const getProductsInCollections = (collectionHandles: string[]) => {
+          return allProducts.filter(product => {
+            const productCollections = (product as any).collections || [];
+            return productCollections.some((col: any) => 
+              collectionHandles.some(handle => 
+                col.handle.toLowerCase().includes(handle.toLowerCase())
+              )
+            );
+          });
+        };
+
+        // Get products for each section
+        const offers = getProductsInCollections(['supreme-offer']);
+        const fabric = getProductsInCollections(['fabric-washing']);
+        const mopBuckets = getProductsInCollections(['home-page-mop-buckets', 'mop-buckets']);
+        const chemicals = getProductsInCollections(['top-cleaning-chemicals', 'industrial-cleaning-chemicals', 'cleaning-chemicals']);
         
         console.log('[Home] Loaded from collections:', {
           supremeOffers: offers.length,
