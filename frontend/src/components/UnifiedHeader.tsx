@@ -62,11 +62,11 @@ export function UnifiedHeader({ cartCount }: UnifiedHeaderProps) {
         <div className="bg-[#6DB33F] text-white py-2 hidden md:block">
           <div className="max-w-7xl mx-auto px-4 flex items-center justify-between text-sm">
             <div className="flex items-center gap-6">
-              <a href="tel:+923001234567" className="flex items-center gap-2 hover:text-gray-200">
+              <a href="tel:+923343353327" className="flex items-center gap-2 hover:text-gray-200">
                 <Phone size={14} />
                 <span>+92 300 1234567</span>
               </a>
-              <a href="https://wa.me/923001234567" className="flex items-center gap-2 hover:text-gray-200">
+              <a href="https://wa.me/923343353327" className="flex items-center gap-2 hover:text-gray-200">
                 <MessageCircle size={14} />
                 <span>WhatsApp Us</span>
               </a>
