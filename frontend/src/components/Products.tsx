@@ -88,53 +88,94 @@ export function Products() {
         const categorizedProducts = products.map(product => {
           const collections = (product as any).collections || [];
           const collectionHandles = collections.map((c: any) => c.handle.toLowerCase());
+          const collectionTitles = collections.map((c: any) => c.title.toLowerCase());
           
           let category = 'cleaning-chemicals';
           let subcategory = '';
           
-          // Check collection membership to assign category
+          // Priority 1: Check for EQUIPMENT first (to avoid mixing with chemicals)
           if (collectionHandles.some((h: string) => 
             h.includes('cleaning-equipment') || 
             h.includes('cleaning-machines') || 
+            h.includes('cleaning-tools') ||
             h.includes('vacuum') ||
             h.includes('floor-cleaning-equipments') ||
-            h.includes('polish-machine')
+            h.includes('polish-machine') ||
+            h.includes('tissue-rolls') ||
+            h.includes('dispenser') ||
+            h.includes('home-page-cleaning-tools') ||
+            h.includes('top-cleaning-equipments')
           )) {
             category = 'cleaning-equipment';
-          } else if (collectionHandles.some((h: string) => 
-            h.includes('fabric') || 
-            h.includes('washing') || 
-            h.includes('detergent')
+          } 
+          // Priority 2: Fabric cleaning
+          else if (collectionHandles.some((h: string) => 
+            h.includes('fabric-washing') || 
+            h.includes('fabric-detergent') ||
+            h.includes('fabric-softener') ||
+            h.includes('fabric-color-bleach')
           )) {
             category = 'fabric-cleaning';
             subcategory = 'fabric-washing';
-          } else if (collectionHandles.some((h: string) => 
+          } 
+          // Priority 3: Mop buckets (equipment, not chemicals)
+          else if (collectionHandles.some((h: string) => 
             h.includes('mop') || 
-            h.includes('bucket')
+            h.includes('bucket') ||
+            h.includes('wringer')
           )) {
             category = 'cleaning-equipment';
             subcategory = 'mop-buckets';
-          } else if (collectionHandles.some((h: string) => 
+          } 
+          // Priority 4: Dishwashing
+          else if (collectionHandles.some((h: string) => 
             h.includes('dish') || 
-            h.includes('kitchen')
+            h.includes('kitchen-cleaning')
           )) {
             category = 'dishwashing';
-          } else if (collectionHandles.some((h: string) => 
+          } 
+          // Priority 5: Car washing
+          else if (collectionHandles.some((h: string) => 
             h.includes('car-') || 
             h.includes('vehicle')
           )) {
             category = 'car-washing';
-          } else if (collectionHandles.some((h: string) => 
-            h.includes('bathroom') || 
-            h.includes('toilet')
+          } 
+          // Priority 6: Bathroom cleaning (separate from general chemicals)
+          else if (collectionHandles.some((h: string) => 
+            h.includes('bathroom-cleaning') || 
+            h.includes('toilet-bowl-cleaner')
           )) {
             category = 'bathroom-cleaning';
-          } else if (collectionHandles.some((h: string) => 
+          } 
+          // Priority 7: CLEANING CHEMICALS (main category with subcategories)
+          else if (collectionHandles.some((h: string) => 
             h.includes('chemical') || 
             h.includes('cleaner') ||
             h.includes('cleaning')
           )) {
             category = 'cleaning-chemicals';
+            
+            // Assign subcategory based on specific collection
+            if (collectionHandles.some((h: string) => h.includes('floor-cleaning-chemical'))) {
+              subcategory = 'floor-cleaning-chemical';
+            } else if (collectionHandles.some((h: string) => h.includes('multi-purpose-chemicals'))) {
+              subcategory = 'multi-purpose-chemicals';
+            } else if (collectionHandles.some((h: string) => h.includes('industrial-cleaning-chemicals'))) {
+              subcategory = 'industrial-cleaning-chemicals';
+            } else if (collectionHandles.some((h: string) => h.includes('top-cleaning-chemicals'))) {
+              subcategory = 'top-cleaning-chemicals';
+            } else if (collectionHandles.some((h: string) => h.includes('home-page-industrial-cleaning-chemical'))) {
+              subcategory = 'home-page-industrial-cleaning-chemical';
+            } else if (collectionHandles.some((h: string) => h.includes('fabric-cleaning-chemical'))) {
+              subcategory = 'fabric-cleaning-chemical';
+            } else if (collectionHandles.some((h: string) => h.includes('bathroom-cleaning-chemical'))) {
+              subcategory = 'bathroom-cleaning-chemical';
+            } else if (collectionHandles.some((h: string) => h.includes('hand-washing-cleaning'))) {
+              subcategory = 'hand-washing-cleaning';
+            } else if (collectionHandles.some((h: string) => h.includes('kitchen-cleaning-solution'))) {
+              subcategory = 'kitchen-cleaning-solution';
+            }
           }
           
           return { ...product, category, subcategory };
