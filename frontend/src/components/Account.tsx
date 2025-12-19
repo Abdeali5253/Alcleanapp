@@ -29,7 +29,7 @@ const menuItems = [
     icon: Package,
     label: "My Orders",
     description: "View your order history",
-    link: "/orders",
+    link: "/tracking",
   },
   {
     icon: User,

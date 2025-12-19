@@ -1,4 +1,4 @@
-import { Package, MapPin, Clock, Truck, CheckCircle, RefreshCw } from "lucide-react";
+import { Package, MapPin, Clock, Truck, CheckCircle } from "lucide-react";
 import { Button } from "./ui/button";
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
@@ -10,7 +10,6 @@ export function Tracking() {
   const navigate = useNavigate();
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isSyncing, setIsSyncing] = useState(false);
 
   useEffect(() => {
     loadOrders();
@@ -29,18 +28,6 @@ export function Tracking() {
       console.error('[Tracking] Error loading orders:', error);
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleSync = async () => {
-    setIsSyncing(true);
-    try {
-      await orderService.syncTrackingData();
-      loadOrders();
-    } catch (error) {
-      console.error("Sync error:", error);
-    } finally {
-      setIsSyncing(false);
     }
   };
 
@@ -121,18 +108,8 @@ export function Tracking() {
       <UnifiedHeader />
 
       <main className="max-w-4xl mx-auto px-4 py-6">
-        <div className="flex items-center justify-between mb-6">
+        <div className="mb-6">
           <h1 className="text-gray-900 text-2xl">Track Your Orders</h1>
-          <Button
-            onClick={handleSync}
-            disabled={isSyncing}
-            variant="outline"
-            size="sm"
-            className="flex items-center gap-2"
-          >
-            <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
-            Sync
-          </Button>
         </div>
 
         {orders.length === 0 ? (

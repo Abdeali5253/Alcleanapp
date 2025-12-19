@@ -793,3 +793,293 @@ export async function checkoutShippingAddressUpdateV2(
 export function getCheckoutWebUrl(checkout: ShopifyCheckout): string {
   return checkout.webUrl;
 }
+
+export function getCheckoutUrl(checkout: ShopifyCheckout): string {
+  return checkout.webUrl;
+}
+
+/**
+ * Update customer information in Shopify
+ */
+export async function updateCustomer(accessToken: string, updates: {
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+}): Promise<boolean> {
+  const mutation = `
+    mutation customerUpdate($customerAccessToken: String!, $customer: CustomerUpdateInput!) {
+      customerUpdate(customerAccessToken: $customerAccessToken, customer: $customer) {
+        customer {
+          id
+          firstName
+          lastName
+          phone
+        }
+        customerUserErrors {
+          code
+          field
+          message
+        }
+      }
+    }
+  `;
+
+  try {
+    const data = await shopifyFetch<any>(mutation, {
+      customerAccessToken: accessToken,
+      customer: updates
+    });
+
+    if (data.customerUpdate?.customerUserErrors?.length > 0) {
+      console.error('[Shopify] Customer update errors:', data.customerUpdate.customerUserErrors);
+      return false;
+    }
+
+    console.log('[Shopify] Customer updated successfully');
+    return true;
+  } catch (error) {
+    console.error('[Shopify] Failed to update customer:', error);
+    return false;
+  }
+}
+
+/**
+ * Categorized products interface
+ */
+export interface CategorizedProducts {
+  supremeOffers: Product[];
+  fabricWashing: Product[];
+  cleaningChemicals: Product[];
+  mopBuckets: Product[];
+  cleaningEquipment: Product[];
+  dishwashing: Product[];
+  carWashing: Product[];
+  bathroomCleaning: Product[];
+  allProducts: Product[];
+}
+
+/**
+ * Fetch all products from Shopify with collections
+ */
+export async function getAllProductsFromShopify(maxProducts: number = 250): Promise<Product[]> {
+  const query = `
+    query GetAllProducts($first: Int!, $after: String) {
+      products(first: $first, after: $after) {
+        pageInfo {
+          hasNextPage
+          endCursor
+        }
+        edges {
+          node {
+            id
+            title
+            description
+            handle
+            productType
+            vendor
+            tags
+            collections(first: 10) {
+              edges {
+                node {
+                  id
+                  title
+                  handle
+                }
+              }
+            }
+            featuredImage { url }
+            images(first: 5) {
+              edges { node { url } }
+            }
+            variants(first: 1) {
+              edges {
+                node {
+                  id
+                  title
+                  sku
+                  price { amount currencyCode }
+                  compareAtPrice { amount }
+                  availableForSale
+                  quantityAvailable
+                  weight
+                  weightUnit
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  `;
+
+  const allProducts: Product[] = [];
+  let hasNextPage = true;
+  let cursor: string | null = null;
+
+  try {
+    while (hasNextPage && allProducts.length < maxProducts) {
+      const data = await shopifyFetch<{ products: { edges: { node: any }[]; pageInfo: { hasNextPage: boolean; endCursor: string } } }>(
+        query,
+        { first: Math.min(250, maxProducts - allProducts.length), after: cursor }
+      );
+
+      const products = data.products.edges.map(edge => {
+        const product = transformProduct(edge.node);
+        // Add collections info
+        const collections = edge.node.collections?.edges?.map((c: any) => ({
+          id: c.node.id,
+          title: c.node.title,
+          handle: c.node.handle,
+        })) || [];
+        return { ...product, collections };
+      });
+
+      allProducts.push(...products);
+      hasNextPage = data.products.pageInfo.hasNextPage;
+      cursor = data.products.pageInfo.endCursor;
+
+      console.log(`[Shopify] Fetched ${allProducts.length} products so far...`);
+    }
+
+    console.log(`[Shopify] Total products fetched: ${allProducts.length}`);
+    return allProducts;
+  } catch (error) {
+    console.error('[Shopify] Error fetching all products:', error);
+    return [];
+  }
+}
+
+/**
+ * Categorize products based on collections and tags
+ */
+export function categorizeProducts(products: Product[]): CategorizedProducts {
+  const categorized: CategorizedProducts = {
+    supremeOffers: [],
+    fabricWashing: [],
+    cleaningChemicals: [],
+    mopBuckets: [],
+    cleaningEquipment: [],
+    dishwashing: [],
+    carWashing: [],
+    bathroomCleaning: [],
+    allProducts: products,
+  };
+
+  products.forEach(product => {
+    const collections = (product as any).collections || [];
+    const collectionHandles = collections.map((c: any) => c.handle.toLowerCase());
+    const tags = product.tags?.map(t => t.toLowerCase()) || [];
+    const title = product.title.toLowerCase();
+    const productType = product.productType.toLowerCase();
+
+    // Supreme Offers - products on sale or in supreme-offer collection
+    if (
+      collectionHandles.some(h => h.includes('supreme') || h.includes('offer') || h.includes('deal')) ||
+      product.onSale
+    ) {
+      categorized.supremeOffers.push(product);
+    }
+
+    // Fabric Washing - fabric related collections/tags
+    if (
+      collectionHandles.some(h => 
+        h.includes('fabric') || 
+        h.includes('washing') || 
+        h.includes('detergent') ||
+        h.includes('softener')
+      ) ||
+      tags.some(t => t.includes('fabric') || t.includes('laundry') || t.includes('detergent')) ||
+      title.includes('fabric') || 
+      title.includes('detergent') ||
+      title.includes('softener')
+    ) {
+      categorized.fabricWashing.push(product);
+    }
+
+    // Mop Buckets - mop and bucket equipment
+    if (
+      collectionHandles.some(h => h.includes('mop') || h.includes('bucket') || h.includes('wringer')) ||
+      tags.some(t => t.includes('mop') || t.includes('bucket')) ||
+      title.includes('mop') || 
+      title.includes('bucket') ||
+      title.includes('wringer')
+    ) {
+      categorized.mopBuckets.push(product);
+    }
+
+    // Dishwashing
+    if (
+      collectionHandles.some(h => h.includes('dish') || h.includes('kitchen')) ||
+      tags.some(t => t.includes('dish') || t.includes('kitchen')) ||
+      title.includes('dish') || 
+      productType.includes('dish')
+    ) {
+      categorized.dishwashing.push(product);
+    }
+
+    // Car Washing
+    if (
+      collectionHandles.some(h => h.includes('car')) ||
+      tags.some(t => t.includes('car') || t.includes('vehicle')) ||
+      title.includes('car wash') || 
+      title.includes('vehicle')
+    ) {
+      categorized.carWashing.push(product);
+    }
+
+    // Bathroom Cleaning
+    if (
+      collectionHandles.some(h => h.includes('bathroom') || h.includes('toilet')) ||
+      tags.some(t => t.includes('bathroom') || t.includes('toilet')) ||
+      title.includes('bathroom') || 
+      title.includes('toilet')
+    ) {
+      categorized.bathroomCleaning.push(product);
+    }
+
+    // Cleaning Equipment - tools, not chemicals
+    const equipmentKeywords = ['brush', 'broom', 'glove', 'cloth', 'wiper', 'sponge', 'scrubber', 'duster', 'squeegee', 'tool', 'dispenser'];
+    if (
+      collectionHandles.some(h => h.includes('equipment') || h.includes('tool') || h.includes('cleaning-tools')) ||
+      tags.some(t => equipmentKeywords.some(k => t.includes(k))) ||
+      equipmentKeywords.some(k => title.includes(k)) ||
+      (collections.some((c: any) => c.title.toLowerCase().includes('equipment')) && 
+       !title.includes('chemical') && 
+       !title.includes('cleaner') && 
+       !title.includes('detergent'))
+    ) {
+      categorized.cleaningEquipment.push(product);
+    }
+    // Cleaning Chemicals - liquid/powder chemicals (NOT equipment)
+    else if (
+      collectionHandles.some(h => 
+        h.includes('chemical') || 
+        h.includes('cleaner') || 
+        h.includes('cleaning') ||
+        h.includes('industrial') ||
+        h.includes('multi-purpose')
+      ) ||
+      tags.some(t => t.includes('chemical') || t.includes('cleaner')) ||
+      title.includes('cleaner') ||
+      title.includes('chemical') ||
+      productType.includes('chemical')
+    ) {
+      categorized.cleaningChemicals.push(product);
+    }
+  });
+
+  // Log categorization results
+  console.log('[Shopify] Product categorization:', {
+    total: products.length,
+    supremeOffers: categorized.supremeOffers.length,
+    fabricWashing: categorized.fabricWashing.length,
+    cleaningChemicals: categorized.cleaningChemicals.length,
+    mopBuckets: categorized.mopBuckets.length,
+    cleaningEquipment: categorized.cleaningEquipment.length,
+    dishwashing: categorized.dishwashing.length,
+    carWashing: categorized.carWashing.length,
+    bathroomCleaning: categorized.bathroomCleaning.length,
+  });
+
+  return categorized;
+}
