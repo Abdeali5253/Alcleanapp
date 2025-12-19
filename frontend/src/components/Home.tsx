@@ -60,7 +60,7 @@ const topCategories = [
   {
     icon: Droplets,
     title: "Bathroom Cleaning",
-    link: "/products?category=bathroom-cleaning",
+    link: "/products?category=bathroom-cleaning-solutions",
     color: "#00A3E0",
   },
 ];

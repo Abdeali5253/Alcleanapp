@@ -90,7 +90,7 @@ export function Products() {
             chemicals: products.filter(p => p.category === 'cleaning-chemicals').length,
             equipment: products.filter(p => p.category === 'cleaning-equipment').length,
             carWashing: products.filter(p => p.category === 'car-washing').length,
-            bathroom: products.filter(p => p.category === 'bathroom-cleaning').length,
+            bathroom: products.filter(p => p.category === 'bathroom-cleaning-').length,
             fabric: products.filter(p => p.category === 'fabric-cleaning').length,
             dishwashing: products.filter(p => p.category === 'dishwashing').length,
           },
