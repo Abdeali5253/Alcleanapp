@@ -112,10 +112,10 @@ export function AttractiveHome() {
           // Mop buckets collection - try multiple collection handles
           getProductsByCollection("home-page-mop-buckets", 50)
             .then(products => products.length > 0 ? products : getProductsByCollection("mop-buckets-wringers-cleaning-janitorial-trolleys", 50)),
-          // Cleaning chemicals - try multiple collection handles
+          // Cleaning chemicals - fetch from specific chemical collections only
           getProductsByCollection("top-cleaning-chemicals", 50)
             .then(products => products.length > 0 ? products : getProductsByCollection("industrial-cleaning-chemicals", 50))
-            .then(products => products.length > 0 ? products : getProductsByCollection("cleaning-equipment", 50)),
+            .then(products => products.length > 0 ? products : getProductsByCollection("multi-purpose-chemicals", 50)),
         ]);
         
         console.log('[Home] Loaded collections:', {
