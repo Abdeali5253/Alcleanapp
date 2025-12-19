@@ -19,7 +19,7 @@ export function SupremeOffers() {
         setLoading(true);
         
         // Fetch from supreme-offer collection (all products in collection)
-        let offerProducts = await getProductsByCollection("supreme-offer", 250);
+        let offerProducts = await getProductsByCollection("Supreme Offer", 250);
         
         console.log(`[SupremeOffers] Loaded ${offerProducts.length} products from supreme-offer collection`);
         

@@ -29,7 +29,7 @@ interface CreateOrderRequest {
 async function shopifyGraphQL(query: string, variables: any = {}) {
   const domain = process.env.SHOPIFY_STORE_DOMAIN;
   const token = process.env.SHOPIFY_ADMIN_API_TOKEN;
-  const version = process.env.SHOPIFY_API_VERSION || '2024-01';
+  const version = process.env.SHOPIFY_API_VERSION || '2025-07';
 
   if (!domain || !token) {
     throw new Error('Shopify credentials not configured');
