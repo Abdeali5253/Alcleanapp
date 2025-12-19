@@ -23,6 +23,7 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { toast } from "sonner";
 import { Logo } from "./Logo";
+import { UnifiedHeader } from "./UnifiedHeader";
 
 const menuItems = [
   {
