@@ -29,9 +29,33 @@ export function EditProfile() {
     setIsSaving(true);
 
     try {
+      // Split name into first and last name
+      const nameParts = name.trim().split(' ');
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || '';
+
+      // Update in Shopify if user has access token
+      if (currentUser?.accessToken) {
+        const { updateCustomer } = await import("../lib/shopify");
+        const shopifySuccess = await updateCustomer(currentUser.accessToken, {
+          firstName,
+          lastName,
+          phone
+        });
+
+        if (!shopifySuccess) {
+          toast.error("Failed to update profile in Shopify");
+          setIsSaving(false);
+          return;
+        }
+      }
+
+      // Update local user data
       const updatedUser: User = {
         ...currentUser!,
         name,
+        firstName,
+        lastName,
         email,
         phone
       };
@@ -43,6 +67,7 @@ export function EditProfile() {
         navigate("/account");
       }, 1000);
     } catch (error) {
+      console.error('Profile update error:', error);
       toast.error("Failed to update profile");
     } finally {
       setIsSaving(false);
