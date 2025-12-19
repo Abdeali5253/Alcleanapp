@@ -188,10 +188,15 @@ function transformProduct(node: any): Product {
 
 // ==================== PRODUCT QUERIES ====================
 
-export async function getAllProducts(first: number = 250): Promise<Product[]> {
+// Get all products with pagination support
+export async function getAllProducts(maxProducts: number = 700): Promise<Product[]> {
   const query = `
-    query GetProducts($first: Int!) {
-      products(first: $first) {
+    query GetProducts($first: Int!, $after: String) {
+      products(first: $first, after: $after) {
+        pageInfo {
+          hasNextPage
+          endCursor
+        }
         edges {
           node {
             id
@@ -201,6 +206,15 @@ export async function getAllProducts(first: number = 250): Promise<Product[]> {
             productType
             vendor
             tags
+            collections(first: 10) {
+              edges {
+                node {
+                  id
+                  title
+                  handle
+                }
+              }
+            }
             featuredImage { url }
             images(first: 5) {
               edges { node { url } }
@@ -226,8 +240,41 @@ export async function getAllProducts(first: number = 250): Promise<Product[]> {
     }
   `;
 
-  const data = await shopifyFetch<{ products: { edges: { node: any }[] } }>(query, { first });
-  return data.products.edges.map(edge => transformProduct(edge.node));
+  const allProducts: Product[] = [];
+  let hasNextPage = true;
+  let cursor: string | null = null;
+
+  try {
+    while (hasNextPage && allProducts.length < maxProducts) {
+      const data = await shopifyFetch<{ products: { edges: { node: any }[]; pageInfo: { hasNextPage: boolean; endCursor: string } } }>(
+        query,
+        { first: Math.min(250, maxProducts - allProducts.length), after: cursor }
+      );
+
+      const products = data.products.edges.map(edge => {
+        const product = transformProduct(edge.node);
+        // Add collections info
+        const collections = edge.node.collections?.edges?.map((c: any) => ({
+          id: c.node.id,
+          title: c.node.title,
+          handle: c.node.handle,
+        })) || [];
+        return { ...product, collections };
+      });
+
+      allProducts.push(...products);
+      hasNextPage = data.products.pageInfo.hasNextPage;
+      cursor = data.products.pageInfo.endCursor;
+
+      console.log(`[Shopify] Fetched ${allProducts.length} products so far...`);
+    }
+
+    console.log(`[Shopify] Total products fetched: ${allProducts.length}`);
+    return allProducts;
+  } catch (error) {
+    console.error("[Shopify] Error fetching products:", error);
+    return [];
+  }
 }
 
 export async function getProductById(productId: string): Promise<Product | null> {
