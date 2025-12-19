@@ -103,35 +103,26 @@ export function AttractiveHome() {
       try {
         setLoading(true);
         
-        // Fetch from different Shopify collections
-        const [offers, fabric, mopBuckets, chemicals] = await Promise.all([
-          // Supreme offers collection
-          getProductsByCollection("supreme-offer", 250),
-          // Fabric washing collection
-          getProductsByCollection("fabric-washing", 50),
-          // Mop buckets collection - try multiple collection handles
-          getProductsByCollection("home-page-mop-buckets", 50)
-            .then(products => products.length > 0 ? products : getProductsByCollection("mop-buckets-wringers-cleaning-janitorial-trolleys", 50)),
-          // Cleaning chemicals - fetch from specific chemical collections only
-          getProductsByCollection("top-cleaning-chemicals", 50)
-            .then(products => products.length > 0 ? products : getProductsByCollection("industrial-cleaning-chemicals", 50))
-            .then(products => products.length > 0 ? products : getProductsByCollection("multi-purpose-chemicals", 50)),
-        ]);
+        // Fetch ALL products from Shopify and categorize them
+        const { getAllProductsFromShopify, categorizeProducts } = await import("../lib/shopify");
+        const allProducts = await getAllProductsFromShopify(250);
+        const categorized = categorizeProducts(allProducts);
         
-        console.log('[Home] Loaded collections:', {
-          supremeOffers: offers.length,
-          fabricProducts: fabric.length,
-          mopBuckets: mopBuckets.length,
-          cleaningChemicals: chemicals.length,
+        console.log('[Home] Product categorization:', {
+          supremeOffers: categorized.supremeOffers.length,
+          fabricWashing: categorized.fabricWashing.length,
+          mopBuckets: categorized.mopBuckets.length,
+          cleaningChemicals: categorized.cleaningChemicals.length,
+          total: allProducts.length,
         });
         
         // Sort supreme offers by discount percentage
-        offers.sort((a, b) => b.discountPercent - a.discountPercent);
+        categorized.supremeOffers.sort((a, b) => b.discountPercent - a.discountPercent);
         
-        setSupremeOffers(offers);
-        setFabricProducts(fabric);
-        setMopBucketProducts(mopBuckets);
-        setCleaningChemicals(chemicals);
+        setSupremeOffers(categorized.supremeOffers);
+        setFabricProducts(categorized.fabricWashing);
+        setMopBucketProducts(categorized.mopBuckets);
+        setCleaningChemicals(categorized.cleaningChemicals);
       } catch (error) {
         console.error("Failed to fetch products:", error);
         toast.error("Failed to load products. Please refresh the page.", {
