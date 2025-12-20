@@ -195,6 +195,13 @@ class AuthService {
     return this.user;
   }
 
+  // Update user profile
+  updateUser(updatedUser: User): void {
+    this.user = updatedUser;
+    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(updatedUser));
+    this.notifySubscribers();
+  }
+
   // Redirect management
   setRedirectAfterLogin(path: string): void {
     localStorage.setItem(REDIRECT_STORAGE_KEY, path);
