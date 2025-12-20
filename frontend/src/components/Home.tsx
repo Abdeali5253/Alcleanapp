@@ -151,6 +151,13 @@ export function Home() {
       }
     };
     fetchProducts();
+
+    // Subscribe to wishlist changes
+    const unsubscribe = wishlistService.subscribe((ids) => {
+      setWishlist(ids);
+    });
+
+    return () => unsubscribe();
   }, []);
 
   const handleAddToCart = (product: Product, quantity: number = 1) => {
