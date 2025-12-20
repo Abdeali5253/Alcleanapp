@@ -143,7 +143,7 @@ export function Wishlist() {
                 key={product.id}
                 product={product}
                 onAddToCart={handleAddToCart}
-                onQuickView={() => {}}
+                onQuickView={(product) => navigate(`/product/${product.handle}`)}
                 isInWishlist={true}
                 onToggleWishlist={() => handleRemoveFromWishlist(product.id)}
               />
