@@ -24,6 +24,7 @@ import { useState, useEffect } from "react";
 import { getAllProducts, getProductsByCollection } from "../lib/shopify";
 import { ProductCardSkeleton } from "./ProductCardSkeleton";
 import { cartService } from "../lib/cart";
+import { wishlistService } from "../lib/wishlist";
 
 // Updated categories based on user's actual Shopify collections
 const topCategories = [
@@ -150,6 +151,13 @@ export function Home() {
       }
     };
     fetchProducts();
+
+    // Subscribe to wishlist changes
+    const unsubscribe = wishlistService.subscribe((ids) => {
+      setWishlist(ids);
+    });
+
+    return () => unsubscribe();
   }, []);
 
   const handleAddToCart = (product: Product, quantity: number = 1) => {
@@ -161,15 +169,14 @@ export function Home() {
   };
 
   const toggleWishlist = (productId: string) => {
-    if (wishlist.includes(productId)) {
-      setWishlist(wishlist.filter((id) => id !== productId));
-      toast.success("Removed from wishlist", {
+    const newState = wishlistService.toggleWishlist(productId);
+    if (newState) {
+      toast.success("Added to wishlist!", {
         duration: 1500,
         position: "top-center",
       });
     } else {
-      setWishlist([...wishlist, productId]);
-      toast.success("Added to wishlist", {
+      toast.success("Removed from wishlist", {
         duration: 1500,
         position: "top-center",
       });
