@@ -10,18 +10,27 @@ import { Logo } from "./Logo";
 
 export function EditProfile() {
   const navigate = useNavigate();
-  const currentUser = authService.getCurrentUser();
-  
-  const [name, setName] = useState(currentUser?.name || "");
-  const [email, setEmail] = useState(currentUser?.email || "");
-  const [phone, setPhone] = useState(currentUser?.phone || "");
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    // Redirect if not logged in
-    if (!authService.isLoggedIn()) {
+    const user = authService.getCurrentUser();
+    if (!user) {
       navigate("/account");
+      return;
     }
+    setCurrentUser(user);
+    
+    // Pre-fill form
+    const nameParts = user.name?.split(/\s+/) || [];
+    setFirstName(nameParts[0] || user.firstName || "");
+    setLastName(nameParts.slice(1).join(" ") || user.lastName || "");
+    setEmail(user.email);
+    setPhone(user.phone || "");
   }, [navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -29,10 +38,8 @@ export function EditProfile() {
     setIsSaving(true);
 
     try {
-      // Split name into first and last name with proper fallback
-      const nameParts = name.trim().split(/\s+/); // Split by whitespace
-      const firstName = nameParts[0] || 'User';
-      const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : nameParts[0] || 'User';
+      // Combine first and last name
+      const name = `${firstName.trim()} ${lastName.trim()}`.trim();
 
       // Try to update in Shopify if user has access token (optional - won't block if fails)
       if (currentUser?.accessToken && firstName && lastName) {
@@ -105,33 +112,45 @@ export function EditProfile() {
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="bg-white rounded-2xl p-6 border border-gray-200 space-y-4">
             <div>
-              <Label htmlFor="name">Full Name</Label>
+              <Label htmlFor="firstName">First Name</Label>
               <Input
-                id="name"
+                id="firstName"
                 type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="John Doe"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                placeholder="John"
                 required
                 className="mt-1"
               />
             </div>
 
             <div>
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="lastName">Last Name</Label>
+              <Input
+                id="lastName"
+                type="text"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                placeholder="Doe"
+                required
+                className="mt-1"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="email">Email Address</Label>
               <Input
                 id="email"
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="your@email.com"
-                required
-                className="mt-1"
+                disabled
+                className="mt-1 bg-gray-50 text-gray-500 cursor-not-allowed"
               />
+              <p className="text-xs text-gray-500 mt-1">Email cannot be changed</p>
             </div>
 
             <div>
-              <Label htmlFor="phone">Phone Number</Label>
+              <Label htmlFor="phone">Phone Number (Optional)</Label>
               <Input
                 id="phone"
                 type="tel"
