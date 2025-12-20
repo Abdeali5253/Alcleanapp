@@ -57,48 +57,64 @@ export const categories: Category[] = [
     name: "Cleaning Equipment",
     subcategories: [
       {
-        id: "bathroom-equipment",
-        name: "Bathroom Cleaning Equipment",
-      },
-      {
-        id: "cleaning-robot",
-        name: "Cleaning Robot",
-      },
-      {
-        id: "cleaning-tools",
-        name: "CLEANING TOOLS",
-      },
-      {
-        id: "floor-cleaning-vipers",
-        name: "Floor Cleaning Vipers / Brushes / Wet Mops / Dry Mops",
+        id: "home-page-cleaning-tools",
+        name: "Home Page Cleaning Tools",
       },
       {
         id: "mop-buckets",
         name: "Mop Buckets / Wringers / Cleaning Janitorial Trolleys",
       },
       {
-        id: "plastic-dustbin",
-        name: "Plastic Dustbin Industrial / Home Use",
+        id: "home-page-mop-buckets",
+        name: "Home Page Mop Buckets",
       },
       {
-        id: "safety-equipment",
-        name: "Safety Equipments",
+        id: "soap-dispenser",
+        name: "Soap Dispenser",
       },
       {
-        id: "solar-window-equipment",
-        name: "Solar Panel / Glass / Window Cleaning Equipments",
+        id: "home-page-soap-dispenser",
+        name: "Home Page Soap Dispenser",
       },
       {
-        id: "stainless-dustbin",
-        name: "Stainless Steel Dustbin Industrial & Home Use",
-      },
-      {
-        id: "tissue-dispensers",
+        id: "tissue-rolls-dispensers",
         name: "Tissue Rolls & Dispensers",
       },
       {
-        id: "industrial-cleaning",
-        name: "Industrial Cleaning Solution",
+        id: "top-cleaning-equipments",
+        name: "Top Cleaning Equipments",
+      },
+      {
+        id: "cleaning-tools",
+        name: "CLEANING TOOLS",
+      },
+      {
+        id: "cleaning-equipment",
+        name: "Cleaning Equipment",
+      },
+      {
+        id: "plastic-dustbin",
+        name: "Plastic Dustbin",
+      },
+      {
+        id: "floor-cleaning-vipers",
+        name: "Floor Cleaning - Vipers / Brushes / Wet Mops / Dry Mops",
+      },
+      {
+        id: "safety-equipments",
+        name: "Safety Equipments",
+      },
+      {
+        id: "cleaning-robot",
+        name: "Cleaning Robot",
+      },
+      {
+        id: "cleaning-machines",
+        name: "Vacuum / Floor / Carpet Cleaning Machines",
+      },
+      {
+        id: "floor-cleaning-equipments",
+        name: "Home Use Floor Cleaning Equipments",
       },
     ],
   },
