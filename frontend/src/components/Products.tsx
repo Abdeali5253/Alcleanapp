@@ -1,19 +1,19 @@
 import { useState, useEffect } from "react";
-import { Filter, X, Search, Grid3X3, LayoutGrid, Sparkles } from "lucide-react";
+import { Filter, X, Search, SlidersHorizontal } from "lucide-react";
 import { Button } from "./ui/button";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
 import { toast } from "sonner";
 import { UnifiedHeader } from "./UnifiedHeader";
 import { ProductCard } from "./ProductCard";
-import { ProductGrid } from "./ProductGrid";
-import { FilterDrawer } from "./FilterDrawer";
 import { QuickViewModal } from "./QuickViewModal";
-import { QuickFilters, FilterState, defaultFilters } from "./QuickFilters";
 import { Product } from "../types/shopify";
 import { categories } from "../lib/categories";
 import { getAllProducts } from "../lib/shopify";
 import { ProductCardSkeleton } from "./ProductCardSkeleton";
-import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { cartService } from "../lib/cart";
+import { wishlistService } from "../lib/wishlist";
 
 type CategoryFilter = "all" | "cleaning-chemicals" | "cleaning-equipment" | "car-washing" | "bathroom-cleaning" | "fabric-cleaning" | "dishwashing";
 
