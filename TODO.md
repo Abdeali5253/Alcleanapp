@@ -1,303 +1,81 @@
 # AlClean Mobile App - Development & Deployment Guide
 
-Complete checklist for testing locally and publishing to Google Play Store.
+## 📱 Current Status: Web App Complete, Ready for Mobile Build
 
 ---
 
-## 📋 Table of Contents
+## ✅ **COMPLETED FEATURES**
 
-1. [Prerequisites](#prerequisites)
-2. [Local Development Setup](#local-development-setup)
-3. [Testing Locally](#testing-locally)
-4. [Firebase Push Notifications Setup](#firebase-push-notifications-setup)
-5. [Building for Android](#building-for-android)
-6. [Google Play Store Submission](#google-play-store-submission)
-7. [Post-Launch Checklist](#post-launch-checklist)
+### Core Features
+- ✅ Browse 689 products from Shopify (all collections integrated)
+- ✅ Search and filter products (with categories and subcategories)
+- ✅ Product categorization (Cleaning Chemicals: 9 subcategories, Equipment: 15 subcategories)
+- ✅ Shopping cart with persistence
+- ✅ Wishlist feature (per-user, persistent)
+- ✅ User authentication (Shopify integration)
+- ✅ User profile management (edit name, phone)
+- ✅ Order history from Shopify
+- ✅ Checkout integration with Shopify
+- ✅ Delivery charge calculation (city + weight based)
+- ✅ Mobile-responsive design
 
----
-
-## Prerequisites
-
-### Required Accounts
-- [ ] Google Play Console account ($25 one-time fee)
-- [ ] Firebase account (already set up ✅)
-- [ ] Shopify store with API access (already set up ✅)
-
-### Required Software
-- [ ] Node.js v18+ 
-- [ ] Yarn package manager
-- [ ] Android Studio (for building APK/AAB)
-- [ ] Java JDK 17+
-- [ ] Git
-
-### Required Files
-- [ ] `google-services.json` - Firebase config for Android (already have ✅)
-- [ ] App icon (512x512 PNG)
-- [ ] Feature graphic (1024x500 PNG)
-- [ ] Screenshots (minimum 2, recommended 8)
-- [ ] Privacy policy URL
+### Integration
+- ✅ Shopify Storefront API (products, customers, orders)
+- ✅ Shopify Admin API (order creation)
+- ✅ Firebase (notification configuration)
+- ✅ MongoDB (caching)
 
 ---
 
-## Local Development Setup
+## 🎯 **NEXT STEP: BUILD MOBILE APP (APK/AAB)**
 
-### Step 1: Install Dependencies
+### Phase 1: Setup Capacitor (Web to Native Bridge)
+Capacitor wraps your React web app into a native Android container.
 
-```bash
-# Navigate to project directory
-cd /app
-
-# Install root dependencies
-yarn install
-
-# Install frontend dependencies
-cd frontend && yarn install
-
-# Install backend dependencies
-cd ../backend && yarn install
-```
-
-### Step 2: Configure Environment Variables
-
-**Frontend (.env)** - Already configured:
-```env
-VITE_SHOPIFY_STORE_DOMAIN=alclean-pk.myshopify.com
-VITE_SHOPIFY_STOREFRONT_TOKEN=6689542c8727785e3221d3ca952461a6
-VITE_SHOPIFY_API_VERSION=2025-07
-VITE_API_URL=http://localhost:3001
-VITE_FIREBASE_API_KEY=AIzaSyCMZrTCi1giFF6hJOC-MuOBbsqqKp6G6rU
-VITE_FIREBASE_PROJECT_ID=app-notification-5e56b
-VITE_FIREBASE_MESSAGING_SENDER_ID=310536726569
-VITE_FIREBASE_APP_ID=1:310536726569:android:eb53b3a97416f36ef71438
-```
-
-**Backend (.env)** - Already configured:
-```env
-SHOPIFY_STORE_DOMAIN=alclean-pk.myshopify.com
-SHOPIFY_ADMIN_API_TOKEN=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
-SHOPIFY_API_VERSION=2025-07
-PORT=3001
-```
-
-### Step 3: Start Development Servers
-
-```bash
-# Option 1: Run both together
-cd /app && yarn dev
-
-# Option 2: Run separately
-# Terminal 1 - Backend
-cd /app/backend && yarn dev
-
-# Terminal 2 - Frontend
-cd /app/frontend && yarn dev
-```
-
-### Step 4: Access the App
-- Frontend: http://localhost:3000
-- Backend API: http://localhost:3001
-- Health Check: http://localhost:3001/health
-
----
-
-## Testing Locally
-
-### ✅ Feature Testing Checklist
-
-#### Products
-- [ ] Products load from Shopify
-- [ ] Categories filter correctly
-- [ ] Search works with voice input
-- [ ] Quick filters (On Sale, In Stock, Price) work
-- [ ] Product detail page shows all info
-
-#### Cart
-- [ ] Add products to cart
-- [ ] Update quantities
-- [ ] Remove items
-- [ ] Cart persists after refresh
-
-#### Checkout
-- [ ] Fill customer information
-- [ ] Select delivery city
-- [ ] Choose payment method (COD/Bank Transfer)
-- [ ] Order creates in Shopify ⚠️ Test with real order
-- [ ] Order confirmation shows
-
-#### Notifications
-- [ ] Permission request works
-- [ ] Test notification appears
-- [ ] Notification inbox displays
-
-### 🧪 API Testing Commands
-
-```bash
-# Test backend health
-curl http://localhost:3001/health
-
-# Test Shopify connection (replace with real variant ID)
-curl -X POST http://localhost:3001/api/shopify/create-order \
-  -H "Content-Type: application/json" \
-  -d '{
-    "orderNumber": "TEST-001",
-    "customerName": "Test Customer",
-    "customerEmail": "test@example.com",
-    "customerPhone": "+923001234567",
-    "customerAddress": "123 Test Street",
-    "city": "Karachi",
-    "items": [{"variantId": "gid://shopify/ProductVariant/REAL_ID", "quantity": 1, "title": "Test", "price": 100}],
-    "subtotal": 100,
-    "deliveryCharge": 150,
-    "total": 250,
-    "paymentMethod": "cod"
-  }'
-
-# Test notification registration
-curl -X POST http://localhost:3001/api/notifications/register \
-  -H "Content-Type: application/json" \
-  -d '{"token": "test-token", "platform": "android"}'
-```
-
----
-
-## Firebase Push Notifications Setup
-
-### Step 1: Firebase Console Setup (Already Done ✅)
-- Project: `app-notification-5e56b`
-- Package: `pk.alclean.alcleanmobileapp`
-
-### Step 2: Get VAPID Key for Web Push (Optional)
-1. Go to Firebase Console → Project Settings → Cloud Messaging
-2. Under "Web Push certificates", generate a key pair
-3. Add to `.env`: `VITE_FIREBASE_VAPID_KEY=your-vapid-key`
-
-### Step 3: For Server-Side Notifications (Production)
-1. Go to Firebase Console → Project Settings → Service Accounts
-2. Generate new private key
-3. Add to backend environment:
-```env
-FIREBASE_PROJECT_ID=app-notification-5e56b
-FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n..."
-FIREBASE_CLIENT_EMAIL=firebase-adminsdk-xxx@app-notification-5e56b.iam.gserviceaccount.com
-```
-
-### Step 4: Testing Notifications Manually
-
-#### Option A: Using Firebase Console (Easiest)
-1. Go to https://console.firebase.google.com
-2. Select project `app-notification-5e56b`
-3. Go to **Engage** → **Messaging** (Cloud Messaging)
-4. Click **"Create your first campaign"** or **"New campaign"**
-5. Select **"Firebase Notification messages"**
-6. Enter:
-   - Title: `🎉 Test Notification`
-   - Body: `Your AlClean order is ready!`
-7. Click **"Send test message"**
-8. Enter the FCM token from your app (check console logs)
-9. Click **"Test"**
-
-#### Option B: Using cURL (For Developers)
-```bash
-# Get your Server Key from Firebase Console → Project Settings → Cloud Messaging
-
-# Send notification
-curl -X POST https://fcm.googleapis.com/fcm/send \
-  -H "Authorization: key=YOUR_SERVER_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "to": "FCM_DEVICE_TOKEN",
-    "notification": {
-      "title": "🛒 Order Update",
-      "body": "Your order #1234 has been shipped!"
-    },
-    "data": {
-      "type": "order_update",
-      "orderId": "1234"
-    }
-  }'
-```
-
-#### Option C: Using Firebase Admin SDK (Node.js)
-```javascript
-const admin = require('firebase-admin');
-
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount)
-});
-
-const message = {
-  notification: {
-    title: '🎉 Special Offer!',
-    body: '50% off on all cleaning products!'
-  },
-  topic: 'all_users'
-};
-
-admin.messaging().send(message)
-  .then((response) => console.log('Sent:', response))
-  .catch((error) => console.error('Error:', error));
-```
-
-### Step 5: Automating Notifications (Production)
-
-1. **Order Updates**: Send notification when order status changes
-   ```javascript
-   // In your order update webhook/endpoint
-   if (order.status === 'shipped') {
-     await sendNotification(userId, {
-       title: '📦 Order Shipped!',
-       body: `Your order #${order.id} is on its way!`,
-       data: { type: 'delivery', orderId: order.id }
-     });
-   }
-   ```
-
-2. **Promotional Notifications**: Schedule campaigns in Firebase Console
-   - Go to Messaging → Create Campaign
-   - Set target audience
-   - Schedule delivery time
-   - Enable A/B testing if needed
-
-3. **Topic-Based Notifications**: Subscribe users to topics
-   ```javascript
-   // Subscribe user to promotions topic
-   firebase.messaging().subscribeToTopic(fcmToken, 'promotions');
-   
-   // Send to all subscribed users
-   admin.messaging().sendToTopic('promotions', message);
-   ```
-
----
-
-## Building for Android
-
-### Step 1: Install Capacitor
-
+**Install Capacitor:**
 ```bash
 cd /app/frontend
-
-# Install Capacitor
-yarn add @capacitor/core @capacitor/cli @capacitor/android
-
-# Initialize Capacitor
-npx cap init "AlClean" "pk.alclean.alcleanmobileapp" --web-dir dist
+npm install @capacitor/core @capacitor/cli @capacitor/android
 ```
 
-### Step 2: Update capacitor.config.ts
+**Initialize Capacitor:**
+```bash
+npx cap init "AlClean" "pk.alclean.app" --web-dir=dist
+```
+
+**Add Android Platform:**
+```bash
+npx cap add android
+```
+
+---
+
+### Phase 2: Configure capacitor.config.ts
+
+Create or update `/app/frontend/capacitor.config.ts`:
 
 ```typescript
 import { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'pk.alclean.alcleanmobileapp',
+  appId: 'pk.alclean.app',
   appName: 'AlClean',
   webDir: 'dist',
   server: {
-    androidScheme: 'https'
+    androidScheme: 'https',
+    cleartext: true
   },
   plugins: {
+    SplashScreen: {
+      launchShowDuration: 2000,
+      backgroundColor: "#6DB33F",
+      showSpinner: false,
+      androidSpinnerStyle: "small",
+      splashFullScreen: true,
+      splashImmersive: true,
+    },
     PushNotifications: {
-      presentationOptions: ['badge', 'sound', 'alert']
+      presentationOptions: ["badge", "sound", "alert"]
     }
   }
 };
@@ -305,207 +83,265 @@ const config: CapacitorConfig = {
 export default config;
 ```
 
-### Step 3: Add Push Notification Plugin
+---
+
+### Phase 3: Add Push Notifications Plugin
 
 ```bash
-yarn add @capacitor/push-notifications
+npm install @capacitor/push-notifications
 ```
 
-### Step 4: Build the Web App
+Update Android Firebase configuration:
+1. Download `google-services.json` from Firebase Console
+2. Place in `/app/frontend/android/app/google-services.json`
+
+---
+
+### Phase 4: Build Web App
 
 ```bash
-# Build production version
-yarn build
+cd /app/frontend
+npm run build
 ```
 
-### Step 5: Add Android Platform
+This creates the `dist` folder with optimized production build.
+
+---
+
+### Phase 5: Sync to Android
 
 ```bash
-# Add Android
-npx cap add android
-
-# Copy web assets to Android
 npx cap sync android
 ```
 
-### Step 6: Copy Firebase Config
+This copies the web build to the Android project and updates native dependencies.
 
-```bash
-# Copy google-services.json to Android project
-cp google-services.json android/app/google-services.json
+---
+
+### Phase 6: Configure Android Project
+
+**Update AndroidManifest.xml** (`android/app/src/main/AndroidManifest.xml`):
+
+```xml
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="pk.alclean.app">
+
+    <!-- Permissions -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/AppTheme"
+        android:usesCleartextTraffic="true">
+        
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode"
+            android:theme="@style/AppTheme.SplashScreen">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>
 ```
 
-### Step 7: Open in Android Studio
+---
+
+### Phase 7: Open Android Studio
 
 ```bash
 npx cap open android
 ```
 
-### Step 8: Configure Android Project
+This opens your project in Android Studio.
 
-In Android Studio:
+---
 
-1. **Update build.gradle (Project level)**:
-```gradle
-buildscript {
-    dependencies {
-        classpath 'com.google.gms:google-services:4.4.0'
-    }
-}
+### Phase 8: Create Keystore (For Signed APK/AAB)
+
+**Generate keystore:**
+```bash
+keytool -genkey -v -keystore alclean-release-key.jks -keyalg RSA -keysize 2048 -validity 10000 -alias alclean
 ```
 
-2. **Update build.gradle (App level)**:
-```gradle
-apply plugin: 'com.google.gms.google-services'
+Save this file securely! You'll need it for all future updates.
 
-dependencies {
-    implementation platform('com.google.firebase:firebase-bom:32.7.0')
-    implementation 'com.google.firebase:firebase-messaging'
-}
-```
-
-3. **Update AndroidManifest.xml** - Add permissions:
-```xml
-<uses-permission android:name="android.permission.INTERNET" />
-<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-```
-
-### Step 9: Create Signed APK/AAB
-
-1. In Android Studio: Build → Generate Signed Bundle / APK
-2. Create new keystore or use existing
-3. **IMPORTANT**: Save keystore file and passwords securely!
-4. Select "Android App Bundle" for Play Store
-5. Choose "release" build variant
+**Configure signing in Android Studio:**
+1. Build → Generate Signed Bundle/APK
+2. Choose "APK" or "Android App Bundle (AAB)"
+3. Select your keystore file
+4. Enter keystore password
+5. Choose release build variant
 6. Build
 
 ---
 
-## Google Play Store Submission
+### Phase 9: Build APK (For Testing on Phone)
 
-### Step 1: Prepare Store Listing Assets
+**Option A: Via Android Studio**
+1. Build → Build Bundle(s) / APK(s) → Build APK(s)
+2. Wait for build to complete
+3. Click "locate" to find the APK file
+4. Transfer APK to phone via USB/WhatsApp/Email
+5. Install on phone (enable "Install from Unknown Sources")
 
-- [ ] **App Icon** (512x512 PNG, no transparency)
-- [ ] **Feature Graphic** (1024x500 PNG)
-- [ ] **Screenshots** (minimum 2 per device type):
-  - Phone: 1080x1920 or 1080x2340
-  - 7-inch tablet: 1200x1920
-  - 10-inch tablet: 1800x2560
-- [ ] **Short Description** (80 characters max)
-- [ ] **Full Description** (4000 characters max)
-- [ ] **Privacy Policy URL**
-- [ ] **App Category**: Shopping
-- [ ] **Content Rating**: Fill questionnaire
-- [ ] **Contact Details**: Email, phone, website
-
-### Step 2: Create App in Play Console
-
-1. Go to https://play.google.com/console
-2. Click "Create app"
-3. Fill in:
-   - App name: AlClean
-   - Default language: English
-   - App type: App
-   - Free or paid: Free
-   - Accept declarations
-
-### Step 3: Store Listing
-
-1. **Main store listing**:
-   - App name: AlClean - Premium Cleaning Products
-   - Short description: Shop premium cleaning products & equipment
-   - Full description: (detailed app features)
-   - Upload app icon
-   - Upload feature graphic
-   - Upload screenshots
-
-2. **Graphics**:
-   - Add phone screenshots (2-8)
-   - Add tablet screenshots (optional)
-   - Add promotional video (optional)
-
-### Step 4: App Content
-
-1. **Privacy policy**: Add your privacy policy URL
-2. **Ads**: Declare if app contains ads
-3. **App access**: All functionality available / Restricted
-4. **Content ratings**: Complete questionnaire
-5. **Target audience**: Select age group
-6. **News apps**: No (unless applicable)
-7. **Data safety**: Fill out data collection form
-
-### Step 5: Release Setup
-
-1. Go to "Production" → "Countries/regions"
-2. Select countries (Pakistan, etc.)
-3. Go to "Production" → "Create new release"
-4. Upload your AAB file
-5. Add release notes
-6. Review and submit
-
-### Step 6: Review Process
-
-- Initial review takes 1-3 days
-- May require additional information
-- Address any policy violations
-- Once approved, app goes live!
-
----
-
-## Post-Launch Checklist
-
-### Monitoring
-- [ ] Set up Google Analytics in Firebase
-- [ ] Monitor crash reports in Firebase Crashlytics
-- [ ] Track user reviews in Play Console
-- [ ] Monitor API health
-
-### Updates
-- [ ] Plan regular updates (bug fixes, features)
-- [ ] Increment version code for each update
-- [ ] Test thoroughly before release
-- [ ] Use staged rollout for major updates
-
-### Marketing
-- [ ] Share app link with customers
-- [ ] Add QR code to website/marketing materials
-- [ ] Encourage reviews from happy customers
-- [ ] Respond to user reviews
-
----
-
-## Quick Reference Commands
-
+**Option B: Via Command Line**
 ```bash
-# Development
-cd /app && yarn dev                    # Start both servers
-cd /app/frontend && yarn dev           # Frontend only
-cd /app/backend && yarn dev            # Backend only
-
-# Building
-cd /app/frontend && yarn build         # Build for production
-npx cap sync android                   # Sync to Android
-npx cap open android                   # Open in Android Studio
-
-# Testing
-curl http://localhost:3001/health      # Check backend
-curl http://localhost:3000             # Check frontend
-
-# Logs
-cat /tmp/frontend.log                  # Frontend logs
-cat /tmp/backend.log                   # Backend logs
+cd /app/frontend/android
+./gradlew assembleRelease
 ```
 
+APK location: `android/app/build/outputs/apk/release/app-release.apk`
+
 ---
 
-## Support
+### Phase 10: Build AAB (For Play Store)
 
-For issues or questions:
-- Check console logs for errors
-- Verify environment variables
-- Ensure all dependencies are installed
-- Test API endpoints individually
+**App Bundle (AAB) is required for Google Play Store:**
+
+```bash
+cd /app/frontend/android
+./gradlew bundleRelease
+```
+
+AAB location: `android/app/build/outputs/bundle/release/app-release.aab`
+
+---
+
+## 📱 **Testing on Mobile Phone**
+
+### Method 1: Direct APK Install
+1. Build APK (Phase 9)
+2. Transfer `app-release.apk` to phone
+3. Enable "Install from Unknown Sources" in phone settings
+4. Tap APK file to install
+5. Open AlClean app
+6. Test all features
+
+### Method 2: USB Debugging
+1. Connect phone via USB
+2. Enable Developer Options on phone
+3. Enable USB Debugging
+4. In Android Studio, click Run
+5. Select your phone from device list
+6. App installs and launches automatically
+
+---
+
+## 🏪 **Google Play Store Submission**
+
+### Requirements:
+- ✅ AAB file (Phase 10)
+- ✅ App icon (512x512 PNG)
+- ✅ Feature graphic (1024x500 PNG)
+- ✅ Screenshots (minimum 2, various screen sizes)
+- ✅ Privacy policy URL
+- ✅ App description
+- ✅ Developer account ($25 one-time fee)
+
+### Submission Steps:
+1. Create Google Play Console account
+2. Create new application
+3. Upload AAB file
+4. Add store listing details
+5. Set pricing (Free/Paid)
+6. Complete content rating questionnaire
+7. Submit for review (2-7 days)
+
+---
+
+## 🔧 **Common Issues & Solutions**
+
+### Issue: Build fails
+**Solution:** Check Node.js version (use Node 18+), run `npm install`
+
+### Issue: App crashes on launch
+**Solution:** Check AndroidManifest.xml permissions, verify API URLs are correct
+
+### Issue: Network requests fail
+**Solution:** Add `android:usesCleartextTraffic="true"` to AndroidManifest.xml
+
+### Issue: Push notifications not working
+**Solution:** Verify `google-services.json` is in correct location, check FCM configuration
+
+---
+
+## 📊 **App Specifications**
+
+- **App Name:** AlClean
+- **Package ID:** pk.alclean.app
+- **Min Android Version:** 7.0 (API 24)
+- **Target Android Version:** 14 (API 34)
+- **App Size:** ~15-20 MB (estimated)
+- **Permissions:** Internet, Network State, Notifications
+
+---
+
+## ✅ **Deployment Checklist**
+
+### Pre-Build
+- [x] All features tested and working
+- [x] Environment variables configured
+- [x] Firebase setup complete
+- [x] Shopify integration verified
+
+### Build Setup
+- [ ] Capacitor installed
+- [ ] Android platform added
+- [ ] Keystore generated
+- [ ] App icon added
+- [ ] Splash screen configured
+
+### Build & Test
+- [ ] Web build successful (`npm run build`)
+- [ ] Android sync successful (`npx cap sync`)
+- [ ] APK generated
+- [ ] Tested on physical device
+- [ ] All features work on mobile
+
+### Play Store
+- [ ] AAB file generated
+- [ ] Store listing prepared
+- [ ] Screenshots taken
+- [ ] Privacy policy created
+- [ ] Developer account ready
+- [ ] App submitted for review
+
+---
+
+## 🚀 **Quick Start Guide**
+
+**To build APK right now:**
+```bash
+cd /app/frontend
+npm install @capacitor/core @capacitor/cli @capacitor/android
+npx cap init "AlClean" "pk.alclean.app" --web-dir=dist
+npx cap add android
+npm run build
+npx cap sync android
+npx cap open android
+# In Android Studio: Build → Build Bundle/APK → Build APK
+```
+
+**To test on phone:**
+1. Connect phone via USB
+2. Enable USB debugging
+3. Click Run in Android Studio
+4. Select your device
+5. App installs automatically
 
 ---
 
 *Last Updated: December 2024*
+
+**Status: Ready for Mobile Build** 📱🚀
