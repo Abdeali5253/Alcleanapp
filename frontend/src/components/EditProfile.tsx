@@ -38,10 +38,8 @@ export function EditProfile() {
     setIsSaving(true);
 
     try {
-      // Split name into first and last name with proper fallback
-      const nameParts = name.trim().split(/\s+/); // Split by whitespace
-      const firstName = nameParts[0] || 'User';
-      const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : nameParts[0] || 'User';
+      // Combine first and last name
+      const name = `${firstName.trim()} ${lastName.trim()}`.trim();
 
       // Try to update in Shopify if user has access token (optional - won't block if fails)
       if (currentUser?.accessToken && firstName && lastName) {
