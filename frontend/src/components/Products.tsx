@@ -14,6 +14,7 @@ import { getAllProducts } from "../lib/shopify";
 import { ProductCardSkeleton } from "./ProductCardSkeleton";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { cartService } from "../lib/cart";
+import { wishlistService } from "../lib/wishlist";
 
 type CategoryFilter = "all" | "cleaning-chemicals" | "cleaning-equipment" | "car-washing" | "bathroom-cleaning" | "fabric-cleaning" | "dishwashing";
 

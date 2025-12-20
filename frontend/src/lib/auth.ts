@@ -202,11 +202,6 @@ class AuthService {
     this.notifyListeners();
   }
 
-  // Notify all listeners
-  private notifyListeners(): void {
-    this.listeners.forEach(listener => listener(this.user));
-  }
-
   // Redirect management
   setRedirectAfterLogin(path: string): void {
     localStorage.setItem(REDIRECT_STORAGE_KEY, path);
