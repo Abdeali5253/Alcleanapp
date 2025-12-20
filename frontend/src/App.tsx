@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
-import { Home } from "./components/Home";
+import { Wishlist } from "./components/Wishlist";
 import { Products } from "./components/Products";
 import { ProductDetail } from "./components/ProductDetail";
 import { Cart } from "./components/Cart";
