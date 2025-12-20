@@ -24,6 +24,7 @@ import { useState, useEffect } from "react";
 import { getAllProducts, getProductsByCollection } from "../lib/shopify";
 import { ProductCardSkeleton } from "./ProductCardSkeleton";
 import { cartService } from "../lib/cart";
+import { wishlistService } from "../lib/wishlist";
 
 // Updated categories based on user's actual Shopify collections
 const topCategories = [
