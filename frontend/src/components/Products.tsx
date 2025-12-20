@@ -29,8 +29,7 @@ const categoryInfo: Record<CategoryFilter, { name: string; emoji: string; color:
 
 export function Products() {
   const [selectedSubcategories, setSelectedSubcategories] = useState<string[]>([]);
-  const [showFilters, setShowFilters] = useState(false);
-  const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [wishlist, setWishlist] = useState<string[]>([]);
   const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
@@ -38,11 +37,13 @@ export function Products() {
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState<FilterState>(defaultFilters);
-  const [viewMode, setViewMode] = useState<'grid' | 'compact'>('grid');
+  
+  // Advanced Filters State
+  const [priceRange, setPriceRange] = useState<[number, number]>([0, 50000]);
+  const [sortBy, setSortBy] = useState<'price-low' | 'price-high' | 'name-az' | 'name-za' | 'newest'>('newest');
+  
   const location = useLocation();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
 
   // Parse URL parameters and set filters
   useEffect(() => {
