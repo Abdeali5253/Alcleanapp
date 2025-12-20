@@ -14,7 +14,7 @@ import { getAllProducts } from "../lib/shopify";
 import { ProductCardSkeleton } from "./ProductCardSkeleton";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { cartService } from "../lib/cart";
-import { wishlistService } from "../lib/wishlist";
+import { Wishlist } from "./Wishlist";
 
 type CategoryFilter = "all" | "cleaning-chemicals" | "cleaning-equipment" | "car-washing" | "bathroom-cleaning" | "fabric-cleaning" | "dishwashing";
 
@@ -100,7 +100,8 @@ export function Products() {
             'brush', 'broom', 'scrubber', 'sponge', 'cloth', 'towel', 'wiper',
             'glove', 'dispenser', 'tissue', 'machine', 'vacuum', 'polish',
             'squeegee', 'duster', 'holder', 'stand', 'rack', 'caddy',
-            'tool', 'equipment', 'robot', 'viper', 'vipers'
+            'tool', 'equipment', 'robot', 'viper', 'vipers','dryer','rods','cleaning pads', 'hand dryer' , 'aluminum rod',
+            'aluminum' , 'Telescopic Pole' , 'Cleaning Pole' ,'pole'
           ];
           
           // Check if product title contains equipment keywords
