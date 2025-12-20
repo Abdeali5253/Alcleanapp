@@ -198,7 +198,7 @@ class AuthService {
   // Update user profile
   updateUser(updatedUser: User): void {
     this.user = updatedUser;
-    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(updatedUser));
+    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(updatedUser));
     this.notifySubscribers();
   }
 
