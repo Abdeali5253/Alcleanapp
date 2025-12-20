@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
-import { Home } from "./components/Home";
+import { Wishlist } from "./components/Wishlist";
 import { Products } from "./components/Products";
 import { ProductDetail } from "./components/ProductDetail";
 import { Cart } from "./components/Cart";
@@ -57,6 +57,7 @@ export default function App() {
           <Route path="/product/:id" element={<ProductDetail />} />
           <Route path="/cart" element={<Cart />} />
           <Route path="/tracking" element={<Tracking />} />
+          <Route path="/wishlist" element={<Wishlist />} />
           <Route path="/account" element={<Account />} />
           <Route path="/edit-profile" element={<EditProfile />} />
           <Route path="/help-support" element={<HelpSupport />} />

@@ -84,29 +84,58 @@ export function Products() {
         setLoading(true);
         const products = await getAllProducts(700);
         
-        // Categorize products based on their collections
+        // Categorize products based on their collections - STRICT RULES
         const categorizedProducts = products.map(product => {
           const collections = (product as any).collections || [];
           const collectionHandles = collections.map((c: any) => c.handle.toLowerCase());
-          const collectionTitles = collections.map((c: any) => c.title.toLowerCase());
+          const productTitle = product.title.toLowerCase();
           
           let category = 'cleaning-chemicals';
           let subcategory = '';
           
-          // Priority 1: Check for EQUIPMENT first (to avoid mixing with chemicals)
-          if (collectionHandles.some((h: string) => 
-            h.includes('cleaning-equipment') || 
-            h.includes('cleaning-machines') || 
-            h.includes('cleaning-tools') ||
-            h.includes('vacuum') ||
-            h.includes('floor-cleaning-equipments') ||
-            h.includes('polish-machine') ||
-            h.includes('tissue-rolls') ||
-            h.includes('dispenser') ||
-            h.includes('home-page-cleaning-tools') ||
-            h.includes('top-cleaning-equipments')
-          )) {
+          // STRICT EQUIPMENT KEYWORDS - if product has ANY of these, it's equipment NOT chemical
+          const equipmentKeywords = [
+            'bucket', 'mop', 'wringer', 'trolley', 'cart', 'dustbin', 'bin',
+            'brush', 'broom', 'scrubber', 'sponge', 'cloth', 'towel', 'wiper',
+            'glove', 'dispenser', 'tissue', 'machine', 'vacuum', 'polish',
+            'squeegee', 'duster', 'holder', 'stand', 'rack', 'caddy',
+            'tool', 'equipment', 'robot', 'viper', 'vipers'
+          ];
+          
+          // Check if product title contains equipment keywords
+          const isEquipmentByTitle = equipmentKeywords.some(keyword => productTitle.includes(keyword));
+          
+          // PRIORITY 1: Equipment Collections OR Equipment Keywords in Title
+          if (
+            collectionHandles.some((h: string) => 
+              h.includes('equipment') || 
+              h.includes('tools') ||
+              h.includes('cleaning-machines') ||
+              h.includes('vacuum') ||
+              h.includes('polish-machine') ||
+              h.includes('tissue-rolls') ||
+              h.includes('cleaning-robot') ||
+              h.includes('floor-cleaning-vipers') ||
+              h.includes('safety-equipments') ||
+              h.includes('dustbin') ||
+              h.includes('mop-buckets') ||
+              h.includes('wringers')
+            ) || isEquipmentByTitle
+          ) {
             category = 'cleaning-equipment';
+            
+            // Assign equipment subcategory
+            if (collectionHandles.some((h: string) => h.includes('mop') || h.includes('bucket') || h.includes('wringer'))) {
+              subcategory = 'mop-buckets';
+            } else if (collectionHandles.some((h: string) => h.includes('tissue'))) {
+              subcategory = 'tissue-dispensers';
+            } else if (collectionHandles.some((h: string) => h.includes('dustbin'))) {
+              subcategory = 'plastic-dustbin';
+            } else if (collectionHandles.some((h: string) => h.includes('floor-cleaning-vipers'))) {
+              subcategory = 'floor-cleaning-vipers';
+            } else if (collectionHandles.some((h: string) => h.includes('cleaning-tools'))) {
+              subcategory = 'cleaning-tools';
+            }
           } 
           // Priority 2: Fabric cleaning
           else if (collectionHandles.some((h: string) => 
@@ -118,45 +147,30 @@ export function Products() {
             category = 'fabric-cleaning';
             subcategory = 'fabric-washing';
           } 
-          // Priority 3: Mop buckets (equipment, not chemicals)
+          // Priority 3: Dishwashing
           else if (collectionHandles.some((h: string) => 
-            h.includes('mop') || 
-            h.includes('bucket') ||
-            h.includes('wringer')
-          )) {
-            category = 'cleaning-equipment';
-            subcategory = 'mop-buckets';
-          } 
-          // Priority 4: Dishwashing
-          else if (collectionHandles.some((h: string) => 
-            h.includes('dish') || 
-            h.includes('kitchen-cleaning')
+            h.includes('dish') && !h.includes('dispenser')
           )) {
             category = 'dishwashing';
           } 
-          // Priority 5: Car washing
+          // Priority 4: Car washing
           else if (collectionHandles.some((h: string) => 
-            h.includes('car-') || 
-            h.includes('vehicle')
+            h.includes('car-')
           )) {
             category = 'car-washing';
           } 
-          // Priority 6: Bathroom cleaning (separate from general chemicals)
+          // Priority 5: Bathroom cleaning
           else if (collectionHandles.some((h: string) => 
-            h.includes('bathroom-cleaning') || 
+            h.includes('bathroom-cleaning-solution') || 
             h.includes('toilet-bowl-cleaner')
           )) {
             category = 'bathroom-cleaning';
           } 
-          // Priority 7: CLEANING CHEMICALS (main category with subcategories)
-          else if (collectionHandles.some((h: string) => 
-            h.includes('chemical') || 
-            h.includes('cleaner') ||
-            h.includes('cleaning')
-          )) {
+          // Priority 6: CLEANING CHEMICALS (ONLY chemicals, NO equipment)
+          else {
             category = 'cleaning-chemicals';
             
-            // Assign subcategory based on specific collection
+            // Assign chemical subcategory based on collection
             if (collectionHandles.some((h: string) => h.includes('floor-cleaning-chemical'))) {
               subcategory = 'floor-cleaning-chemical';
             } else if (collectionHandles.some((h: string) => h.includes('multi-purpose-chemicals'))) {

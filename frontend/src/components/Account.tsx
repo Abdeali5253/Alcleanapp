@@ -33,6 +33,12 @@ const menuItems = [
     link: "/tracking",
   },
   {
+    icon: Heart,
+    label: "My Wishlist",
+    description: "Your favorite products",
+    link: "/wishlist",
+  },
+  {
     icon: User,
     label: "Edit Profile",
     description: "Update your personal information",
