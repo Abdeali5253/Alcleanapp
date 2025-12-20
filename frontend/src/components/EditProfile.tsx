@@ -10,18 +10,27 @@ import { Logo } from "./Logo";
 
 export function EditProfile() {
   const navigate = useNavigate();
-  const currentUser = authService.getCurrentUser();
-  
-  const [name, setName] = useState(currentUser?.name || "");
-  const [email, setEmail] = useState(currentUser?.email || "");
-  const [phone, setPhone] = useState(currentUser?.phone || "");
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    // Redirect if not logged in
-    if (!authService.isLoggedIn()) {
+    const user = authService.getCurrentUser();
+    if (!user) {
       navigate("/account");
+      return;
     }
+    setCurrentUser(user);
+    
+    // Pre-fill form
+    const nameParts = user.name?.split(/\s+/) || [];
+    setFirstName(nameParts[0] || user.firstName || "");
+    setLastName(nameParts.slice(1).join(" ") || user.lastName || "");
+    setEmail(user.email);
+    setPhone(user.phone || "");
   }, [navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
