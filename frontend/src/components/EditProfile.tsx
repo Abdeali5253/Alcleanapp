@@ -84,9 +84,9 @@ export function EditProfile() {
             >
               <ChevronLeft size={24} className="text-gray-700" />
             </button>
-            <Link to="/" className="flex-1 flex justify-center">
+            <div className="flex-1 flex justify-center">
               <Logo />
-            </Link>
+            </div>
             <div className="w-10" /> {/* Spacer for centering */}
           </div>
         </div>
