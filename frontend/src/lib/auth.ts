@@ -199,7 +199,12 @@ class AuthService {
   updateUser(updatedUser: User): void {
     this.user = updatedUser;
     localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(updatedUser));
-    this.notifySubscribers();
+    this.notifyListeners();
+  }
+
+  // Notify all listeners
+  private notifyListeners(): void {
+    this.listeners.forEach(listener => listener(this.user));
   }
 
   // Redirect management
