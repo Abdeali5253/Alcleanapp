@@ -29,13 +29,13 @@ export function EditProfile() {
     setIsSaving(true);
 
     try {
-      // Split name into first and last name
-      const nameParts = name.trim().split(' ');
-      const firstName = nameParts[0] || '';
-      const lastName = nameParts.slice(1).join(' ') || '';
+      // Split name into first and last name with proper fallback
+      const nameParts = name.trim().split(/\s+/); // Split by whitespace
+      const firstName = nameParts[0] || 'User';
+      const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : nameParts[0] || 'User';
 
       // Try to update in Shopify if user has access token (optional - won't block if fails)
-      if (currentUser?.accessToken) {
+      if (currentUser?.accessToken && firstName && lastName) {
         try {
           const { updateCustomer } = await import("../lib/shopify");
           await updateCustomer(currentUser.accessToken, {
