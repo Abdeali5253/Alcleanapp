@@ -23,6 +23,7 @@ import { BackendStatus } from "./components/BackendStatus";
 import { BackendTestPage } from "./components/BackendTestPage";
 import { Toaster } from "./components/ui/sonner";
 import { notificationService } from "./lib/notifications";
+import { Home } from "./components/Home";
 
 export default function App() {
   const [showSplash, setShowSplash] = useState(true);

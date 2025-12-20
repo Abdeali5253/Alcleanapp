@@ -15,7 +15,8 @@ import {
   EyeOff,
   Mail,
   Phone as PhoneIcon,
-  Lock
+  Lock,
+  Heart
 } from "lucide-react";
 import { authService, User as AuthUser } from "../lib/auth";
 import { Button } from "./ui/button";
