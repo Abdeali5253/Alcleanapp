@@ -169,15 +169,14 @@ export function Home() {
   };
 
   const toggleWishlist = (productId: string) => {
-    if (wishlist.includes(productId)) {
-      setWishlist(wishlist.filter((id) => id !== productId));
-      toast.success("Removed from wishlist", {
+    const newState = wishlistService.toggleWishlist(productId);
+    if (newState) {
+      toast.success("Added to wishlist!", {
         duration: 1500,
         position: "top-center",
       });
     } else {
-      setWishlist([...wishlist, productId]);
-      toast.success("Added to wishlist", {
+      toast.success("Removed from wishlist", {
         duration: 1500,
         position: "top-center",
       });
