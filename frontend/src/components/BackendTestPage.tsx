@@ -6,6 +6,7 @@
 import { useState } from 'react';
 import { ArrowLeft, CheckCircle, XCircle, Loader2, Copy } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { BACKEND_URL } from "../lib/base-url.ts";
 
 export function BackendTestPage() {
   const navigate = useNavigate();

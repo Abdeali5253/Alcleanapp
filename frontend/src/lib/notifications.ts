@@ -6,6 +6,7 @@ import {
   requestNotificationPermission, 
   onForegroundMessage 
 } from './firebase-config';
+import { BACKEND_URL } from "./base-url";
 
 export interface PushNotification {
   id: string;
@@ -80,7 +81,7 @@ class NotificationService {
   private async registerTokenWithBackend(token: string): Promise<void> {
     try {
       // Use relative path - Kubernetes ingress routes /api/* to backend
-      const response = await fetch(`/api/notifications/register`, {
+      const response = await fetch(`${BACKEND_URL}/api/notifications/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

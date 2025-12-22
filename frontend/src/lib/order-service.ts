@@ -6,6 +6,7 @@
 import { CartItem } from "./cart";
 import { authService } from "./auth";
 import { notificationService } from "./notifications";
+import { BACKEND_URL } from "./base-url";
 
 export interface Order {
   id: string;
@@ -102,7 +103,7 @@ class OrderService {
   private async createShopifyDraftOrder(order: Order): Promise<{ draftOrderId: string; orderId?: string } | null> {
     try {
       // Use relative path - Kubernetes ingress routes /api/* to backend
-      const endpoint = `/api/shopify/create-order`;
+      const endpoint = `${BACKEND_URL}/api/shopify/create-order`;
       
       console.log('[Shopify] Creating order via backend:', endpoint);
       console.log('[Shopify] Order data:', {

@@ -5,6 +5,7 @@
 
 import { useState, useEffect } from 'react';
 import { AlertCircle, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
+import { BACKEND_URL } from "../lib/base-url";
 
 export function BackendStatus() {
   const [status, setStatus] = useState<'checking' | 'connected' | 'error' | 'not-found'>('checking');
@@ -17,7 +18,7 @@ export function BackendStatus() {
 
     try {
       // Use /api prefix - Kubernetes ingress routes to backend on port 8001
-      const response = await fetch(`/api/health`);
+      const response = await fetch(`${BACKEND_URL}/api/health`);
 
       if (response.ok) {
         const data = await response.json();
@@ -68,7 +69,7 @@ export function BackendStatus() {
     );
   }
 
-  if (status == 'connected') {
+  if (status === 'connected') {
     return (
       <div className="fixed bottom-4 right-4 bg-green-50 border border-green-200 rounded-lg p-4 shadow-lg max-w-md z-50">
         <div className="flex items-center justify-between gap-3">

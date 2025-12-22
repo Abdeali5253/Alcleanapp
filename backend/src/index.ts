@@ -10,7 +10,7 @@ const PORT = process.env.PORT || 3001;
 
 // CORS configuration
 app.use(cors({
-  origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000', 'http://localhost:5173'],
+  origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000', 'http://localhost:5173','http://10.0.2.2:3000','http://10.0.2.2:5173',],
   credentials: true,
 }));
 app.use(express.json());
