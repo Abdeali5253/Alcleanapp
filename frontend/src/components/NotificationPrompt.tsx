@@ -2,6 +2,9 @@ import { useState, useEffect } from "react";
 import { Bell, X } from "lucide-react";
 import { Button } from "./ui/button";
 import { notificationService } from "../lib/notifications";
+import { Capacitor } from "@capacitor/core";
+import { canUseNotification } from "../lib/notification-guard";
+
 
 export function NotificationPrompt() {
   const [show, setShow] = useState(false);
@@ -10,6 +13,11 @@ export function NotificationPrompt() {
   useEffect(() => {
     // Check if we should show the prompt
     const hasAsked = localStorage.getItem("notification_prompt_shown");
+    const isAndroid = Capacitor.getPlatform() === "android";
+    if (isAndroid || !canUseNotification()) {
+      localStorage.setItem("notification_prompt_shown", "true");
+      return;
+    }
     const currentPermission = Notification.permission;
     
     setPermission(currentPermission);

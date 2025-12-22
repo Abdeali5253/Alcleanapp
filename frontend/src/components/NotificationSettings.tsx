@@ -5,6 +5,8 @@ import { Button } from "./ui/button";
 import { notificationService } from "../lib/notifications";
 import { NotificationSettings as Settings } from "../types/notifications";
 import { toast } from "sonner";
+import { Capacitor } from "@capacitor/core";
+import { canUseNotification } from "../lib/notification-guard";
 
 export function NotificationSettings() {
   const navigate = useNavigate();
@@ -24,9 +26,12 @@ export function NotificationSettings() {
     setSettings(currentSettings);
 
     // Check browser permission
-    if ("Notification" in window) {
-      setPermission(Notification.permission);
-    }
+     const isAndroid = Capacitor.getPlatform() === "android";
+      if (!isAndroid && canUseNotification()) {
+        setPermission(Notification.permission);
+      } else {
+        setPermission("denied");
+      }
   }, []);
 
   const handleToggleMaster = async () => {

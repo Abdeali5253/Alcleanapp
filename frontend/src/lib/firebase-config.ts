@@ -1,6 +1,9 @@
 // Firebase Configuration for Push Notifications
 import { initializeApp, FirebaseApp } from 'firebase/app';
 import { getMessaging, getToken, onMessage, Messaging } from 'firebase/messaging';
+import { Capacitor } from "@capacitor/core";
+import { canUseNotification } from "./notification-guard";
+
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || '',
@@ -16,6 +19,7 @@ const VAPID_KEY = import.meta.env.VITE_FIREBASE_VAPID_KEY || '';
 
 let app: FirebaseApp | null = null;
 let messaging: Messaging | null = null;
+const isAndroid = Capacitor.getPlatform() === "android";
 
 export function initializeFirebase(): FirebaseApp | null {
   if (app) return app;
@@ -57,8 +61,9 @@ export function getFirebaseMessaging(): Messaging | null {
 export async function requestNotificationPermission(): Promise<string | null> {
   try {
     // Check if running in a context that supports notifications
-    if (typeof window === 'undefined' || !('Notification' in window)) {
-      console.warn('[Firebase] Notifications not supported in this environment');
+    
+    if (isAndroid || !canUseNotification()) {
+      console.warn("[Firebase] Notifications not supported in this environment");
       return null;
     }
     
@@ -68,6 +73,7 @@ export async function requestNotificationPermission(): Promise<string | null> {
       return null;
     }
     
+    if (isAndroid || !canUseNotification()) return null;
     const permission = await Notification.requestPermission();
     
     if (permission !== 'granted') {
