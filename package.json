@@ -7,14 +7,11 @@
     "dev": "concurrently -n FRONTEND,BACKEND \"npm run dev:frontend\" \"npm run dev:backend\"",
     "dev:frontend": "npm --prefix frontend run dev",
     "dev:backend": "npm --prefix backend run dev",
-
     "build": "npm run build:frontend && npm run build:backend",
     "build:frontend": "npm --prefix frontend run build",
     "build:backend": "npm --prefix backend run build",
-
     "start": "npm run start:backend",
     "start:backend": "npm --prefix backend run start",
-
     "install:all": "npm install && npm --prefix frontend install && npm --prefix backend install"
   },
   "dependencies": {
