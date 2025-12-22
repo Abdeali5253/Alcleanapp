@@ -1,12 +1,11 @@
-// Push Notification Service for AlClean Mobile App
-// Supports Firebase Cloud Messaging (FCM) for Android
-
 import { 
   initializeFirebase, 
   requestNotificationPermission, 
   onForegroundMessage 
 } from './firebase-config';
 import { BACKEND_URL } from "./base-url";
+import { Capacitor } from "@capacitor/core";
+
 
 export interface PushNotification {
   id: string;
@@ -18,6 +17,14 @@ export interface PushNotification {
   data?: Record<string, any>;
   imageUrl?: string;
 }
+
+const isAndroid = () => Capacitor.getPlatform() === "android";
+
+const hasWebNotificationApi = () =>
+  typeof window !== "undefined" &&
+  "Notification" in window &&
+  typeof Notification !== "undefined";
+
 
 export interface NotificationSegment {
   id: string;
@@ -46,6 +53,12 @@ class NotificationService {
     try {
       console.log('[Notifications] Initializing...');
       
+      if (isAndroid()) {
+      this.isInitialized = true;
+      console.log("[Notifications] Android detected - skipping Web Push init");
+      return true;
+    }
+
       // Initialize Firebase
       const firebaseApp = initializeFirebase();
       if (!firebaseApp) {
@@ -117,7 +130,7 @@ class NotificationService {
     this.addNotification(notification);
     
     // Show browser notification if in foreground
-    if ('Notification' in window && Notification.permission === 'granted') {
+    if (!isAndroid() && hasWebNotificationApi() && Notification.permission === 'granted') {
       new Notification(notification.title, {
         body: notification.body,
         icon: '/logo.png',
@@ -185,14 +198,16 @@ class NotificationService {
 
   // Check if notifications are enabled
   async checkPermission(): Promise<'granted' | 'denied' | 'default'> {
-    if (!('Notification' in window)) return 'denied';
+    if (isAndroid()) return "denied";
+    if (!hasWebNotificationApi()) return "denied";
     return Notification.permission;
   }
 
   // Request permission
   async requestPermission(): Promise<boolean> {
-    if (!('Notification' in window)) return false;
-    
+    if (isAndroid()) return false;
+    if (!hasWebNotificationApi()) return false;
+
     const permission = await Notification.requestPermission();
     
     if (permission === 'granted' && !this.fcmToken) {
