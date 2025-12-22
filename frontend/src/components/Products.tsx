@@ -14,7 +14,8 @@ import { getAllProducts } from "../lib/shopify";
 import { ProductCardSkeleton } from "./ProductCardSkeleton";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { cartService } from "../lib/cart";
-import { Wishlist } from "./Wishlist";
+import { wishlistService } from "../lib/wishlist";
+
 
 type CategoryFilter = "all" | "cleaning-chemicals" | "cleaning-equipment" | "car-washing" | "bathroom-cleaning" | "fabric-cleaning" | "dishwashing";
 
@@ -233,12 +234,17 @@ export function Products() {
   };
 
   const toggleWishlist = (productId: string) => {
-    if (wishlist.includes(productId)) {
-      setWishlist(wishlist.filter(id => id !== productId));
-      toast.success("Removed from wishlist", { duration: 1500, position: "top-center" });
+    const newState = wishlistService.toggleWishlist(productId);
+    if (newState) {
+      toast.success("Added to wishlist!", {
+        duration: 1500,
+        position: "top-center",
+      });
     } else {
-      setWishlist([...wishlist, productId]);
-      toast.success("Added to wishlist", { duration: 1500, position: "top-center" });
+      toast.success("Removed from wishlist", {
+        duration: 1500,
+        position: "top-center",
+      });
     }
   };
 
