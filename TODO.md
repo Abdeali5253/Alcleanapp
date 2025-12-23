@@ -1,347 +1,220 @@
-# AlClean Mobile App - Development & Deployment Guide
+# AlClean Mobile App - Android Notification System
 
-## 📱 Current Status: Web App Complete, Ready for Mobile Build
-
----
-
-## ✅ **COMPLETED FEATURES**
-
-### Core Features
-- ✅ Browse 689 products from Shopify (all collections integrated)
-- ✅ Search and filter products (with categories and subcategories)
-- ✅ Product categorization (Cleaning Chemicals: 9 subcategories, Equipment: 15 subcategories)
-- ✅ Shopping cart with persistence
-- ✅ Wishlist feature (per-user, persistent)
-- ✅ User authentication (Shopify integration)
-- ✅ User profile management (edit name, phone)
-- ✅ Order history from Shopify
-- ✅ Checkout integration with Shopify
-- ✅ Delivery charge calculation (city + weight based)
-- ✅ Mobile-responsive design
-
-### Integration
-- ✅ Shopify Storefront API (products, customers, orders)
-- ✅ Shopify Admin API (order creation)
-- ✅ Firebase (notification configuration)
-- ✅ MongoDB (caching)
+## 📱 Current Status: Android Push Notifications Implemented
 
 ---
 
-## 🎯 **NEXT STEP: BUILD MOBILE APP (APK/AAB)**
+## ✅ **COMPLETED - ANDROID NOTIFICATIONS**
 
-### Phase 1: Setup Capacitor (Web to Native Bridge)
-Capacitor wraps your React web app into a native Android container.
+### Push Notifications (FCM)
+- ✅ Firebase Cloud Messaging configured
+- ✅ `google-services.json` added to Android project
+- ✅ Native push notification handling via `@capacitor/push-notifications`
+- ✅ FCM token registration with backend
+- ✅ Foreground notification handling
+- ✅ Background notification handling
+- ✅ Deep linking from notifications
+- ✅ Notification channels for Android 8.0+
 
-**Install Capacitor:**
+### Local Notifications
+- ✅ `@capacitor/local-notifications` installed
+- ✅ Scheduled notification support
+- ✅ Immediate local notification support
+- ✅ Custom notification icons and colors
+- ✅ Multiple notification channels (default, orders, promotions)
+
+### Notification UI
+- ✅ Notification inbox with read/unread status
+- ✅ Notification settings page
+- ✅ Test notification buttons
+- ✅ Scheduled notification test (10 seconds)
+- ✅ Permission request prompt
+
+---
+
+## 🚀 **BUILD INSTRUCTIONS**
+
+### Prerequisites
+- Node.js 22+ (required for Capacitor CLI)
+- Android Studio (with SDK 34)
+- Java 17+
+
+### Step 1: Install Dependencies
 ```bash
 cd /app/frontend
-npm install @capacitor/core @capacitor/cli @capacitor/android
+npm install
 ```
 
-**Initialize Capacitor:**
+### Step 2: Build Web App
 ```bash
-npx cap init "AlClean" "pk.alclean.app" --web-dir=dist
-```
-
-**Add Android Platform:**
-```bash
-npx cap add android
-```
-
----
-
-### Phase 2: Configure capacitor.config.ts
-
-Create or update `/app/frontend/capacitor.config.ts`:
-
-```typescript
-import { CapacitorConfig } from '@capacitor/cli';
-
-const config: CapacitorConfig = {
-  appId: 'pk.alclean.app',
-  appName: 'AlClean',
-  webDir: 'dist',
-  server: {
-    androidScheme: 'https',
-    cleartext: true
-  },
-  plugins: {
-    SplashScreen: {
-      launchShowDuration: 2000,
-      backgroundColor: "#6DB33F",
-      showSpinner: false,
-      androidSpinnerStyle: "small",
-      splashFullScreen: true,
-      splashImmersive: true,
-    },
-    PushNotifications: {
-      presentationOptions: ["badge", "sound", "alert"]
-    }
-  }
-};
-
-export default config;
-```
-
----
-
-### Phase 3: Add Push Notifications Plugin
-
-```bash
-npm install @capacitor/push-notifications
-```
-
-Update Android Firebase configuration:
-1. Download `google-services.json` from Firebase Console
-2. Place in `/app/frontend/android/app/google-services.json`
-
----
-
-### Phase 4: Build Web App
-
-```bash
-cd /app/frontend
 npm run build
 ```
 
-This creates the `dist` folder with optimized production build.
-
----
-
-### Phase 5: Sync to Android
-
+### Step 3: Sync Capacitor (requires Node 22+)
 ```bash
 npx cap sync android
 ```
 
-This copies the web build to the Android project and updates native dependencies.
-
----
-
-### Phase 6: Configure Android Project
-
-**Update AndroidManifest.xml** (`android/app/src/main/AndroidManifest.xml`):
-
-```xml
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="pk.alclean.app">
-
-    <!-- Permissions -->
-    <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
-    
-    <application
-        android:allowBackup="true"
-        android:icon="@mipmap/ic_launcher"
-        android:label="@string/app_name"
-        android:roundIcon="@mipmap/ic_launcher_round"
-        android:supportsRtl="true"
-        android:theme="@style/AppTheme"
-        android:usesCleartextTraffic="true">
-        
-        <activity
-            android:name=".MainActivity"
-            android:exported="true"
-            android:launchMode="singleTask"
-            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode"
-            android:theme="@style/AppTheme.SplashScreen">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
-    </application>
-</manifest>
-```
-
----
-
-### Phase 7: Open Android Studio
-
+### Step 4: Open in Android Studio
 ```bash
 npx cap open android
 ```
+Or manually open `/app/frontend/android` folder in Android Studio.
 
-This opens your project in Android Studio.
-
----
-
-### Phase 8: Create Keystore (For Signed APK/AAB)
-
-**Generate keystore:**
-```bash
-keytool -genkey -v -keystore alclean-release-key.jks -keyalg RSA -keysize 2048 -validity 10000 -alias alclean
-```
-
-Save this file securely! You'll need it for all future updates.
-
-**Configure signing in Android Studio:**
-1. Build → Generate Signed Bundle/APK
-2. Choose "APK" or "Android App Bundle (AAB)"
-3. Select your keystore file
-4. Enter keystore password
-5. Choose release build variant
-6. Build
-
----
-
-### Phase 9: Build APK (For Testing on Phone)
-
-**Option A: Via Android Studio**
+### Step 5: Build APK
+In Android Studio:
 1. Build → Build Bundle(s) / APK(s) → Build APK(s)
 2. Wait for build to complete
-3. Click "locate" to find the APK file
-4. Transfer APK to phone via USB/WhatsApp/Email
-5. Install on phone (enable "Install from Unknown Sources")
+3. APK location: `android/app/build/outputs/apk/debug/app-debug.apk`
 
-**Option B: Via Command Line**
+### Step 6: Generate Signed APK/AAB (for Play Store)
 ```bash
-cd /app/frontend/android
-./gradlew assembleRelease
+cd android
+./gradlew bundleRelease  # For AAB
+./gradlew assembleRelease  # For APK
 ```
 
-APK location: `android/app/build/outputs/apk/release/app-release.apk`
-
 ---
 
-### Phase 10: Build AAB (For Play Store)
+## 📁 **FILE STRUCTURE - NOTIFICATION SYSTEM**
 
-**App Bundle (AAB) is required for Google Play Store:**
-
-```bash
-cd /app/frontend/android
-./gradlew bundleRelease
+```
+/app/frontend/
+├── android/app/
+│   ├── google-services.json          # Firebase config
+│   ├── build.gradle                   # Firebase dependencies
+│   └── src/main/
+│       ├── AndroidManifest.xml        # Permissions & FCM service
+│       └── res/
+│           ├── drawable/
+│           │   └── ic_stat_notification.xml  # Notification icon
+│           └── values/
+│               └── colors.xml         # Notification color (#6DB33F)
+│
+├── src/lib/
+│   ├── native-notifications.ts        # Native notification service
+│   ├── notifications.ts               # Unified notification service
+│   └── firebase-config.ts             # Firebase web config
+│
+└── src/components/
+    ├── NotificationPrompt.tsx         # Permission request prompt
+    ├── NotificationSettings.tsx       # Settings page with test buttons
+    └── NotificationInbox.tsx          # Notification inbox
 ```
 
-AAB location: `android/app/build/outputs/bundle/release/app-release.aab`
+---
+
+## 🔔 **NOTIFICATION FEATURES**
+
+### Push Notification Types
+| Type | Description | Channel |
+|------|-------------|---------|
+| `order_update` | Order status changes | alclean_orders |
+| `delivery` | Delivery updates | alclean_orders |
+| `promotion` | Discounts & offers | alclean_promotions |
+| `discount` | Discount codes | alclean_promotions |
+| `sale` | Flash sales | alclean_promotions |
+| `new_product` | New arrivals | alclean_default |
+| `general` | General updates | alclean_default |
+
+### Local Notification Methods
+```typescript
+// Show immediate notification
+await notificationService.showLocalNotification(
+  "Title",
+  "Body message",
+  { type: "order_update" }
+);
+
+// Schedule notification (in minutes)
+const id = await notificationService.scheduleLocalNotification({
+  title: "Reminder",
+  body: "Your order is ready!",
+  delayMinutes: 30,
+  data: { orderId: "123" }
+});
+
+// Cancel scheduled notification
+await notificationService.cancelScheduledNotification(id);
+```
 
 ---
 
-## 📱 **Testing on Mobile Phone**
+## 🧪 **TESTING NOTIFICATIONS**
 
-### Method 1: Direct APK Install
-1. Build APK (Phase 9)
-2. Transfer `app-release.apk` to phone
-3. Enable "Install from Unknown Sources" in phone settings
-4. Tap APK file to install
-5. Open AlClean app
-6. Test all features
+### Test from Settings Page
+1. Open app → Account → Notification Settings
+2. Enable notifications
+3. Click "Send Test" for immediate notification
+4. Click "Schedule (10s)" for delayed notification
 
-### Method 2: USB Debugging
-1. Connect phone via USB
-2. Enable Developer Options on phone
-3. Enable USB Debugging
-4. In Android Studio, click Run
-5. Select your phone from device list
-6. App installs and launches automatically
+### Test from Backend (Admin)
+```bash
+curl -X POST http://localhost:3001/api/notifications/send \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "Test Push",
+    "body": "This is a test notification",
+    "type": "general"
+  }'
+```
 
----
-
-## 🏪 **Google Play Store Submission**
-
-### Requirements:
-- ✅ AAB file (Phase 10)
-- ✅ App icon (512x512 PNG)
-- ✅ Feature graphic (1024x500 PNG)
-- ✅ Screenshots (minimum 2, various screen sizes)
-- ✅ Privacy policy URL
-- ✅ App description
-- ✅ Developer account ($25 one-time fee)
-
-### Submission Steps:
-1. Create Google Play Console account
-2. Create new application
-3. Upload AAB file
-4. Add store listing details
-5. Set pricing (Free/Paid)
-6. Complete content rating questionnaire
-7. Submit for review (2-7 days)
+### Check Registered Devices
+```bash
+curl http://localhost:3001/api/notifications/devices
+```
 
 ---
 
-## 🔧 **Common Issues & Solutions**
+## ⚠️ **IMPORTANT NOTES**
 
-### Issue: Build fails
-**Solution:** Check Node.js version (use Node 18+), run `npm install`
+### Firebase Server Key (for backend push)
+To send push notifications from the backend, you need:
+1. Go to Firebase Console → Project Settings → Cloud Messaging
+2. Get the "Server Key" (Legacy) or set up Firebase Admin SDK
+3. Add to backend `.env`: `FCM_SERVER_KEY=your_key_here`
 
-### Issue: App crashes on launch
-**Solution:** Check AndroidManifest.xml permissions, verify API URLs are correct
+### Android 13+ Permission
+Android 13 and above requires explicit notification permission:
+- The app automatically requests permission on first launch
+- Users can enable/disable in Notification Settings
 
-### Issue: Network requests fail
-**Solution:** Add `android:usesCleartextTraffic="true"` to AndroidManifest.xml
-
-### Issue: Push notifications not working
-**Solution:** Verify `google-services.json` is in correct location, check FCM configuration
+### Deep Linking
+Notifications can deep link to specific screens:
+- Order notifications → `/tracking`
+- Product notifications → `/product/{id}`
+- Custom deep links via `data.deepLink`
 
 ---
 
-## 📊 **App Specifications**
+## 📊 **APP SPECIFICATIONS**
 
 - **App Name:** AlClean
-- **Package ID:** pk.alclean.app
+- **Package ID:** com.alclean.app
 - **Min Android Version:** 7.0 (API 24)
 - **Target Android Version:** 14 (API 34)
-- **App Size:** ~15-20 MB (estimated)
-- **Permissions:** Internet, Network State, Notifications
+- **Notification Icon:** Bell icon in green (#6DB33F)
+- **Permissions:** Internet, Network State, Notifications, Vibrate, Wake Lock
 
 ---
 
-## ✅ **Deployment Checklist**
+## ✅ **DEPLOYMENT CHECKLIST**
 
-### Pre-Build
-- [x] All features tested and working
-- [x] Environment variables configured
-- [x] Firebase setup complete
-- [x] Shopify integration verified
-
-### Build Setup
-- [ ] Capacitor installed
-- [ ] Android platform added
-- [ ] Keystore generated
-- [ ] App icon added
-- [ ] Splash screen configured
-
-### Build & Test
-- [ ] Web build successful (`npm run build`)
-- [ ] Android sync successful (`npx cap sync`)
-- [ ] APK generated
-- [ ] Tested on physical device
-- [ ] All features work on mobile
-
-### Play Store
-- [ ] AAB file generated
-- [ ] Store listing prepared
-- [ ] Screenshots taken
-- [ ] Privacy policy created
-- [ ] Developer account ready
-- [ ] App submitted for review
-
----
-
-## 🚀 **Quick Start Guide**
-
-**To build APK right now:**
-```bash
-cd /app/frontend
-npm install @capacitor/core @capacitor/cli @capacitor/android
-npx cap init "AlClean" "pk.alclean.app" --web-dir=dist
-npx cap add android
-npm run build
-npx cap sync android
-npx cap open android
-# In Android Studio: Build → Build Bundle/APK → Build APK
-```
-
-**To test on phone:**
-1. Connect phone via USB
-2. Enable USB debugging
-3. Click Run in Android Studio
-4. Select your device
-5. App installs automatically
+### Android Build
+- [x] Firebase project created
+- [x] google-services.json configured
+- [x] AndroidManifest.xml updated
+- [x] Notification channels defined
+- [x] Push notification plugin installed
+- [x] Local notification plugin installed
+- [x] Native notification service created
+- [x] Test notifications working
+- [ ] Build APK and test on device
+- [ ] Test push notifications from backend
+- [ ] Test deep linking
+- [ ] Submit to Play Store
 
 ---
 
 *Last Updated: December 2024*
-
-**Status: Ready for Mobile Build** 📱🚀
+*Status: Ready for APK Build* 📱🔔
