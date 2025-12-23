@@ -37,8 +37,10 @@
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="https" android:host="alclean.pk" />
-                <data android:scheme="http" android:host="alclean.pk" />
+                <data android:scheme="https" />
+                <data android:host="alclean.pk" />
+                <data android:scheme="http" />
+                <data android:host="alclean.pk" />
             </intent-filter>
 
             <!-- Custom scheme for app deep linking -->
