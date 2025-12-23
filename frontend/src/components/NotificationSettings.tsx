@@ -1,12 +1,21 @@
 import { useState, useEffect } from "react";
-import { ArrowLeft, Bell, BellOff, Package, Tag, Sparkles, Truck } from "lucide-react";
+import {
+  ArrowLeft,
+  Bell,
+  BellOff,
+  Package,
+  Tag,
+  Sparkles,
+  Truck,
+  TestTube,
+  Clock,
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "./ui/button";
 import { notificationService } from "../lib/notifications";
 import { NotificationSettings as Settings } from "../types/notifications";
 import { toast } from "sonner";
 import { Capacitor } from "@capacitor/core";
-import { canUseNotification } from "../lib/notification-guard";
 
 export function NotificationSettings() {
   const navigate = useNavigate();
@@ -18,20 +27,23 @@ export function NotificationSettings() {
     deliveryAlerts: true,
   });
 
-  const [permission, setPermission] = useState<NotificationPermission>("default");
+  const [permission, setPermission] = useState<"granted" | "denied" | "default">("default");
+  const [fcmToken, setFcmToken] = useState<string | null>(null);
+  const isNative = Capacitor.isNativePlatform();
 
   useEffect(() => {
     // Load current settings
     const currentSettings = notificationService.getSettings();
     setSettings(currentSettings);
 
-    // Check browser permission
-     const isAndroid = Capacitor.getPlatform() === "android";
-      if (!isAndroid && canUseNotification()) {
-        setPermission(Notification.permission);
-      } else {
-        setPermission("denied");
-      }
+    // Check permission
+    const checkPermission = async () => {
+      const perm = await notificationService.checkPermission();
+      setPermission(perm);
+      setFcmToken(notificationService.getFCMToken());
+    };
+
+    checkPermission();
   }, []);
 
   const handleToggleMaster = async () => {
@@ -43,9 +55,14 @@ export function NotificationSettings() {
         setSettings(newSettings);
         notificationService.updateSettings(newSettings);
         setPermission("granted");
+        setFcmToken(notificationService.getFCMToken());
         toast.success("Notifications enabled! 🔔");
       } else {
-        toast.error("Permission denied. Please enable in browser settings.");
+        toast.error(
+          isNative
+            ? "Permission denied. Please enable in app settings."
+            : "Permission denied. Please enable in browser settings."
+        );
       }
     } else {
       // User wants to disable notifications
@@ -66,6 +83,27 @@ export function NotificationSettings() {
     setSettings(newSettings);
     notificationService.updateSettings(newSettings);
     toast.success("Settings updated");
+  };
+
+  const handleTestNotification = async () => {
+    await notificationService.sendTestNotification();
+    toast.success("Test notification sent!");
+  };
+
+  const handleScheduledTest = async () => {
+    if (isNative) {
+      const id = await notificationService.scheduleLocalNotification({
+        title: "⏰ Scheduled Reminder",
+        body: "This notification was scheduled 10 seconds ago!",
+        delayMinutes: 0.17, // ~10 seconds
+        data: { type: "general" },
+      });
+      if (id) {
+        toast.success("Notification scheduled for 10 seconds!");
+      }
+    } else {
+      toast.info("Scheduled notifications only work on mobile app");
+    }
   };
 
   const notificationOptions = [
@@ -106,9 +144,7 @@ export function NotificationSettings() {
           >
             <ArrowLeft size={24} className="text-gray-600" />
           </button>
-          <h1 className="text-xl font-bold text-gray-900">
-            Notification Settings
-          </h1>
+          <h1 className="text-xl font-bold text-gray-900">Notification Settings</h1>
         </div>
       </div>
 
@@ -116,20 +152,22 @@ export function NotificationSettings() {
         {/* Master Toggle */}
         <div className="bg-white rounded-2xl border border-gray-200 p-6 mb-6">
           <div className="flex items-start gap-4">
-            <div className={`flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center ${
-              settings.enabled ? "bg-gradient-to-br from-[#6DB33F] to-[#5da035]" : "bg-gray-200"
-            }`}>
+            <div
+              className={`flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center ${
+                settings.enabled
+                  ? "bg-gradient-to-br from-[#6DB33F] to-[#5da035]"
+                  : "bg-gray-200"
+              }`}
+            >
               {settings.enabled ? (
                 <Bell size={24} className="text-white" />
               ) : (
                 <BellOff size={24} className="text-gray-500" />
               )}
             </div>
-            
+
             <div className="flex-1">
-              <h2 className="font-bold text-gray-900 mb-1">
-                Push Notifications
-              </h2>
+              <h2 className="font-bold text-gray-900 mb-1">Push Notifications</h2>
               <p className="text-sm text-gray-600 mb-4">
                 {settings.enabled
                   ? "Notifications are enabled. You'll receive updates about orders, discounts, and more."
@@ -139,7 +177,10 @@ export function NotificationSettings() {
               {permission === "denied" && (
                 <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
                   <p className="text-sm text-red-800">
-                    ⚠️ Notifications are blocked in your browser. Please enable them in browser settings.
+                    ⚠️ Notifications are blocked.{" "}
+                    {isNative
+                      ? "Please enable them in your device settings."
+                      : "Please enable them in browser settings."}
                   </p>
                 </div>
               )}
@@ -160,7 +201,7 @@ export function NotificationSettings() {
 
         {/* Individual Settings */}
         {settings.enabled && (
-          <div className="bg-white rounded-2xl border border-gray-200 divide-y overflow-hidden">
+          <div className="bg-white rounded-2xl border border-gray-200 divide-y overflow-hidden mb-6">
             {notificationOptions.map((option) => {
               const Icon = option.icon;
               const isEnabled = settings[option.key];
@@ -173,12 +214,8 @@ export function NotificationSettings() {
                     </div>
 
                     <div className="flex-1">
-                      <h3 className="font-semibold text-gray-900 mb-1">
-                        {option.label}
-                      </h3>
-                      <p className="text-sm text-gray-600">
-                        {option.description}
-                      </p>
+                      <h3 className="font-semibold text-gray-900 mb-1">{option.label}</h3>
+                      <p className="text-sm text-gray-600">{option.description}</p>
                     </div>
 
                     <button
@@ -200,11 +237,46 @@ export function NotificationSettings() {
           </div>
         )}
 
+        {/* Test Notifications */}
+        {settings.enabled && permission === "granted" && (
+          <div className="bg-white rounded-2xl border border-gray-200 p-6 mb-6">
+            <h3 className="font-bold text-gray-900 mb-4">Test Notifications</h3>
+            <div className="flex gap-3">
+              <Button
+                onClick={handleTestNotification}
+                variant="outline"
+                className="flex-1 flex items-center justify-center gap-2"
+              >
+                <TestTube size={18} />
+                Send Test
+              </Button>
+              {isNative && (
+                <Button
+                  onClick={handleScheduledTest}
+                  variant="outline"
+                  className="flex-1 flex items-center justify-center gap-2"
+                >
+                  <Clock size={18} />
+                  Schedule (10s)
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* FCM Token Info (Debug) */}
+        {fcmToken && (
+          <div className="bg-gray-100 rounded-xl p-4 mb-6">
+            <h4 className="font-semibold text-gray-700 mb-2 text-sm">Device Token</h4>
+            <p className="text-xs text-gray-500 font-mono break-all">
+              {fcmToken.substring(0, 50)}...
+            </p>
+          </div>
+        )}
+
         {/* Info Box */}
-        <div className="mt-6 bg-blue-50 border border-blue-200 rounded-xl p-4">
-          <h3 className="font-semibold text-blue-900 mb-2">
-            Why enable notifications?
-          </h3>
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+          <h3 className="font-semibold text-blue-900 mb-2">Why enable notifications?</h3>
           <ul className="text-sm text-blue-800 space-y-1">
             <li>• Stay updated on your order status in real-time</li>
             <li>• Never miss exclusive discounts and flash sales</li>
@@ -214,14 +286,10 @@ export function NotificationSettings() {
           </ul>
         </div>
 
-        {/* Browser Permission Info */}
-        {permission !== "granted" && permission !== "denied" && (
-          <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-xl p-4">
-            <p className="text-sm text-yellow-800">
-              💡 <strong>Tip:</strong> After enabling, your browser will ask for permission to send notifications. Click "Allow" to start receiving updates.
-            </p>
-          </div>
-        )}
+        {/* Platform Info */}
+        <div className="mt-4 text-center text-xs text-gray-400">
+          Platform: {Capacitor.getPlatform()} | Native: {isNative ? "Yes" : "No"}
+        </div>
       </div>
     </div>
   );
