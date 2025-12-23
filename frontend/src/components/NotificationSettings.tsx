@@ -266,24 +266,39 @@ export function NotificationSettings() {
         {settings.enabled && permission === "granted" && (
           <div className="bg-white rounded-2xl border border-gray-200 p-6 mb-6">
             <h3 className="font-bold text-gray-900 mb-4">Test Notifications</h3>
-            <div className="flex gap-3">
-              <Button
-                onClick={handleTestNotification}
-                variant="outline"
-                className="flex-1 flex items-center justify-center gap-2"
-              >
-                <TestTube size={18} />
-                Send Test
-              </Button>
-              {isNative && (
+            <div className="flex flex-col gap-3">
+              <div className="flex gap-3">
                 <Button
-                  onClick={handleScheduledTest}
+                  onClick={handleTestNotification}
                   variant="outline"
                   className="flex-1 flex items-center justify-center gap-2"
                 >
-                  <Clock size={18} />
-                  Schedule (10s)
+                  <TestTube size={18} />
+                  Local Test
                 </Button>
+                {isNative && (
+                  <Button
+                    onClick={handleScheduledTest}
+                    variant="outline"
+                    className="flex-1 flex items-center justify-center gap-2"
+                  >
+                    <Clock size={18} />
+                    Schedule (10s)
+                  </Button>
+                )}
+              </div>
+              {isNative && !fcmToken && (
+                <Button
+                  onClick={handleRegisterPush}
+                  className="w-full bg-gradient-to-r from-[#6DB33F] to-[#5da035] hover:from-[#5da035] hover:to-[#4d8f2e] text-white"
+                >
+                  🔔 Register for Push Notifications
+                </Button>
+              )}
+              {isNative && fcmToken && (
+                <div className="text-center text-sm text-green-600 font-medium">
+                  ✅ Push notifications registered!
+                </div>
               )}
             </div>
           </div>
