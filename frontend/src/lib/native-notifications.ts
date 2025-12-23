@@ -158,33 +158,68 @@ class NativeNotificationService {
 
   // Request permission and register (separate from initialize)
   async registerForPush(): Promise<boolean> {
-    if (!this.isNativePlatform()) return false;
+    log("NativeNotif", "registerForPush called");
+    
+    if (!this.isNativePlatform()) {
+      log("NativeNotif", "Not native platform, skipping");
+      return false;
+    }
     
     try {
-      await this.ensurePluginsLoaded();
-      if (!PushNotifications) {
-        logError("NativeNotif", "PushNotifications not available");
+      // Ensure plugins are loaded
+      log("NativeNotif", "Ensuring plugins loaded...");
+      const pluginsLoaded = await this.ensurePluginsLoaded();
+      if (!pluginsLoaded) {
+        logError("NativeNotif", "Failed to load plugins");
         return false;
       }
-
-      // Request permission
-      log("NativeNotif", "Requesting permissions...");
-      const permStatus = await PushNotifications.requestPermissions();
-      log("NativeNotif", "Permission result", permStatus);
-
-      if (permStatus.receive !== "granted") {
-        logError("NativeNotif", "Permission not granted", permStatus);
-        return false;
-      }
-
-      // Register for push notifications
-      log("NativeNotif", "Registering for push notifications...");
-      await PushNotifications.register();
-      log("NativeNotif", "Registration requested");
       
+      if (!PushNotifications) {
+        logError("NativeNotif", "PushNotifications plugin not available");
+        return false;
+      }
+
+      // Step 1: Request permission with timeout protection
+      log("NativeNotif", "Step 1: Requesting permissions...");
+      let permStatus: any = null;
+      
+      try {
+        // Create a promise that times out after 30 seconds
+        const permPromise = PushNotifications.requestPermissions();
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error("Permission request timeout")), 30000);
+        });
+        
+        permStatus = await Promise.race([permPromise, timeoutPromise]);
+        log("NativeNotif", "Permission result", permStatus);
+      } catch (permError: any) {
+        logError("NativeNotif", "Permission request failed", permError?.message || permError);
+        return false;
+      }
+
+      if (!permStatus || permStatus.receive !== "granted") {
+        log("NativeNotif", "Permission not granted", permStatus);
+        return false;
+      }
+
+      // Step 2: Small delay to let the system settle
+      log("NativeNotif", "Step 2: Waiting before registration...");
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Step 3: Register for push notifications
+      log("NativeNotif", "Step 3: Registering for push...");
+      try {
+        await PushNotifications.register();
+        log("NativeNotif", "Registration call completed");
+      } catch (regError: any) {
+        logError("NativeNotif", "Registration call failed", regError?.message || regError);
+        // Don't return false - registration might still work via listener
+      }
+      
+      log("NativeNotif", "registerForPush completed successfully");
       return true;
-    } catch (error) {
-      logError("NativeNotif", "Registration failed", error);
+    } catch (error: any) {
+      logError("NativeNotif", "registerForPush failed", error?.message || error);
       return false;
     }
   }
