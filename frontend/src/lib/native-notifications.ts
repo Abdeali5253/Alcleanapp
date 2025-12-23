@@ -122,12 +122,24 @@ class NativeNotificationService {
       try {
         const currentStatus = await PushNotifications.checkPermissions();
         log("NativeNotif", "Current permission status", currentStatus);
+        
+        // Setup listeners BEFORE registering
+        this.setupPushListeners();
+        
+        // If already granted, register to get token
+        if (currentStatus.receive === "granted") {
+          log("NativeNotif", "Permission already granted, registering for push...");
+          try {
+            await PushNotifications.register();
+            log("NativeNotif", "Registration requested");
+          } catch (regError) {
+            logError("NativeNotif", "Registration failed", regError);
+          }
+        }
       } catch (e) {
         logError("NativeNotif", "Failed to check permissions", e);
+        this.setupPushListeners();
       }
-
-      // Setup listeners BEFORE requesting permission
-      this.setupPushListeners();
 
       // Initialize local notifications (non-blocking)
       this.initLocalNotifications().catch(e => {
