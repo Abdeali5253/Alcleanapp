@@ -11,8 +11,7 @@ import {
   CheckCheck
 } from "lucide-react";
 import { Button } from "./ui/button";
-import { notificationService } from "../lib/notifications";
-import { PushNotification } from "../types/notifications";
+import { notificationService, PushNotification } from "../lib/notifications";
 import { UnifiedHeader } from "./UnifiedHeader";
 
 export function NotificationInbox() {
