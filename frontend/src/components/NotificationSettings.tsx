@@ -31,6 +31,8 @@ export function NotificationSettings() {
   const [fcmToken, setFcmToken] = useState<string | null>(null);
   const isNative = Capacitor.isNativePlatform();
 
+  const [isEnabling, setIsEnabling] = useState(false);
+
   useEffect(() => {
     // Load current settings
     const currentSettings = notificationService.getSettings();
@@ -38,31 +40,54 @@ export function NotificationSettings() {
 
     // Check permission
     const checkPermission = async () => {
-      const perm = await notificationService.checkPermission();
-      setPermission(perm);
-      setFcmToken(notificationService.getFCMToken());
+      try {
+        const perm = await notificationService.checkPermission();
+        setPermission(perm);
+        setFcmToken(notificationService.getFCMToken());
+      } catch (e) {
+        console.error("[NotificationSettings] Error checking permission:", e);
+      }
     };
 
     checkPermission();
   }, []);
 
   const handleToggleMaster = async () => {
+    if (isEnabling) return;
+    
     if (!settings.enabled) {
       // User wants to enable notifications
-      const granted = await notificationService.requestPermission();
-      if (granted) {
-        const newSettings = { ...settings, enabled: true };
-        setSettings(newSettings);
-        notificationService.updateSettings(newSettings);
-        setPermission("granted");
-        setFcmToken(notificationService.getFCMToken());
-        toast.success("Notifications enabled! 🔔");
-      } else {
-        toast.error(
-          isNative
-            ? "Permission denied. Please enable in app settings."
-            : "Permission denied. Please enable in browser settings."
-        );
+      setIsEnabling(true);
+      console.log("[NotificationSettings] Enabling notifications...");
+      
+      try {
+        const granted = await notificationService.requestPermission();
+        console.log("[NotificationSettings] Permission result:", granted);
+        
+        if (granted) {
+          const newSettings = { ...settings, enabled: true };
+          setSettings(newSettings);
+          notificationService.updateSettings(newSettings);
+          setPermission("granted");
+          
+          // Wait a bit for token
+          setTimeout(() => {
+            setFcmToken(notificationService.getFCMToken());
+          }, 1500);
+          
+          toast.success("Notifications enabled! 🔔");
+        } else {
+          toast.error(
+            isNative
+              ? "Permission denied. Please enable in app settings."
+              : "Permission denied. Please enable in browser settings."
+          );
+        }
+      } catch (error) {
+        console.error("[NotificationSettings] Error enabling notifications:", error);
+        toast.error("Failed to enable notifications. Please try again.");
+      } finally {
+        setIsEnabling(false);
       }
     } else {
       // User wants to disable notifications
