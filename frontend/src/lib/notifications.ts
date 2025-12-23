@@ -138,9 +138,10 @@ class NotificationService {
       // Use web notifications
       console.log("[Notifications] Using web notifications");
 
-      if (firebaseConfig) {
+      const firebaseLoaded = await loadFirebaseModules();
+      if (firebaseLoaded && initializeFirebase) {
         try {
-          const firebaseApp = firebaseConfig.initializeFirebase();
+          const firebaseApp = initializeFirebase();
           if (!firebaseApp) {
             console.warn("[Notifications] Firebase not available");
             this.isInitialized = true;
@@ -148,9 +149,11 @@ class NotificationService {
           }
 
           // Listen for foreground messages
-          firebaseConfig.onForegroundMessage((payload: any) => {
-            this.handleIncomingNotification(payload);
-          });
+          if (onForegroundMessage) {
+            onForegroundMessage((payload: any) => {
+              this.handleIncomingNotification(payload);
+            });
+          }
         } catch (e) {
           console.error("[Notifications] Firebase init error:", e);
         }
