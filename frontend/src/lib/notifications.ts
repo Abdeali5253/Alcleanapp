@@ -6,13 +6,24 @@ import { Capacitor } from "@capacitor/core";
 import { nativeNotificationService, NativeNotification } from "./native-notifications";
 import { BACKEND_URL } from "./base-url";
 
-// Try to import Firebase modules (may fail on native)
-let firebaseConfig: any = null;
-try {
-  firebaseConfig = require("./firebase-config");
-} catch (e) {
-  console.log("[Notifications] Firebase config not available");
-}
+// Firebase modules will be lazy loaded
+let initializeFirebase: any = null;
+let requestNotificationPermission: any = null;
+let onForegroundMessage: any = null;
+
+// Try to load Firebase modules
+const loadFirebaseModules = async () => {
+  try {
+    const module = await import("./firebase-config");
+    initializeFirebase = module.initializeFirebase;
+    requestNotificationPermission = module.requestNotificationPermission;
+    onForegroundMessage = module.onForegroundMessage;
+    return true;
+  } catch (e) {
+    console.log("[Notifications] Firebase config not available:", e);
+    return false;
+  }
+};
 
 export interface PushNotification {
   id: string;
