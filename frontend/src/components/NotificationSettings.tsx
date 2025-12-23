@@ -237,13 +237,14 @@ export function NotificationSettings() {
 
               <Button
                 onClick={handleToggleMaster}
+                disabled={isEnabling}
                 className={`w-full ${
                   settings.enabled
                     ? "bg-gray-200 hover:bg-gray-300 text-gray-700"
                     : "bg-gradient-to-r from-[#6DB33F] to-[#5da035] hover:from-[#5da035] hover:to-[#4d8f2e] text-white"
                 }`}
               >
-                {settings.enabled ? "Disable All Notifications" : "Enable Notifications"}
+                {isEnabling ? "Enabling..." : settings.enabled ? "Disable All Notifications" : "Enable Notifications"}
               </Button>
             </div>
           </div>
