@@ -42,15 +42,41 @@ export function NotificationSettings() {
     const checkPermission = async () => {
       try {
         const perm = await notificationService.checkPermission();
+        console.log("[NotificationSettings] Permission status:", perm);
         setPermission(perm);
-        setFcmToken(notificationService.getFCMToken());
+        
+        const token = notificationService.getFCMToken();
+        setFcmToken(token);
+        
+        // If permission was granted externally (from Android settings), 
+        // try to register for push automatically
+        if (perm === "granted" && !token && isNative) {
+          console.log("[NotificationSettings] Permission granted but no token, registering...");
+          try {
+            await notificationService.requestPermission();
+            // Check again after a delay
+            setTimeout(() => {
+              const newToken = notificationService.getFCMToken();
+              if (newToken) {
+                setFcmToken(newToken);
+                console.log("[NotificationSettings] Got FCM token after registration");
+              }
+            }, 2000);
+          } catch (e) {
+            console.error("[NotificationSettings] Auto-register failed:", e);
+          }
+        }
       } catch (e) {
         console.error("[NotificationSettings] Error checking permission:", e);
       }
     };
 
     checkPermission();
-  }, []);
+    
+    // Also check periodically in case user enables from system settings
+    const interval = setInterval(checkPermission, 5000);
+    return () => clearInterval(interval);
+  }, [isNative]);
 
   const handleToggleMaster = async () => {
     if (isEnabling) return;
