@@ -109,9 +109,10 @@ export function NotificationInbox() {
     }
   };
 
-  const formatTime = (timestamp: number) => {
+  const formatTime = (timestamp: number | Date) => {
     const now = Date.now();
-    const diff = now - timestamp;
+    const ts = timestamp instanceof Date ? timestamp.getTime() : timestamp;
+    const diff = now - ts;
     
     const minutes = Math.floor(diff / 60000);
     const hours = Math.floor(diff / 3600000);
@@ -122,7 +123,7 @@ export function NotificationInbox() {
     if (hours < 24) return `${hours}h ago`;
     if (days < 7) return `${days}d ago`;
     
-    return new Date(timestamp).toLocaleDateString();
+    return new Date(ts).toLocaleDateString();
   };
 
   const filteredNotifications = filter === "unread" 
