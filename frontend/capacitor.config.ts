@@ -6,7 +6,7 @@ const config: CapacitorConfig = {
   webDir: "dist",
   server: {
     cleartext: true,
-    androidScheme: "https",
+    androidScheme: "http",  // Changed to HTTP to allow cleartext connections
   },
   plugins: {
     PushNotifications: {
