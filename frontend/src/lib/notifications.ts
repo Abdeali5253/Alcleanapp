@@ -421,13 +421,16 @@ class NotificationService {
       const permission = await Notification.requestPermission();
       console.log("[Notifications] Web permission result:", permission);
 
-      if (permission === "granted" && !this.fcmToken && firebaseConfig) {
+      if (permission === "granted" && !this.fcmToken) {
         try {
-          const token = await firebaseConfig.requestNotificationPermission();
-          if (token) {
-            this.fcmToken = token;
-            this.saveFCMToken(token);
-            await this.registerTokenWithBackend(token);
+          await loadFirebaseModules();
+          if (requestNotificationPermission) {
+            const token = await requestNotificationPermission();
+            if (token) {
+              this.fcmToken = token;
+              this.saveFCMToken(token);
+              await this.registerTokenWithBackend(token);
+            }
           }
         } catch (e) {
           console.error("[Notifications] Token request error:", e);
