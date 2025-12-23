@@ -111,20 +111,34 @@ export function NotificationSettings() {
   };
 
   const handleTestNotification = async () => {
-    await notificationService.sendTestNotification();
-    toast.success("Test notification sent!");
+    try {
+      console.log("[NotificationSettings] Sending test notification...");
+      await notificationService.sendTestNotification();
+      toast.success("Test notification sent! Check your notification tray.");
+    } catch (e) {
+      console.error("[NotificationSettings] Test notification error:", e);
+      toast.error("Failed to send test notification");
+    }
   };
 
   const handleScheduledTest = async () => {
     if (isNative) {
-      const id = await notificationService.scheduleLocalNotification({
-        title: "⏰ Scheduled Reminder",
-        body: "This notification was scheduled 10 seconds ago!",
-        delayMinutes: 0.17, // ~10 seconds
-        data: { type: "general" },
-      });
-      if (id) {
-        toast.success("Notification scheduled for 10 seconds!");
+      try {
+        console.log("[NotificationSettings] Scheduling notification...");
+        const id = await notificationService.scheduleLocalNotification({
+          title: "⏰ Scheduled Reminder",
+          body: "This notification was scheduled 10 seconds ago!",
+          delayMinutes: 0.17, // ~10 seconds
+          data: { type: "general" },
+        });
+        if (id) {
+          toast.success("Notification scheduled for 10 seconds!");
+        } else {
+          toast.info("Notification scheduled!");
+        }
+      } catch (e) {
+        console.error("[NotificationSettings] Schedule error:", e);
+        toast.error("Failed to schedule notification");
       }
     } else {
       toast.info("Scheduled notifications only work on mobile app");
