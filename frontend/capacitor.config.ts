@@ -5,8 +5,7 @@ const config: CapacitorConfig = {
   appName: "AlcleanApp",
   webDir: "dist",
   server: {
-    cleartext: true,
-    androidScheme: "http",
+    cleartext: true
   },
 };
 

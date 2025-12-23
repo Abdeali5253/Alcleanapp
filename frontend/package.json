@@ -10,6 +10,8 @@
   },
   "dependencies": {
     "@capacitor/android": "^8.0.0",
+    "@capacitor/app": "^8.0.0",
+    "@capacitor/browser": "^8.0.0",
     "@capacitor/cli": "^8.0.0",
     "@capacitor/core": "^8.0.0",
     "@radix-ui/react-accordion": "^1.2.3",
@@ -41,6 +43,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
+    "cordova-plugin-inappbrowser": "^6.0.0",
     "embla-carousel-react": "^8.6.0",
     "firebase": "^12.7.0",
     "input-otp": "^1.4.2",
