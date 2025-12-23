@@ -106,6 +106,31 @@ export function NotificationSettings() {
     }
   };
 
+  const handleRegisterPush = async () => {
+    try {
+      console.log("[NotificationSettings] Manually registering for push...");
+      const granted = await notificationService.requestPermission();
+      if (granted) {
+        // Wait a bit for token to be received
+        setTimeout(() => {
+          const token = notificationService.getFCMToken();
+          setFcmToken(token);
+          if (token) {
+            toast.success("Push notifications registered!");
+            console.log("[NotificationSettings] FCM Token:", token.substring(0, 50) + "...");
+          } else {
+            toast.info("Waiting for FCM token...");
+          }
+        }, 2000);
+      } else {
+        toast.error("Permission denied");
+      }
+    } catch (e) {
+      console.error("[NotificationSettings] Register error:", e);
+      toast.error("Registration failed");
+    }
+  };
+
   const notificationOptions = [
     {
       key: "orderUpdates" as keyof Settings,
