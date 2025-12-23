@@ -288,8 +288,8 @@ export function NotificationSettings() {
           </div>
         )}
 
-        {/* Test Notifications */}
-        {settings.enabled && permission === "granted" && (
+        {/* Test Notifications - Always show for native since local notifications work */}
+        {settings.enabled && (isNative || permission === "granted") && (
           <div className="bg-white rounded-2xl border border-gray-200 p-6 mb-6">
             <h3 className="font-bold text-gray-900 mb-4">Test Notifications</h3>
             <div className="flex flex-col gap-3">
@@ -313,13 +313,14 @@ export function NotificationSettings() {
                   </Button>
                 )}
               </div>
-              {isNative && !fcmToken && (
-                <Button
-                  onClick={handleRegisterPush}
-                  className="w-full bg-gradient-to-r from-[#6DB33F] to-[#5da035] hover:from-[#5da035] hover:to-[#4d8f2e] text-white"
-                >
-                  🔔 Register for Push Notifications
-                </Button>
+              {isNative && permission !== "granted" && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-800">
+                  ⚠️ Push notifications not enabled. Local notifications will still work.
+                  <br />
+                  <span className="text-xs text-yellow-600">
+                    To receive push notifications, enable in device Settings → Apps → AlClean → Notifications
+                  </span>
+                </div>
               )}
               {isNative && fcmToken && (
                 <div className="text-center text-sm text-green-600 font-medium">
