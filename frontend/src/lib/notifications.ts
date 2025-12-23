@@ -1,14 +1,18 @@
 // Unified Notification Service for AlClean App
 // Supports Web (Firebase) and Native (Capacitor) notifications
+// With defensive error handling
 
 import { Capacitor } from "@capacitor/core";
 import { nativeNotificationService, NativeNotification } from "./native-notifications";
-import {
-  initializeFirebase,
-  requestNotificationPermission as requestWebPermission,
-  onForegroundMessage,
-} from "./firebase-config";
 import { BACKEND_URL } from "./base-url";
+
+// Try to import Firebase modules (may fail on native)
+let firebaseConfig: any = null;
+try {
+  firebaseConfig = require("./firebase-config");
+} catch (e) {
+  console.log("[Notifications] Firebase config not available");
+}
 
 export interface PushNotification {
   id: string;
@@ -49,8 +53,6 @@ const NOTIFICATION_SETTINGS_KEY = "alclean_notification_settings";
 
 // Helper functions
 const isNativePlatform = () => Capacitor.isNativePlatform();
-const isAndroid = () => Capacitor.getPlatform() === "android";
-const isIOS = () => Capacitor.getPlatform() === "ios";
 
 const hasWebNotificationApi = () =>
   typeof window !== "undefined" &&
@@ -71,6 +73,9 @@ class NotificationService {
   };
 
   constructor() {
+    console.log("[Notifications] Service constructor");
+    console.log("[Notifications] Platform:", Capacitor.getPlatform());
+    console.log("[Notifications] Is Native:", isNativePlatform());
     this.loadNotifications();
     this.loadFCMToken();
     this.loadSettings();
@@ -78,60 +83,67 @@ class NotificationService {
 
   // Initialize notification service (auto-detects platform)
   async initialize(): Promise<boolean> {
-    if (this.isInitialized) return true;
+    if (this.isInitialized) {
+      console.log("[Notifications] Already initialized");
+      return true;
+    }
 
     try {
       console.log("[Notifications] Initializing...");
-      console.log("[Notifications] Platform:", Capacitor.getPlatform());
 
       // Use native notifications on Android/iOS
       if (isNativePlatform()) {
         console.log("[Notifications] Using native notifications");
-        const success = await nativeNotificationService.initialize();
+        
+        try {
+          const success = await nativeNotificationService.initialize();
+          console.log("[Notifications] Native init result:", success);
 
-        if (success) {
-          // Create notification channels on Android
-          await nativeNotificationService.createNotificationChannel();
+          if (success) {
+            // Create notification channels on Android (non-blocking)
+            nativeNotificationService.createNotificationChannel().catch(e => {
+              console.error("[Notifications] Channel creation failed:", e);
+            });
 
-          // Sync token
-          this.fcmToken = nativeNotificationService.getFCMToken();
-          if (this.fcmToken) {
-            this.saveFCMToken(this.fcmToken);
+            // Sync token
+            this.fcmToken = nativeNotificationService.getFCMToken();
+            if (this.fcmToken) {
+              this.saveFCMToken(this.fcmToken);
+            }
+
+            // Subscribe to native notification changes
+            nativeNotificationService.subscribe((nativeNotifs) => {
+              this.syncFromNativeNotifications(nativeNotifs);
+            });
           }
-
-          // Subscribe to native notification changes
-          nativeNotificationService.subscribe((nativeNotifs) => {
-            this.syncFromNativeNotifications(nativeNotifs);
-          });
+        } catch (e) {
+          console.error("[Notifications] Native init error:", e);
         }
 
         this.isInitialized = true;
-        return success;
+        return true;
       }
 
       // Use web notifications
       console.log("[Notifications] Using web notifications");
 
-      // Initialize Firebase
-      const firebaseApp = initializeFirebase();
-      if (!firebaseApp) {
-        console.warn("[Notifications] Firebase not available");
-        this.isInitialized = true;
-        return false;
-      }
+      if (firebaseConfig) {
+        try {
+          const firebaseApp = firebaseConfig.initializeFirebase();
+          if (!firebaseApp) {
+            console.warn("[Notifications] Firebase not available");
+            this.isInitialized = true;
+            return false;
+          }
 
-      // Request notification permission and get token
-      const token = await requestWebPermission();
-      if (token) {
-        this.fcmToken = token;
-        this.saveFCMToken(token);
-        await this.registerTokenWithBackend(token);
+          // Listen for foreground messages
+          firebaseConfig.onForegroundMessage((payload: any) => {
+            this.handleIncomingNotification(payload);
+          });
+        } catch (e) {
+          console.error("[Notifications] Firebase init error:", e);
+        }
       }
-
-      // Listen for foreground messages
-      onForegroundMessage((payload) => {
-        this.handleIncomingNotification(payload);
-      });
 
       this.isInitialized = true;
       console.log("[Notifications] Initialized successfully");
@@ -145,17 +157,21 @@ class NotificationService {
 
   // Sync notifications from native service
   private syncFromNativeNotifications(nativeNotifs: NativeNotification[]): void {
-    this.notifications = nativeNotifs.map((n) => ({
-      id: n.id,
-      title: n.title,
-      body: n.body,
-      type: n.type as PushNotification["type"],
-      timestamp: new Date(n.timestamp),
-      read: n.read,
-      data: n.data,
-      imageUrl: n.imageUrl,
-    }));
-    this.notifyListeners();
+    try {
+      this.notifications = nativeNotifs.map((n) => ({
+        id: n.id,
+        title: n.title,
+        body: n.body,
+        type: n.type as PushNotification["type"],
+        timestamp: new Date(n.timestamp),
+        read: n.read,
+        data: n.data,
+        imageUrl: n.imageUrl,
+      }));
+      this.notifyListeners();
+    } catch (e) {
+      console.error("[Notifications] Sync error:", e);
+    }
   }
 
   // Register FCM token with backend
@@ -177,132 +193,165 @@ class NotificationService {
         console.log("[Notifications] Backend returned:", response.status);
       }
     } catch (error) {
-      console.log("[Notifications] Backend not available, will retry later");
+      console.log("[Notifications] Backend not available");
     }
   }
 
   // Handle incoming web notification
   private handleIncomingNotification(payload: any): void {
-    const notification: PushNotification = {
-      id: this.generateId(),
-      title: payload.notification?.title || payload.data?.title || "New Notification",
-      body: payload.notification?.body || payload.data?.body || "",
-      type: payload.data?.type || "general",
-      timestamp: new Date(),
-      read: false,
-      data: payload.data,
-      imageUrl: payload.notification?.image || payload.data?.imageUrl,
-    };
+    try {
+      const notification: PushNotification = {
+        id: this.generateId(),
+        title: payload.notification?.title || payload.data?.title || "New Notification",
+        body: payload.notification?.body || payload.data?.body || "",
+        type: payload.data?.type || "general",
+        timestamp: new Date(),
+        read: false,
+        data: payload.data,
+        imageUrl: payload.notification?.image || payload.data?.imageUrl,
+      };
 
-    this.addNotification(notification);
+      this.addNotification(notification);
 
-    // Show browser notification if in foreground
-    if (!isNativePlatform() && hasWebNotificationApi() && Notification.permission === "granted") {
-      new Notification(notification.title, {
-        body: notification.body,
-        icon: "/logo.png",
-        badge: "/logo.png",
-        tag: notification.id,
-      });
+      // Show browser notification if in foreground
+      if (!isNativePlatform() && hasWebNotificationApi() && Notification.permission === "granted") {
+        new Notification(notification.title, {
+          body: notification.body,
+          icon: "/logo.png",
+          badge: "/logo.png",
+          tag: notification.id,
+        });
+      }
+    } catch (e) {
+      console.error("[Notifications] Handle incoming error:", e);
     }
   }
 
   // Add notification to list
   addNotification(notification: PushNotification): void {
-    if (isNativePlatform()) {
-      nativeNotificationService.addNotification({
-        id: notification.id,
-        title: notification.title,
-        body: notification.body,
-        type: notification.type,
-        timestamp: notification.timestamp.getTime(),
-        read: notification.read,
-        data: notification.data,
-        imageUrl: notification.imageUrl,
-      });
-      return;
-    }
+    try {
+      if (isNativePlatform()) {
+        nativeNotificationService.addNotification({
+          id: notification.id,
+          title: notification.title,
+          body: notification.body,
+          type: notification.type,
+          timestamp: notification.timestamp.getTime(),
+          read: notification.read,
+          data: notification.data,
+          imageUrl: notification.imageUrl,
+        });
+        return;
+      }
 
-    this.notifications.unshift(notification);
-    this.saveNotifications();
-    this.notifyListeners();
+      this.notifications.unshift(notification);
+      this.saveNotifications();
+      this.notifyListeners();
+    } catch (e) {
+      console.error("[Notifications] Add notification error:", e);
+    }
   }
 
   // Get all notifications
   getNotifications(): PushNotification[] {
-    if (isNativePlatform()) {
-      const nativeNotifs = nativeNotificationService.getNotifications();
-      return nativeNotifs.map((n) => ({
-        id: n.id,
-        title: n.title,
-        body: n.body,
-        type: n.type as PushNotification["type"],
-        timestamp: new Date(n.timestamp),
-        read: n.read,
-        data: n.data,
-        imageUrl: n.imageUrl,
-      }));
+    try {
+      if (isNativePlatform()) {
+        const nativeNotifs = nativeNotificationService.getNotifications();
+        return nativeNotifs.map((n) => ({
+          id: n.id,
+          title: n.title,
+          body: n.body,
+          type: n.type as PushNotification["type"],
+          timestamp: new Date(n.timestamp),
+          read: n.read,
+          data: n.data,
+          imageUrl: n.imageUrl,
+        }));
+      }
+      return [...this.notifications];
+    } catch (e) {
+      console.error("[Notifications] Get notifications error:", e);
+      return [];
     }
-    return [...this.notifications];
   }
 
   // Get unread count
   getUnreadCount(): number {
-    if (isNativePlatform()) {
-      return nativeNotificationService.getUnreadCount();
+    try {
+      if (isNativePlatform()) {
+        return nativeNotificationService.getUnreadCount();
+      }
+      return this.notifications.filter((n) => !n.read).length;
+    } catch (e) {
+      return 0;
     }
-    return this.notifications.filter((n) => !n.read).length;
   }
 
   // Mark notification as read
   markAsRead(id: string): void {
-    if (isNativePlatform()) {
-      nativeNotificationService.markAsRead(id);
-      return;
-    }
+    try {
+      if (isNativePlatform()) {
+        nativeNotificationService.markAsRead(id);
+        return;
+      }
 
-    const notification = this.notifications.find((n) => n.id === id);
-    if (notification) {
-      notification.read = true;
-      this.saveNotifications();
-      this.notifyListeners();
+      const notification = this.notifications.find((n) => n.id === id);
+      if (notification) {
+        notification.read = true;
+        this.saveNotifications();
+        this.notifyListeners();
+      }
+    } catch (e) {
+      console.error("[Notifications] Mark as read error:", e);
     }
   }
 
   // Mark all as read
   markAllAsRead(): void {
-    if (isNativePlatform()) {
-      nativeNotificationService.markAllAsRead();
-      return;
-    }
+    try {
+      if (isNativePlatform()) {
+        nativeNotificationService.markAllAsRead();
+        return;
+      }
 
-    this.notifications.forEach((n) => (n.read = true));
-    this.saveNotifications();
-    this.notifyListeners();
+      this.notifications.forEach((n) => (n.read = true));
+      this.saveNotifications();
+      this.notifyListeners();
+    } catch (e) {
+      console.error("[Notifications] Mark all as read error:", e);
+    }
   }
 
   // Delete notification
   deleteNotification(id: string): void {
-    if (isNativePlatform()) {
-      nativeNotificationService.deleteNotification(id);
-      return;
-    }
+    try {
+      if (isNativePlatform()) {
+        nativeNotificationService.deleteNotification(id);
+        return;
+      }
 
-    this.notifications = this.notifications.filter((n) => n.id !== id);
-    this.saveNotifications();
-    this.notifyListeners();
+      this.notifications = this.notifications.filter((n) => n.id !== id);
+      this.saveNotifications();
+      this.notifyListeners();
+    } catch (e) {
+      console.error("[Notifications] Delete notification error:", e);
+    }
   }
 
   // Clear all notifications
   clearAll(): void {
-    if (isNativePlatform()) {
-      nativeNotificationService.clearAll();
-      return;
-    }
+    try {
+      if (isNativePlatform()) {
+        nativeNotificationService.clearAll();
+        return;
+      }
 
-    this.notifications = [];
-    this.saveNotifications();
-    this.notifyListeners();
+      this.notifications = [];
+      this.saveNotifications();
+      this.notifyListeners();
+    } catch (e) {
+      console.error("[Notifications] Clear all error:", e);
+    }
   }
 
   // Subscribe to notification changes
@@ -315,69 +364,110 @@ class NotificationService {
 
   // Check if notifications are enabled
   async checkPermission(): Promise<"granted" | "denied" | "default"> {
-    if (isNativePlatform()) {
-      const status = await nativeNotificationService.checkPermission();
-      return status === "prompt" ? "default" : status;
-    }
+    try {
+      if (isNativePlatform()) {
+        const status = await nativeNotificationService.checkPermission();
+        return status === "prompt" ? "default" : status;
+      }
 
-    if (!hasWebNotificationApi()) return "denied";
-    return Notification.permission;
+      if (!hasWebNotificationApi()) return "denied";
+      return Notification.permission;
+    } catch (e) {
+      console.error("[Notifications] Check permission error:", e);
+      return "denied";
+    }
   }
 
   // Request permission
   async requestPermission(): Promise<boolean> {
-    if (isNativePlatform()) {
-      const granted = await nativeNotificationService.requestPermission();
-      if (granted) {
-        // Re-initialize to get token
-        await nativeNotificationService.initialize();
-        this.fcmToken = nativeNotificationService.getFCMToken();
-        if (this.fcmToken) {
-          this.saveFCMToken(this.fcmToken);
+    console.log("[Notifications] requestPermission called, isNative:", isNativePlatform());
+    
+    try {
+      if (isNativePlatform()) {
+        const granted = await nativeNotificationService.requestPermission();
+        console.log("[Notifications] Native permission result:", granted);
+        
+        if (granted) {
+          // Update FCM token after permission granted
+          setTimeout(() => {
+            this.fcmToken = nativeNotificationService.getFCMToken();
+            if (this.fcmToken) {
+              this.saveFCMToken(this.fcmToken);
+            }
+          }, 1000);
+        }
+        return granted;
+      }
+
+      if (!hasWebNotificationApi()) {
+        console.log("[Notifications] Web notification API not available");
+        return false;
+      }
+
+      const permission = await Notification.requestPermission();
+      console.log("[Notifications] Web permission result:", permission);
+
+      if (permission === "granted" && !this.fcmToken && firebaseConfig) {
+        try {
+          const token = await firebaseConfig.requestNotificationPermission();
+          if (token) {
+            this.fcmToken = token;
+            this.saveFCMToken(token);
+            await this.registerTokenWithBackend(token);
+          }
+        } catch (e) {
+          console.error("[Notifications] Token request error:", e);
         }
       }
-      return granted;
+
+      return permission === "granted";
+    } catch (e) {
+      console.error("[Notifications] Request permission error:", e);
+      return false;
     }
-
-    if (!hasWebNotificationApi()) return false;
-
-    const permission = await Notification.requestPermission();
-
-    if (permission === "granted" && !this.fcmToken) {
-      const token = await requestWebPermission();
-      if (token) {
-        this.fcmToken = token;
-        this.saveFCMToken(token);
-        await this.registerTokenWithBackend(token);
-      }
-    }
-
-    return permission === "granted";
   }
 
   // Get FCM token
   getFCMToken(): string | null {
-    if (isNativePlatform()) {
-      return nativeNotificationService.getFCMToken();
+    try {
+      if (isNativePlatform()) {
+        return nativeNotificationService.getFCMToken();
+      }
+      return this.fcmToken;
+    } catch (e) {
+      return null;
     }
-    return this.fcmToken;
   }
 
   // Get notification settings
   getSettings(): NotificationSettings {
-    if (isNativePlatform()) {
-      return nativeNotificationService.getSettings();
+    try {
+      if (isNativePlatform()) {
+        return nativeNotificationService.getSettings();
+      }
+      return { ...this.settings };
+    } catch (e) {
+      return {
+        enabled: true,
+        orderUpdates: true,
+        promotions: true,
+        newProducts: true,
+        deliveryAlerts: true,
+      };
     }
-    return { ...this.settings };
   }
 
   // Update notification settings
   updateSettings(newSettings: NotificationSettings): void {
-    this.settings = { ...newSettings };
-    this.saveSettings();
+    try {
+      this.settings = { ...newSettings };
+      this.saveSettings();
 
-    if (isNativePlatform()) {
-      nativeNotificationService.updateSettings(newSettings);
+      if (isNativePlatform()) {
+        nativeNotificationService.updateSettings(newSettings);
+      }
+    } catch (e) {
+      console.error("[Notifications] Update settings error:", e);
     }
   }
 
@@ -388,58 +478,77 @@ class NotificationService {
     delayMinutes: number;
     data?: Record<string, any>;
   }): Promise<number | null> {
-    if (!isNativePlatform()) {
-      console.warn("[Notifications] Local notifications only available on native platforms");
+    try {
+      if (!isNativePlatform()) {
+        console.warn("[Notifications] Local notifications only available on native platforms");
+        return null;
+      }
+
+      return await nativeNotificationService.scheduleReminder({
+        title: options.title,
+        body: options.body,
+        delayMinutes: options.delayMinutes,
+        extra: options.data,
+      });
+    } catch (e) {
+      console.error("[Notifications] Schedule notification error:", e);
       return null;
     }
-
-    return await nativeNotificationService.scheduleReminder({
-      title: options.title,
-      body: options.body,
-      delayMinutes: options.delayMinutes,
-      extra: options.data,
-    });
   }
 
   // Cancel a scheduled notification
   async cancelScheduledNotification(id: number): Promise<void> {
-    if (isNativePlatform()) {
-      await nativeNotificationService.cancelScheduledNotification(id);
+    try {
+      if (isNativePlatform()) {
+        await nativeNotificationService.cancelScheduledNotification(id);
+      }
+    } catch (e) {
+      console.error("[Notifications] Cancel scheduled error:", e);
     }
   }
 
   // Show immediate local notification (native only)
   async showLocalNotification(title: string, body: string, data?: Record<string, any>): Promise<void> {
-    if (isNativePlatform()) {
-      await nativeNotificationService.showLocalNotification({
-        title,
-        body,
-        extra: data,
-      });
+    try {
+      if (isNativePlatform()) {
+        await nativeNotificationService.showLocalNotification({
+          title,
+          body,
+          extra: data,
+        });
+      }
+    } catch (e) {
+      console.error("[Notifications] Show local notification error:", e);
     }
   }
 
   // Create a test notification
   async sendTestNotification(): Promise<void> {
-    if (isNativePlatform()) {
-      await nativeNotificationService.sendTestNotification();
-      return;
-    }
+    console.log("[Notifications] sendTestNotification called");
+    
+    try {
+      if (isNativePlatform()) {
+        await nativeNotificationService.sendTestNotification();
+        return;
+      }
 
-    this.handleIncomingNotification({
-      notification: {
-        title: "🎉 Test Notification",
-        body: "Push notifications are working! You will receive order updates here.",
-      },
-      data: {
-        type: "general",
-      },
-    });
+      this.handleIncomingNotification({
+        notification: {
+          title: "🎉 Test Notification",
+          body: "Push notifications are working! You will receive order updates here.",
+        },
+        data: {
+          type: "general",
+        },
+      });
+    } catch (e) {
+      console.error("[Notifications] Send test notification error:", e);
+    }
   }
 
   // Private methods
   private loadNotifications(): void {
-    if (isNativePlatform()) return; // Native service handles its own storage
+    if (isNativePlatform()) return;
 
     try {
       const stored = localStorage.getItem(NOTIFICATIONS_STORAGE_KEY);
@@ -501,7 +610,13 @@ class NotificationService {
   }
 
   private notifyListeners(): void {
-    this.listeners.forEach((callback) => callback(this.getNotifications()));
+    this.listeners.forEach((callback) => {
+      try {
+        callback(this.getNotifications());
+      } catch (e) {
+        console.error("[Notifications] Listener error:", e);
+      }
+    });
   }
 
   private generateId(): string {
