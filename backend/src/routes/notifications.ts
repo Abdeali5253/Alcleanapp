@@ -240,6 +240,44 @@ router.post('/send-to-user', async (req: Request, res: Response) => {
 });
 
 /**
+ * POST /api/notifications/send-to-token
+ * Send push notification to a specific FCM token (for testing)
+ */
+router.post('/send-to-token', async (req: Request, res: Response) => {
+  try {
+    const { token, title, body, type, data, imageUrl } = req.body;
+
+    if (!token || !title || !body) {
+      return res.status(400).json({
+        success: false,
+        error: 'token, title, and body are required',
+      });
+    }
+
+    console.log(`[Notifications] Sending to specific token: ${token.substring(0, 30)}...`);
+
+    // Send via FCM
+    const result = await sendFCMNotification(
+      [token],
+      { title, body, image: imageUrl },
+      { type: type || 'general', ...data }
+    );
+
+    res.json({
+      success: result.success > 0,
+      message: result.success > 0 ? 'Notification sent!' : 'Failed to send notification',
+      result,
+    });
+  } catch (error: any) {
+    console.error('[Notifications] Send to token error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to send notification',
+    });
+  }
+});
+
+/**
  * GET /api/notifications/devices
  * Get list of registered devices (admin only)
  */

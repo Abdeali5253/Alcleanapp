@@ -139,14 +139,25 @@ export function NotificationInbox() {
       <div className="max-w-4xl mx-auto px-4 py-6">
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">
-            Notifications
-          </h1>
-          <p className="text-gray-600">
-            {unreadCount > 0 
-              ? `You have ${unreadCount} unread notification${unreadCount > 1 ? 's' : ''}`
-              : "You're all caught up!"}
-          </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900 mb-2">
+                Notifications
+              </h1>
+              <p className="text-gray-600">
+                {unreadCount > 0 
+                  ? `You have ${unreadCount} unread notification${unreadCount > 1 ? 's' : ''}`
+                  : "You're all caught up!"}
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              onClick={() => navigate("/notification-settings")}
+              className="flex items-center gap-2"
+            >
+              ⚙️ Settings
+            </Button>
+          </div>
         </div>
 
         {/* Filter and Actions */}
