@@ -24,6 +24,8 @@
     --input: 214.3 31.8% 91.4%;
     --ring: 142.1 76.2% 36.3%;
     --radius: 0.75rem;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
   }
 
   .dark {
@@ -73,6 +75,10 @@
 }
 .safe-bottom {
   padding-bottom: env(safe-area-inset-bottom);
+}
+.safe-area {
+  padding-top: var(--safe-top);
+  padding-bottom: var(--safe-bottom);
 }
 
 /* Loading spinner animation */

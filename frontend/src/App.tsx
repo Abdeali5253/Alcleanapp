@@ -115,6 +115,7 @@ import { Home } from "./components/Home";
 import { Capacitor } from "@capacitor/core";
 import { App as CapApp } from "@capacitor/app";
 import { Browser } from "@capacitor/browser";
+import { StatusBar, Style } from "@capacitor/status-bar";
 
 export default function App() {
   const [showSplash, setShowSplash] = useState(true);
@@ -122,6 +123,11 @@ export default function App() {
 
   useEffect(() => {
     notificationService.initialize();
+
+    if (Capacitor.isNativePlatform()) {
+    StatusBar.setOverlaysWebView({ overlay: false });
+    StatusBar.setStyle({ style: Style.Light });
+  }
     const timer = setTimeout(() => setShowBackendStatus(false), 10000);
     return () => clearTimeout(timer);
   }, []);
@@ -168,7 +174,7 @@ export default function App() {
 
   return (
     <Router>
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gray-50 safe-area">
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/preview_page.html" element={<Navigate to="/" replace />} />
