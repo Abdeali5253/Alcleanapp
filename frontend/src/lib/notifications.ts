@@ -460,11 +460,6 @@ class NotificationService {
     }
     return false;
   }
-    } catch (e) {
-      console.error("[Notifications] Request permission error:", e);
-      return false;
-    }
-  }
 
   // Get FCM token
   getFCMToken(): string | null {
