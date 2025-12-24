@@ -122,20 +122,37 @@ export default function App() {
   const [showBackendStatus, setShowBackendStatus] = useState(true);
 
   useEffect(() => {
-    notificationService.initialize();
-
-    if (Capacitor.isNativePlatform()) {
-      StatusBar.setOverlaysWebView({ overlay: false });
-      StatusBar.setStyle({ style: Style.Light });
+    const initApp = async () => {
+      // Initialize notification service
+      await notificationService.initialize();
       
-      // Try to register for push notifications after a delay
-      // This handles the case where permission was granted via Android settings
-      setTimeout(async () => {
-        console.log("[App] Attempting to register for push if permitted...");
-        const registered = await notificationService.tryRegisterIfPermitted();
-        console.log("[App] Registration attempt result:", registered);
-      }, 3000);
-    }
+      if (Capacitor.isNativePlatform()) {
+        StatusBar.setOverlaysWebView({ overlay: false });
+        StatusBar.setStyle({ style: Style.Light });
+        
+        // Request push notification permission (shows Android system dialog)
+        // This will get FCM token if user allows
+        setTimeout(async () => {
+          console.log("[App] Requesting push notification permission...");
+          try {
+            const granted = await notificationService.requestPermission();
+            console.log("[App] Push permission result:", granted);
+            
+            if (granted) {
+              // Wait for FCM token
+              setTimeout(() => {
+                const token = notificationService.getFCMToken();
+                console.log("[App] FCM Token:", token ? token.substring(0, 30) + "..." : "null");
+              }, 2000);
+            }
+          } catch (e) {
+            console.error("[App] Push permission error:", e);
+          }
+        }, 2000);
+      }
+    };
+    
+    initApp();
     
     const timer = setTimeout(() => setShowBackendStatus(false), 10000);
     return () => clearTimeout(timer);
