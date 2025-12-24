@@ -60,7 +60,7 @@ app.listen(PORT, () => {
   console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
   console.log(`📍 Port: ${PORT}`);
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🔔 Firebase: ${process.env.FIREBASE_SERVER_KEY ? 'Configured' : 'Not configured'}`);
+  console.log(`🔔 Firebase: ${process.env.FCM_SERVER_KEY ? 'Configured' : 'Not configured'}`);
   console.log('');
   console.log('📌 Note: Shopify integration uses Storefront API');
   console.log('         directly from the frontend app.');
