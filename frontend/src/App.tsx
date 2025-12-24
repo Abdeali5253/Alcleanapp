@@ -125,9 +125,18 @@ export default function App() {
     notificationService.initialize();
 
     if (Capacitor.isNativePlatform()) {
-    StatusBar.setOverlaysWebView({ overlay: false });
-    StatusBar.setStyle({ style: Style.Light });
-  }
+      StatusBar.setOverlaysWebView({ overlay: false });
+      StatusBar.setStyle({ style: Style.Light });
+      
+      // Try to register for push notifications after a delay
+      // This handles the case where permission was granted via Android settings
+      setTimeout(async () => {
+        console.log("[App] Attempting to register for push if permitted...");
+        const registered = await notificationService.tryRegisterIfPermitted();
+        console.log("[App] Registration attempt result:", registered);
+      }, 3000);
+    }
+    
     const timer = setTimeout(() => setShowBackendStatus(false), 10000);
     return () => clearTimeout(timer);
   }, []);
