@@ -200,6 +200,7 @@ export default function App() {
           <Route path="/contact" element={<ContactUs />} />
           <Route path="/about" element={<AboutUs />} />
           <Route path="/notifications" element={<NotificationInbox />} />
+          <Route path="/notification-settings" element={<NotificationSettings />} />
           <Route path="/notifications/settings" element={<NotificationSettings />} />
           <Route path="/notifications/admin" element={<NotificationAdmin />} />
           <Route path="/supreme-offers" element={<SupremeOffers />} />
@@ -207,7 +208,7 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
         <BottomNav />
-        <NotificationPrompt />
+        {/* Removed NotificationPrompt - using only Android system dialog */}
         <Toaster />
         {showBackendStatus && <BackendStatus />}
       </div>
