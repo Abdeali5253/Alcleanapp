@@ -207,20 +207,37 @@ class NativeNotificationService {
 
       // Step 2: Small delay to let the system settle
       log("NativeNotif", "Step 2: Waiting before registration...");
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
       // Step 3: Register for push notifications
       log("NativeNotif", "Step 3: Registering for push...");
       try {
+        // Ensure listeners are set up before registering
+        if (!this.isInitialized) {
+          this.setupPushListeners();
+        }
+        
         await PushNotifications.register();
-        log("NativeNotif", "Registration call completed");
+        log("NativeNotif", "Registration call completed - waiting for token...");
+        
+        // Wait for token to arrive via listener (up to 10 seconds)
+        const tokenWaitStart = Date.now();
+        while (!this.fcmToken && (Date.now() - tokenWaitStart) < 10000) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+          log("NativeNotif", "Waiting for FCM token...", { hasToken: !!this.fcmToken, elapsed: Date.now() - tokenWaitStart });
+        }
+        
+        if (this.fcmToken) {
+          log("NativeNotif", "FCM Token received successfully!");
+          return true;
+        } else {
+          logError("NativeNotif", "FCM Token not received within timeout. Check google-services.json and Firebase configuration.");
+          return false;
+        }
       } catch (regError: any) {
         logError("NativeNotif", "Registration call failed", regError?.message || regError);
-        // Don't return false - registration might still work via listener
+        return false;
       }
-      
-      log("NativeNotif", "registerForPush completed successfully");
-      return true;
     } catch (error: any) {
       logError("NativeNotif", "registerForPush failed", error?.message || error);
       return false;
