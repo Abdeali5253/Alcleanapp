@@ -84,7 +84,33 @@ export function Products() {
     const fetchProducts = async () => {
       try {
         setLoading(true);
-        const products = await getAllProducts(700);
+        
+        // Import caching service
+        const { productCacheService } = await import("../lib/product-cache");
+        
+        // Try to get cached products first
+        let products = productCacheService.getCachedProducts();
+        
+        if (products.length === 0) {
+          // No cache, fetch from Shopify
+          console.log('[Products] No cache found, fetching from Shopify...');
+          products = await getAllProducts(700);
+          
+          // Save to cache
+          productCacheService.setCachedProducts(products);
+        } else {
+          console.log('[Products] Using cached products:', products.length);
+          
+          // Check if cache needs background refresh
+          if (productCacheService.shouldRefresh()) {
+            console.log('[Products] Cache is stale, refreshing in background...');
+            // Refresh in background
+            getAllProducts(700).then(freshProducts => {
+              productCacheService.setCachedProducts(freshProducts);
+              console.log('[Products] Background refresh complete');
+            }).catch(err => console.error('[Products] Background refresh failed:', err));
+          }
+        }
         
         // Categorize products based on their collections - STRICT RULES
         const categorizedProducts = products.map(product => {
