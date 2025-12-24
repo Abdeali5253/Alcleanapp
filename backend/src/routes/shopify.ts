@@ -23,6 +23,20 @@ interface CreateOrderRequest {
   paymentMethod: string;
 }
 
+interface ShopifyGraphQLResponse {
+  data: {
+    draftOrderCreate?: {
+      userErrors?: { field: string; message: string }[];
+      draftOrder?: { id: string; name: string; totalPrice: string };
+    };
+    draftOrderComplete?: {
+      userErrors?: { field: string; message: string }[];
+      draftOrder?: { id: string; order: { id: string; name: string } };
+    };
+  };
+}
+
+
 /**
  * Make GraphQL request to Shopify
  */
@@ -119,19 +133,18 @@ async function createDraftOrder(orderData: CreateOrderRequest) {
     },
   };
 
-  const result = await shopifyGraphQL(mutation, variables);
+  const result = await shopifyGraphQL(mutation, variables) as ShopifyGraphQLResponse;
+  const userErrors = result.data?.draftOrderCreate?.userErrors;
+  if (userErrors && userErrors.length > 0) {
+  const errorMessages = userErrors.map((e: any) => e.message).join(', ');
+  throw new Error(`Shopify errors: ${errorMessages}`);
+}
 
-  if (result.data?.draftOrderCreate?.userErrors?.length > 0) {
-    const errors = result.data.draftOrderCreate.userErrors;
-    const errorMessages = errors.map((e: any) => e.message).join(', ');
-    throw new Error(`Shopify errors: ${errorMessages}`);
-  }
+if (!result.data?.draftOrderCreate?.draftOrder) {
+  throw new Error('Failed to create draft order');
+}
 
-  if (!result.data?.draftOrderCreate?.draftOrder) {
-    throw new Error('Failed to create draft order');
-  }
-
-  return result.data.draftOrderCreate.draftOrder;
+return result.data.draftOrderCreate.draftOrder;
 }
 
 /**
@@ -158,10 +171,11 @@ async function completeDraftOrder(draftOrderId: string) {
   `;
 
   const variables = { id: draftOrderId };
-  const result = await shopifyGraphQL(mutation, variables);
+  const result = await shopifyGraphQL(mutation, variables) as ShopifyGraphQLResponse;
+  const userErrors = result.data?.draftOrderComplete?.userErrors;
 
-  if (result.data?.draftOrderComplete?.userErrors?.length > 0) {
-    console.warn('Draft order completion errors:', result.data.draftOrderComplete.userErrors);
+  if (userErrors && userErrors.length > 0) {
+    console.warn('Draft order completion errors:', userErrors);
     return null;
   }
 

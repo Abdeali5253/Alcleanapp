@@ -18,6 +18,15 @@ interface DeviceToken {
   userId?: string;
 }
 
+interface FCMResponse {
+  success: number;
+  failure: number;
+  results: Array<{
+    error?: string;
+  }>;
+}
+
+
 const deviceTokens: Map<string, DeviceToken> = new Map();
 
 /**
@@ -62,7 +71,7 @@ async function sendFCMNotification(
         }),
       });
 
-      const result = await response.json();
+      const result = await response.json() as FCMResponse;
       
       if (result.success === 1) {
         successCount++;
