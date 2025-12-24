@@ -686,6 +686,35 @@ class NativeNotificationService {
     return this.fcmToken;
   }
 
+  // Try to register if permission is granted but no token
+  async tryRegisterIfPermitted(): Promise<boolean> {
+    if (!this.isNativePlatform()) return false;
+    if (this.fcmToken) {
+      log("NativeNotif", "Already have FCM token, skipping registration");
+      return true;
+    }
+
+    try {
+      await this.ensurePluginsLoaded();
+      if (!PushNotifications) return false;
+
+      const status = await PushNotifications.checkPermissions();
+      log("NativeNotif", "tryRegisterIfPermitted - Permission status:", status);
+
+      if (status.receive === "granted") {
+        log("NativeNotif", "Permission is granted, registering now...");
+        await PushNotifications.register();
+        log("NativeNotif", "Registration call made");
+        return true;
+      }
+      
+      return false;
+    } catch (e) {
+      logError("NativeNotif", "tryRegisterIfPermitted failed", e);
+      return false;
+    }
+  }
+
   // Get settings
   getSettings() {
     try {

@@ -444,6 +444,28 @@ class NotificationService {
     }
   }
 
+  // Try to register if permission already granted
+  async tryRegisterIfPermitted(): Promise<boolean> {
+    if (isNativePlatform()) {
+      const registered = await nativeNotificationService.tryRegisterIfPermitted();
+      if (registered) {
+        // Wait a bit for token to arrive via listener
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        this.fcmToken = nativeNotificationService.getFCMToken();
+        if (this.fcmToken) {
+          this.saveFCMToken(this.fcmToken);
+        }
+      }
+      return registered;
+    }
+    return false;
+  }
+    } catch (e) {
+      console.error("[Notifications] Request permission error:", e);
+      return false;
+    }
+  }
+
   // Get FCM token
   getFCMToken(): string | null {
     try {
