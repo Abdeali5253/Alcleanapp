@@ -2,9 +2,6 @@ import { CartItem } from "./cart";
 import { authService } from "./auth";
 import { notificationService } from "./notifications";
 import { BACKEND_URL } from "./base-url";
-import dotenv from 'dotenv';
-
-dotenv.config();
 
 export interface Order {
   id: string;
@@ -31,8 +28,8 @@ export interface Order {
 const ORDERS_STORAGE_KEY = 'alclean_orders';
 
 // Shopify configuration - all from environment variables
-const SHOPIFY_DOMAIN = (typeof import.meta !== 'undefined' && process.env?.VITE_SHOPIFY_STORE_DOMAIN) || '';
-const SHOPIFY_ADMIN_TOKEN = (typeof import.meta !== 'undefined' && process.env?.VITE_SHOPIFY_ADMIN_API_TOKEN) || '';
+const SHOPIFY_DOMAIN = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SHOPIFY_STORE_DOMAIN) || '';
+const SHOPIFY_ADMIN_TOKEN = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SHOPIFY_ADMIN_API_TOKEN) || '';
 const SHOPIFY_API_VERSION = "2025-07";
 
 class OrderService {
