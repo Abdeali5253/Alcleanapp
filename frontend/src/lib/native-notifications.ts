@@ -135,25 +135,9 @@ class NativeNotificationService {
           } catch (regError) {
             logError("NativeNotif", "Registration failed", regError);
           }
-        } else if (currentStatus.receive === "prompt") {
-          // Permission not yet requested, request it now
-          log("NativeNotif", "Permission is prompt, requesting permission...");
-          try {
-            const requestResult = await PushNotifications.requestPermissions();
-            log("NativeNotif", "Permission request result", requestResult);
-            
-            if (requestResult.receive === "granted") {
-              log("NativeNotif", "Permission granted! Registering for push...");
-              await PushNotifications.register();
-              log("NativeNotif", "Registration requested after permission grant");
-            } else {
-              log("NativeNotif", "Permission not granted:", requestResult.receive);
-            }
-          } catch (permError) {
-            logError("NativeNotif", "Permission request failed", permError);
-          }
         } else {
-          log("NativeNotif", "Permission denied, cannot register for push");
+          // Permission is prompt or denied - don't auto-request, let user trigger it
+          log("NativeNotif", "Permission status:", currentStatus.receive, "- will wait for user action");
         }
       } catch (e) {
         logError("NativeNotif", "Failed to check permissions", e);
