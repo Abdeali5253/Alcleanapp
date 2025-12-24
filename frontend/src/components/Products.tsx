@@ -127,8 +127,8 @@ export function Products() {
             'brush', 'broom', 'scrubber', 'sponge', 'cloth', 'towel', 'wiper',
             'glove', 'dispenser', 'tissue', 'machine', 'vacuum', 'polish',
             'squeegee', 'duster', 'holder', 'stand', 'rack', 'caddy',
-            'tool', 'equipment', 'robot', 'viper', 'vipers','dryer','rods','cleaning pads', 'hand dryer' , 'aluminum rod',
-            'aluminum' , 'Telescopic Pole' , 'Cleaning Pole' ,'pole'
+            'tool', 'equipment', 'robot', 'viper', 'vipers','dryer','rods','cleaning PADS', 'hand dryer' , 'Aluminium rod',
+            'Aluminium' , 'Telescopic Pole' , 'Cleaning Pole' ,'pole' , 'PAD' ,'Burnisher' ,'MASK' , 'Garbage Picker', 'LADDER' ,'Shoe Cover'
           ];
           
           // Check if product title contains equipment keywords
