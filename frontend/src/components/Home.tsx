@@ -104,9 +104,52 @@ export function Home() {
       try {
         setLoading(true);
         
-        // Fetch ALL products and categorize by collections
-        const { getAllProducts } = await import("../lib/shopify");
-        const allProducts = await getAllProducts(700);
+        // Import caching service
+        const { productCacheService } = await import("../lib/product-cache");
+        
+        // Try to get cached products first
+        let allProducts = productCacheService.getCachedProducts();
+        
+        if (allProducts.length === 0) {
+          // No cache, fetch from Shopify
+          console.log('[Home] No cache found, fetching from Shopify...');
+          const { getAllProducts } = await import("../lib/shopify");
+          allProducts = await getAllProducts(700);
+          
+          // Save to cache
+          productCacheService.setCachedProducts(allProducts);
+        } else {
+          console.log('[Home] Using cached products:', allProducts.length);
+          
+          // Check if cache needs background refresh
+          if (productCacheService.shouldRefresh()) {
+            console.log('[Home] Cache is stale, refreshing in background...');
+            // Refresh in background
+            import("../lib/shopify").then(async ({ getAllProducts }) => {
+              const freshProducts = await getAllProducts(700);
+              productCacheService.setCachedProducts(freshProducts);
+              console.log('[Home] Background refresh complete');
+            }).catch(err => console.error('[Home] Background refresh failed:', err));
+          }
+        }
+        
+        // EQUIPMENT KEYWORDS - Products with these in title are NOT chemicals
+        const EQUIPMENT_KEYWORDS = [
+          'bucket', 'mop', 'wringer', 'trolley', 'cart', 'dustbin', 'bin',
+          'brush', 'broom', 'scrubber', 'sponge', 'cloth', 'towel', 'wiper',
+          'glove', 'dispenser', 'tissue', 'machine', 'vacuum', 'polish',
+          'squeegee', 'duster', 'holder', 'stand', 'rack', 'caddy',
+          'tool', 'equipment', 'robot', 'viper', 'vipers', 'dryer', 'rods',
+          'cleaning pad', 'hand dryer', 'aluminum rod', 'aluminium rod',
+          'aluminum', 'aluminium', 'telescopic pole', 'cleaning pole', 'pole',
+          'pad', 'floor pad', 'cleaning pads'
+        ];
+        
+        // Helper function to check if product is equipment
+        const isEquipment = (product: Product) => {
+          const title = product.title.toLowerCase();
+          return EQUIPMENT_KEYWORDS.some(keyword => title.includes(keyword.toLowerCase()));
+        };
         
         // Helper to get products from collections
         const getProductsInCollections = (collectionHandles: string[]) => {
@@ -124,13 +167,17 @@ export function Home() {
         const offers = getProductsInCollections(['supreme-offer']);
         const fabric = getProductsInCollections(['fabric-washing']);
         const mopBuckets = getProductsInCollections(['home-page-mop-buckets', 'mop-buckets']);
-        const chemicals = getProductsInCollections(['top-cleaning-chemicals', 'industrial-cleaning-chemicals', 'cleaning-chemicals']);
+        
+        // Get cleaning chemicals but EXCLUDE equipment products
+        const chemicalsRaw = getProductsInCollections(['top-cleaning-chemicals', 'industrial-cleaning-chemicals', 'cleaning-chemicals']);
+        const chemicals = chemicalsRaw.filter(product => !isEquipment(product));
         
         console.log('[Home] Loaded from collections:', {
           supremeOffers: offers.length,
           fabricWashing: fabric.length,
           mopBuckets: mopBuckets.length,
           cleaningChemicals: chemicals.length,
+          filteredOutEquipment: chemicalsRaw.length - chemicals.length,
         });
         
         // Sort supreme offers by discount
