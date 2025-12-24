@@ -1,7 +1,3 @@
-// Unified Notification Service for AlClean App
-// Supports Web (Firebase) and Native (Capacitor) notifications
-// With defensive error handling
-
 import { Capacitor } from "@capacitor/core";
 import { nativeNotificationService, NativeNotification } from "./native-notifications";
 import { BACKEND_URL } from "./base-url";
