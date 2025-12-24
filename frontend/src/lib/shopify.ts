@@ -2,11 +2,14 @@
 // Uses ONLY Storefront API - No Admin API needed!
 
 import { Product } from "../types/shopify";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 // Configuration from environment
-const SHOPIFY_DOMAIN = import.meta.env?.VITE_SHOPIFY_STORE_DOMAIN || '';
-const SHOPIFY_TOKEN = import.meta.env?.VITE_SHOPIFY_STOREFRONT_TOKEN || '';
-const SHOPIFY_API_VERSION = import.meta.env?.VITE_SHOPIFY_API_VERSION || '2025-01';
+const SHOPIFY_DOMAIN = process.env?.VITE_SHOPIFY_STORE_DOMAIN || '';
+const SHOPIFY_TOKEN = process.env?.VITE_SHOPIFY_STOREFRONT_TOKEN || '';
+const SHOPIFY_API_VERSION = process.env?.VITE_SHOPIFY_API_VERSION || '2025-01';
 
 const SHOPIFY_URL = SHOPIFY_DOMAIN 
   ? `https://${SHOPIFY_DOMAIN}/api/${SHOPIFY_API_VERSION}/graphql.json`

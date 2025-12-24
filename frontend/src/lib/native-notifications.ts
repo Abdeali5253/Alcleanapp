@@ -137,7 +137,7 @@ class NativeNotificationService {
           }
         } else {
           // Permission is prompt or denied - don't auto-request, let user trigger it
-          log("NativeNotif", "Permission status:", currentStatus.receive, "- will wait for user action");
+          log("NativeNotif", "Permission status:", currentStatus.receive);
         }
       } catch (e) {
         logError("NativeNotif", "Failed to check permissions", e);
