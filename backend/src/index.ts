@@ -6,7 +6,7 @@ import notificationRoutes from './routes/notifications';
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const port: number = Number(process.env.PORT) || 3001;
 
 // CORS configuration - Allow all origins for mobile app development
 app.use(cors({
@@ -54,11 +54,11 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 });
 
 // Start server
-app.listen(PORT, () => {
+app.listen(port, "0.0.0.0", () => {
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log(`🚀 AlClean Backend Server`);
   console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
-  console.log(`📍 Port: ${PORT}`);
+  console.log(`📍 Port: ${port}`);
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🔔 Firebase: ${process.env.FCM_SERVER_KEY ? 'Configured' : 'Not configured'}`);
   console.log('');
