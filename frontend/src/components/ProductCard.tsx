@@ -96,7 +96,7 @@ export function ProductCard({
         {/* Price */}
         <PriceDisplay 
           price={product.price} 
-          originalPrice={product.originalPrice} 
+         // originalPrice={product.originalPrice} 
           className="mb-4"
         />
 
