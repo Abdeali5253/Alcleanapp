@@ -7,7 +7,7 @@ const router = Router();
 
 // FCM Server Key from environment
 const FCM_SERVER_KEY = process.env.FCM_SERVER_KEY || '';
-const FCM_V1_API_URL = `https://fcm.googleapis.com/v1/projects/${process.env.FCM_PROJECT_ID}/messages:send`;
+const FCM_V1_API_URL = `https://fcm.googleapis.com/v1/projects/${process.env.FIREBASE_PROJECT_ID}/messages:send`;
 
 // In-memory storage for FCM tokens (in production, use a database)
 interface DeviceToken {
