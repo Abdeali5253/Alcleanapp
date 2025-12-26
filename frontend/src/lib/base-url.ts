@@ -1,4 +1,5 @@
 import { Capacitor } from "@capacitor/core";
+import dotenv from 'dotenv';
 
 // Backend URL configuration
 // For Android emulator: 10.0.2.2 is the special IP to reach host machine's localhost
@@ -9,13 +10,13 @@ import { Capacitor } from "@capacitor/core";
 const PRODUCTION_BACKEND_URL = "http://44.251.139.38:3001";
 
 // Set to true for production builds, false for development
-const USE_PRODUCTION = (import.meta as any).env?.VITE_USE_PRODUCTION === "true" || false;
+const USE_PRODUCTION = process.env?.VITE_USE_PRODUCTION === "true" || false;
 
 const getBackendUrl = (): string => {
   const platform = Capacitor.getPlatform();
   
   // Check for explicit environment variable first
-  const envUrl = (import.meta as any).env?.VITE_BACKEND_URL;
+  const envUrl = process.env?.VITE_BACKEND_URL;
   if (envUrl) {
     console.log("[BaseURL] Using env VITE_BACKEND_URL:", envUrl);
     return envUrl;

@@ -7,7 +7,7 @@ const router = Router();
 
 // FCM Server Key from environment
 const FCM_SERVER_KEY = process.env.FCM_SERVER_KEY || '';
-const FCM_API_URL = 'https://fcm.googleapis.com/fcm/send';
+const FCM_V1_API_URL = `https://fcm.googleapis.com/v1/projects/${process.env.FCM_PROJECT_ID}/messages:send`;
 
 // In-memory storage for FCM tokens (in production, use a database)
 interface DeviceToken {
@@ -32,6 +32,70 @@ const deviceTokens: Map<string, DeviceToken> = new Map();
 /**
  * Send FCM notification using the Legacy HTTP API
  */
+// async function sendFCMNotification(
+//   tokens: string[], 
+//   notification: { title: string; body: string; image?: string },
+//   data?: Record<string, string>
+// ): Promise<{ success: number; failure: number }> {
+//   if (!FCM_SERVER_KEY) {
+//     console.warn('[FCM] Server key not configured');
+//     return { success: 0, failure: tokens.length };
+//   }
+
+//   let successCount = 0;
+//   let failureCount = 0;
+
+//   // Send to each token individually for better error handling
+//   for (const token of tokens) {
+//     try {
+//       const response = await fetch(FCM_API_URL, {
+//         method: 'POST',
+//         headers: {
+//           'Authorization': `key=${FCM_SERVER_KEY}`,
+//           'Content-Type': 'application/json',
+//         },
+//         body: JSON.stringify({
+//           to: token,
+//           notification: {
+//             title: notification.title,
+//             body: notification.body,
+//             icon: '/logo.png',
+//             image: notification.image,
+//             click_action: 'FLUTTER_NOTIFICATION_CLICK',
+//           },
+//           data: {
+//             ...data,
+//             click_action: 'FLUTTER_NOTIFICATION_CLICK',
+//           },
+//           priority: 'high',
+//         }),
+//       });
+
+//       const result = await response.json() as FCMResponse;
+      
+//       if (result.success === 1) {
+//         successCount++;
+//         console.log(`[FCM] Sent to ${token.substring(0, 20)}...`);
+//       } else {
+//         failureCount++;
+//         console.error(`[FCM] Failed for ${token.substring(0, 20)}...:`, result);
+        
+//         // Remove invalid tokens
+//         if (result.results?.[0]?.error === 'NotRegistered' || 
+//             result.results?.[0]?.error === 'InvalidRegistration') {
+//           deviceTokens.delete(token);
+//           console.log(`[FCM] Removed invalid token: ${token.substring(0, 20)}...`);
+//         }
+//       }
+//     } catch (error) {
+//       failureCount++;
+//       console.error(`[FCM] Error sending to ${token.substring(0, 20)}...:`, error);
+//     }
+//   }
+
+//   return { success: successCount, failure: failureCount };
+// }
+
 async function sendFCMNotification(
   tokens: string[], 
   notification: { title: string; body: string; image?: string },
@@ -48,26 +112,25 @@ async function sendFCMNotification(
   // Send to each token individually for better error handling
   for (const token of tokens) {
     try {
-      const response = await fetch(FCM_API_URL, {
+      const response = await fetch(FCM_V1_API_URL, {
         method: 'POST',
         headers: {
-          'Authorization': `key=${FCM_SERVER_KEY}`,
+          'Authorization': `Bearer ${FCM_SERVER_KEY}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          to: token,
-          notification: {
-            title: notification.title,
-            body: notification.body,
-            icon: '/logo.png',
-            image: notification.image,
-            click_action: 'FLUTTER_NOTIFICATION_CLICK',
+          message: {
+            token: token,
+            notification: {
+              title: notification.title,
+              body: notification.body,
+              image: notification.image,
+            },
+            data: {
+              ...data,
+              click_action: 'FLUTTER_NOTIFICATION_CLICK',
+            },
           },
-          data: {
-            ...data,
-            click_action: 'FLUTTER_NOTIFICATION_CLICK',
-          },
-          priority: 'high',
         }),
       });
 
@@ -95,6 +158,7 @@ async function sendFCMNotification(
 
   return { success: successCount, failure: failureCount };
 }
+
 
 /**
  * POST /api/notifications/register
