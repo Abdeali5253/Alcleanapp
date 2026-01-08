@@ -37,7 +37,6 @@ const healthCheck = (req: any, res: any) => {
 };
 
 app.get('/health', healthCheck);
-app.get('/api/health', healthCheck);
 
 // Routes
 app.use('/api/notifications', notificationRoutes);
