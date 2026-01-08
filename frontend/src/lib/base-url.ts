@@ -1,13 +1,7 @@
 import { Capacitor } from "@capacitor/core";
-import dotenv from 'dotenv';
-
-// Backend URL configuration
-// For Android emulator: 10.0.2.2 is the special IP to reach host machine's localhost
-// For physical device: Use your computer's local IP address
-// For production: Use EC2 public IP or domain
 
 // PRODUCTION EC2 URL - Update this when deploying to production
-const PRODUCTION_BACKEND_URL = "http://44.251.139.38:3001";
+const PRODUCTION_BACKEND_URL = "http://44.232.17.149/:3001";
 
 // Set to true for production builds, false for development
 const USE_PRODUCTION = process.env?.VITE_USE_PRODUCTION === "true" || false;
