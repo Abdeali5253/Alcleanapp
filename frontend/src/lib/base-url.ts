@@ -1,43 +1,43 @@
 import { Capacitor } from "@capacitor/core";
 
-// PRODUCTION EC2 URL - Update this when deploying to production
-const PRODUCTION_BACKEND_URL = "http://44.232.17.149/:3001";
+// EC2 / Production backend (no extra slash)
+const PRODUCTION_BACKEND_URL = "http://44.232.17.149:3001";
 
-// Set to true for production builds, false for development
-const USE_PRODUCTION = process.env?.VITE_USE_PRODUCTION === "true" || false;
+// Vite envs (ONLY import.meta.env in frontend)
+const USE_PRODUCTION =
+  (import.meta.env.VITE_USE_PRODUCTION as string | undefined) === "true";
 
 const getBackendUrl = (): string => {
   const platform = Capacitor.getPlatform();
-  
-  // Check for explicit environment variable first
-  const envUrl = process.env?.VITE_BACKEND_URL;
+
+  // explicit env override
+  const envUrl = import.meta.env.VITE_BACKEND_URL as string | undefined;
   if (envUrl) {
     console.log("[BaseURL] Using env VITE_BACKEND_URL:", envUrl);
     return envUrl;
   }
-  
-  // Use production URL if flag is set
+
+  // production mode
   if (USE_PRODUCTION) {
     console.log("[BaseURL] Using PRODUCTION URL:", PRODUCTION_BACKEND_URL);
     return PRODUCTION_BACKEND_URL;
   }
-  
+
+  // android
   if (platform === "android") {
-    // Android emulator uses 10.0.2.2 to reach host's localhost
-    // For physical device, you'll need to use your computer's IP
     const androidUrl = "http://10.0.2.2:3001";
     console.log("[BaseURL] Android platform, using:", androidUrl);
     return androidUrl;
   }
-  
+
+  // ios
   if (platform === "ios") {
-    // iOS simulator can use localhost directly
     const iosUrl = "http://localhost:3001";
     console.log("[BaseURL] iOS platform, using:", iosUrl);
     return iosUrl;
   }
-  
-  // Web platform
+
+  // web
   console.log("[BaseURL] Web platform, using: http://localhost:3001");
   return "http://localhost:3001";
 };
