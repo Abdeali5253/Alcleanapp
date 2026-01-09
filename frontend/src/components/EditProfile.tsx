@@ -156,7 +156,7 @@ export function EditProfile() {
                 type="tel"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                placeholder="+92 300 1234567"
+                placeholder="+92 334 3353327"
                 className="mt-1"
               />
             </div>

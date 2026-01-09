@@ -311,7 +311,7 @@ export function Account() {
                     <Input
                       id="phone"
                       type="tel"
-                      placeholder="+92 300 1234567"
+                      placeholder="+92 334 3353327"
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
                       className="pl-10"

@@ -400,7 +400,7 @@
 //                 type="tel"
 //                 value={phone}
 //                 onChange={(e) => setPhone(e.target.value)}
-//                 placeholder="+92 300 1234567"
+//                 placeholder="+92 334 3353327"
 //                 required
 //               />
 //             </div>
@@ -887,7 +887,7 @@ export function Checkout() {
             </div>
             <div>
               <Label htmlFor="phone">Phone Number *</Label>
-              <Input id="phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+92 300 1234567" required />
+              <Input id="phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+92 334 3353327" required />
             </div>
             <div>
               <Label htmlFor="address">Address *</Label>

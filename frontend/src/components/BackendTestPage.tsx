@@ -52,7 +52,7 @@ export function BackendTestPage() {
         orderNumber: `TEST-${Date.now()}`,
         customerName: 'Test User',
         customerEmail: 'test@example.com',
-        customerPhone: '+92 300 1234567',
+        customerPhone: '++92 334 3353327',
         customerAddress: '123 Test Street, Test Area',
         city: 'Karachi',
         items: [

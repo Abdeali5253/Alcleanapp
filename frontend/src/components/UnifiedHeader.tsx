@@ -64,7 +64,7 @@ export function UnifiedHeader({ cartCount }: UnifiedHeaderProps) {
             <div className="flex items-center gap-6">
               <a href="tel:+923343353327" className="flex items-center gap-2 hover:text-gray-200">
                 <Phone size={14} />
-                <span>+92 300 1234567</span>
+                <span>+92 334 3553327</span>
               </a>
               <a href="https://wa.me/923343353327" className="flex items-center gap-2 hover:text-gray-200">
                 <MessageCircle size={14} />
@@ -143,7 +143,7 @@ export function UnifiedHeader({ cartCount }: UnifiedHeaderProps) {
 
               {/* WhatsApp Button - Mobile */}
               <a
-                href="https://wa.me/923001234567"
+                href="https://wa.me/923343353327"
                 className="md:hidden p-2 text-[#25D366] hover:bg-gray-100 rounded-lg"
               >
                 <MessageCircle size={22} />
@@ -266,17 +266,17 @@ export function UnifiedHeader({ cartCount }: UnifiedHeaderProps) {
             {/* Contact Info in Mobile Menu */}
             <div className="p-4 border-t border-gray-200 space-y-3">
               <a
-                href="tel:+923001234567"
+                href="tel:+923353343327"
                 className="flex items-center gap-3 px-4 py-3 bg-gray-50 rounded-lg"
               >
                 <Phone size={20} className="text-[#6DB33F]" />
                 <div>
                   <p className="text-xs text-gray-500">Call Us</p>
-                  <p className="text-sm text-gray-900">+92 300 1234567</p>
+                  <p className="text-sm text-gray-900">+92 334 3353327</p>
                 </div>
               </a>
               <a
-                href="https://wa.me/923001234567"
+                href="https://wa.me/923353343327"
                 className="flex items-center gap-3 px-4 py-3 bg-[#25D366]/10 rounded-lg"
               >
                 <MessageCircle size={20} className="text-[#25D366]" />
