@@ -1,14 +1,23 @@
 import { Router, Request, Response } from 'express';
 import dotenv from 'dotenv';
 import { GoogleAuth } from 'google-auth-library';
-
+import * as admin from 'firebase-admin';
 
 dotenv.config();
 
 const router = Router();
 
+admin.initializeApp({
+  credential: admin.credential.cert({
+    projectId: process.env.FIREBASE_PROJECT_ID,
+    privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+    clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+  }),
+});
+
 const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID || '';
 const FCM_V1_API_URL = `https://fcm.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/messages:send`;
+const messaging = admin.messaging();
 
 // In-memory storage for FCM tokens (in production, use a database)
 interface DeviceToken {
@@ -19,71 +28,7 @@ interface DeviceToken {
   userId?: string;
 }
 
-
 const deviceTokens: Map<string, DeviceToken> = new Map();
-
-// async function sendFCMNotification(
-//   tokens: string[], 
-//   notification: { title: string; body: string; image?: string },
-//   data?: Record<string, string>
-// ): Promise<{ success: number; failure: number }> {
-//   if (!FCM_SERVER_KEY) {
-//     console.warn('[FCM] Server key not configured');
-//     return { success: 0, failure: tokens.length };
-//   }
-
-//   let successCount = 0;
-//   let failureCount = 0;
-
-//   // Send to each token individually for better error handling
-//   for (const token of tokens) {
-//     try {
-//       const response = await fetch(FCM_V1_API_URL, {
-//         method: 'POST',
-//         headers: {
-//           'Authorization': `Bearer ${FCM_SERVER_KEY}`,
-//           'Content-Type': 'application/json',
-//         },
-//         body: JSON.stringify({
-//           message: {
-//             token: token,
-//             notification: {
-//               title: notification.title,
-//               body: notification.body,
-//               image: notification.image,
-//             },
-//             data: {
-//               ...data,
-//               click_action: 'FLUTTER_NOTIFICATION_CLICK',
-//             },
-//           },
-//         }),
-//       });
-
-//       const result = await response.json() as FCMResponse;
-      
-//       if (result.success === 1) {
-//         successCount++;
-//         console.log(`[FCM] Sent to ${token.substring(0, 20)}...`);
-//       } else {
-//         failureCount++;
-//         console.error(`[FCM] Failed for ${token.substring(0, 20)}...:`, result);
-        
-//         // Remove invalid tokens
-//         if (result.results?.[0]?.error === 'NotRegistered' || 
-//             result.results?.[0]?.error === 'InvalidRegistration') {
-//           deviceTokens.delete(token);
-//           console.log(`[FCM] Removed invalid token: ${token.substring(0, 20)}...`);
-//         }
-//       }
-//     } catch (error) {
-//       failureCount++;
-//       console.error(`[FCM] Error sending to ${token.substring(0, 20)}...:`, error);
-//     }
-//   }
-
-//   return { success: successCount, failure: failureCount };
-// }
 
 async function getFcmAccessToken(): Promise<string> {
   const auth = new GoogleAuth({
@@ -96,70 +41,105 @@ async function getFcmAccessToken(): Promise<string> {
   return token;
 }
 
+// async function sendFCMNotification(
+//   tokens: string[],
+//   notification: { title: string; body: string; image?: string },
+//   data?: Record<string, string>
+// ): Promise<{ success: number; failure: number }> {
+//   if (!FIREBASE_PROJECT_ID) {
+//     console.warn('[FCM V1] FIREBASE_PROJECT_ID not configured');
+//     return { success: 0, failure: tokens.length };
+//   }
+
+//   const accessToken = await getFcmAccessToken();
+
+//   let successCount = 0;
+//   let failureCount = 0;
+
+//   for (const token of tokens) {
+//     try {
+//       const payload = {
+//         message: {
+//           token,
+//           notification: {
+//             title: notification.title,
+//             body: notification.body,
+//             image: notification.image,
+//           },
+//           data: {
+//             ...(data || {}),
+//             click_action: 'FLUTTER_NOTIFICATION_CLICK',
+//           },
+//           android: { priority: 'HIGH' },
+//         },
+//       };
+
+//       const resp = await fetch(FCM_V1_API_URL, {
+//         method: 'POST',
+//         headers: {
+//           Authorization: `Bearer ${accessToken}`,
+//           'Content-Type': 'application/json',
+//         },
+//         body: JSON.stringify(payload),
+//       });
+
+//       const raw = await resp.text();
+
+//       if (resp.ok) {
+//         successCount++;
+//         console.log(`[FCM V1] Sent to ${token.substring(0, 20)}...`);
+//       } else {
+//         failureCount++;
+//         console.error(`[FCM V1] Failed ${resp.status} for ${token.substring(0, 20)}...`, raw.slice(0, 300));
+//         if (raw.includes('UNREGISTERED') || raw.includes('NOT_FOUND')) {
+//           deviceTokens.delete(token);
+//           console.log(`[FCM V1] Removed invalid token: ${token.substring(0, 20)}...`);
+//         }
+//       }
+//     } catch (err) {
+//       failureCount++;
+//       console.error(`[FCM V1] Error sending to ${token.substring(0, 20)}...`, err);
+//     }
+//   }
+
+//   return { success: successCount, failure: failureCount };
+// }
+
+
 async function sendFCMNotification(
   tokens: string[],
   notification: { title: string; body: string; image?: string },
   data?: Record<string, string>
 ): Promise<{ success: number; failure: number }> {
-  if (!FIREBASE_PROJECT_ID) {
-    console.warn('[FCM V1] FIREBASE_PROJECT_ID not configured');
-    return { success: 0, failure: tokens.length };
-  }
-
-  const accessToken = await getFcmAccessToken();
-
   let successCount = 0;
   let failureCount = 0;
 
+  const message = {
+  notification: {
+    title: "Test Title",
+    body: "Test Body"
+  },
+  token: getFcmAccessToken(),
+};
+
   for (const token of tokens) {
     try {
-      const payload = {
-        message: {
-          token,
-          notification: {
-            title: notification.title,
-            body: notification.body,
-            image: notification.image,
-          },
-          data: {
-            ...(data || {}),
-            click_action: 'FLUTTER_NOTIFICATION_CLICK',
-          },
-          android: { priority: 'HIGH' },
-        },
-      };
-
-      const resp = await fetch(FCM_V1_API_URL, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-
-      const raw = await resp.text();
-
-      if (resp.ok) {
+      const response = await messaging.send(message);
+      if (response.successCount > 0) {
         successCount++;
-        console.log(`[FCM V1] Sent to ${token.substring(0, 20)}...`);
+        console.log(`[FCM] Sent to ${token.substring(0, 20)}...`);
       } else {
         failureCount++;
-        console.error(`[FCM V1] Failed ${resp.status} for ${token.substring(0, 20)}...`, raw.slice(0, 300));
-        if (raw.includes('UNREGISTERED') || raw.includes('NOT_FOUND')) {
-          deviceTokens.delete(token);
-          console.log(`[FCM V1] Removed invalid token: ${token.substring(0, 20)}...`);
-        }
+        console.error(`[FCM] Failed to send to ${token.substring(0, 20)}`);
       }
-    } catch (err) {
+    } catch (error) {
       failureCount++;
-      console.error(`[FCM V1] Error sending to ${token.substring(0, 20)}...`, err);
+      console.error(`[FCM] Error sending to ${token.substring(0, 20)}...`, error);
     }
   }
 
   return { success: successCount, failure: failureCount };
 }
-
 
 /**
  * POST /api/notifications/register
