@@ -887,7 +887,7 @@ export function Checkout() {
             </div>
             <div>
               <Label htmlFor="phone">Phone Number *</Label>
-              <Input id="phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+92 334 3353327" required />
+              <Input id="phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+92xxxxxxxxxx (use this format)" required />
             </div>
             <div>
               <Label htmlFor="address">Address *</Label>
@@ -900,7 +900,7 @@ export function Checkout() {
               </div>
               <div>
                 <Label htmlFor="postalCode">Postal Code</Label>
-                <Input id="postalCode" value={postalCode} onChange={(e) => setPostalCode(e.target.value)} placeholder="75300" />
+                <Input id="postalCode" value={postalCode} onChange={(e) => setPostalCode(e.target.value)} placeholder="Postal Code" />
               </div>
             </div>
           </div>
