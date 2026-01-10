@@ -326,6 +326,18 @@ router.get('/', async (req: Request, res: Response) => {
     const { category, subcategory, search, limit = '700' } = req.query;
     const maxProducts = parseInt(limit as string) || 700;
 
+    // Check if Shopify is configured
+    if (!isShopifyConfigured()) {
+      console.log('[Backend] Shopify not configured, returning empty products');
+      return res.json({
+        success: true,
+        products: [],
+        total: 0,
+        cached: false,
+        message: 'Shopify not configured'
+      });
+    }
+
     let products = await getCachedProducts(maxProducts);
 
     // Apply filters
