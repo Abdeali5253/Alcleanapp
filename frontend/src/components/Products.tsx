@@ -27,26 +27,163 @@ type CategoryFilter =
 
 const categoryInfo: Record<
   CategoryFilter,
-  { name: string; emoji: string; color: string }
+  {
+    name: string;
+    emoji: string;
+    color: string;
+    collections?: string[];
+    tags?: string[];
+  }
 > = {
   all: { name: "All Products", emoji: "📦", color: "#6DB33F" },
   "cleaning-chemicals": {
     name: "Cleaning Chemicals",
     emoji: "🧪",
     color: "#9B59B6",
+    collections: [
+      "cleaning-chemicals",
+      "industrial-cleaning-chemicals",
+      "multi-purpose-chemicals",
+      "floor-cleaning-chemical",
+      "top-cleaning-chemicals",
+      "kitchen-cleaning-solution",
+      "bathroom-cleaning-solution",
+      "solar-panel-cleaner-solution",
+      "industrial-floor-degreaser",
+      "degreaser-multi-clean",
+      "kitchen-degreaser",
+      "food-grade-cleaning-solution",
+      "industrial-cleaning-solutions",
+    ],
+    tags: [
+      "cleaning chemicals",
+      "cleaning-chemicals",
+      "chemical",
+      "cleaner",
+      "industrial cleaning solutions",
+      "floor cleaning chemical",
+      "activated phenyl",
+      "super phenyl",
+      "floor shiner",
+      "toilet bowl cleaner",
+      "bathroom cleaner",
+      "bathroom cleaning chemical",
+      "kitchen cleaning solution",
+      "powerful degreaser",
+      "fruits and veggi cleaner",
+      "solar cleaner",
+      "floor degreaser",
+      "cip cleaner",
+      "food grade cleaning solution",
+    ],
   },
   "cleaning-equipment": {
     name: "Cleaning Equipment",
     emoji: "🧹",
     color: "#E74C3C",
+    collections: [
+      "cleaning-equipment",
+      "home-page-cleaning-tools",
+      "top-cleaning-equipments",
+      "solar-panel-glass-window-cleaning-equipments",
+      "home-page-solar-panel-glass-window-cleaning-equipments",
+      "cleaning-tools",
+      "home-use-floor-cleaning-equipments",
+      "floor-cleaning-vipers-brushes-wet-mops-dry-mops",
+      "mop-buckets-wringers-cleaning-janitrol-trolleys",
+      "industrial-wet-mop",
+      "industrial-floor-brush",
+      "home-page-plastic-dustbin",
+      "industrial-floor-vipers",
+      "industrial-dry-mop",
+      "industrial-floor-broom",
+      "bathroom-cleaning-equipment",
+      "folding-ladder",
+      "home-page-garbage-snake-collector",
+      "safety-equipments",
+      "home-page-safety-equipment",
+      "home-page-cleaning-robots",
+      "cleaning-robots",
+      "home-page-stainless-steel-dustbin",
+      "tissue-rolls-dispensers",
+      "soap-dispenser",
+      "home-page-soap-dispenser",
+      "home-page-tissue-rolls-dispensers",
+    ],
+    tags: [
+      "cleaning equipment",
+      "cleaning tools",
+      "solar panel / glass / window cleaning equipments",
+      "home use floor cleaning equipments",
+      "floor cleaning : vipers / brushes / wet mops / dry mops",
+      "mop buckets / wringers / cleaning janitorial trolleys",
+      "industrial wet mop",
+      "industrial floor brush",
+      "industrial floor vipers",
+      "industrial dry mop",
+      "industrial floor broom",
+      "bathroom cleaning equipment",
+      "folding ladder",
+      "safety equipments",
+      "cleaning robots",
+      "tissue rolls & dispensers",
+      "soap dispenser",
+      "plastic dustbin industrial / home use",
+      "stainless steel dustbin industrial & home use",
+      "garbage / snake collector",
+    ],
   },
-  dishwashing: { name: "Dishwashing", emoji: "🍽️", color: "#FF6B6B" },
-  "car-washing": { name: "Car Washing", emoji: "🚗", color: "#6DB33F" },
-  "fabric-cleaning": { name: "Fabric Cleaning", emoji: "👕", color: "#00A3E0" },
+  dishwashing: {
+    name: "Dishwashing",
+    emoji: "🍽️",
+    color: "#FF6B6B",
+    collections: ["dish-wash-powder", "dish-wash"],
+    tags: ["dish washer", "dish wash powder"],
+  },
+  "car-washing": {
+    name: "Car Washing",
+    emoji: "🚗",
+    color: "#6DB33F",
+    collections: ["car-cleaning-solution"],
+    tags: ["car wash shampoo"],
+  },
   "bathroom-cleaning": {
     name: "Bathroom Cleaning",
     emoji: "🚿",
     color: "#00A3E0",
+    collections: [
+      "bathroom-cleaning-solution",
+      "toilet-bowl-cleaner",
+      "bathroom-cleaner",
+      "bathroom-cleaning-chemical",
+    ],
+    tags: [
+      "toilet bowl cleaner",
+      "bathroom cleaner",
+      "bathroom cleaning chemical",
+    ],
+  },
+  "fabric-cleaning": {
+    name: "Fabric Cleaning",
+    emoji: "👕",
+    color: "#00A3E0",
+    collections: [
+      "fabric-washing",
+      "fabric-detergent",
+      "fabric-color-bleach",
+      "fabric-cleaner",
+      "fabric-cleaning-chemical",
+      "fabric-softener-enhancer",
+      "white-cloth-bleach",
+    ],
+    tags: [
+      "fabric detergent",
+      "fabric color bleach",
+      "fabric cleaner",
+      "fabric cleaning chemical",
+      "fabric softener and enhancer",
+      "white cloth bleach",
+    ],
   },
 };
 
@@ -123,7 +260,7 @@ export function Products() {
         console.log("[Products] Fetching products from backend API...");
         const response = await getAllProducts();
 
-        if (response.success) {
+        if (response.success && response.products) {
           const products = response.products;
           console.log(
             "[Products] Loaded products from backend:",
@@ -212,349 +349,403 @@ export function Products() {
     );
   }
 
-  // Category filter
+  // Category filter - now based on Shopify collections and tags
   if (categoryFilter !== "all") {
-    filteredProducts = filteredProducts.filter(
-      (p) => p.category === categoryFilter
-    );
-  }
+    const categoryConfig = categoryInfo[categoryFilter];
+    if (categoryConfig.collections || categoryConfig.tags) {
+      filteredProducts = filteredProducts.filter((p) => {
+        // Check collections
+        const productCollections = (p as any).collections || [];
+        const collectionHandles = productCollections.map(
+          (c: any) => c.handle?.toLowerCase() || ""
+        );
 
-  // Subcategory filter
-  if (selectedSubcategories.length > 0) {
-    filteredProducts = filteredProducts.filter((p) =>
-      selectedSubcategories.includes(p.subcategory)
-    );
-  }
+        const matchesCollection =
+          categoryConfig.collections?.some((collection) =>
+            collectionHandles.some((handle) => {
+              const normalizedCollection = collection
+                .toLowerCase()
+                .replace(/[^a-z0-9]/g, "");
+              const normalizedHandle = handle.replace(/[^a-z0-9]/g, "");
+              return (
+                normalizedHandle.includes(normalizedCollection) ||
+                normalizedCollection.includes(normalizedHandle)
+              );
+            })
+          ) || false;
 
-  // Price range filter
-  if (filters.priceRange !== "all") {
-    filteredProducts = filteredProducts.filter((p) => {
-      switch (filters.priceRange) {
-        case "under500":
-          return p.price < 500;
-        case "500to1000":
-          return p.price >= 500 && p.price <= 1000;
-        case "1000to5000":
-          return p.price >= 1000 && p.price <= 5000;
-        case "over5000":
-          return p.price > 5000;
-        default:
-          return true;
+        // Check tags
+        const productTags = p.tags?.map((t) => t.toLowerCase()) || [];
+        const matchesTag =
+          categoryConfig.tags?.some((tag) =>
+            productTags.some((productTag) => {
+              const normalizedTag = tag.toLowerCase().replace(/[^a-z0-9]/g, "");
+              const normalizedProductTag = productTag.replace(/[^a-z0-9]/g, "");
+              return (
+                normalizedProductTag.includes(normalizedTag) ||
+                normalizedTag.includes(normalizedProductTag)
+              );
+            })
+          ) || false;
+
+        return matchesCollection || matchesTag;
+      });
+
+      // Subcategory filter
+      if (selectedSubcategories.length > 0) {
+        filteredProducts = filteredProducts.filter((p) =>
+          selectedSubcategories.includes(p.subcategory)
+        );
       }
-    });
-  }
 
-  // Stock filter
-  if (filters.stockStatus === "instock") {
-    filteredProducts = filteredProducts.filter((p) => p.inStock);
-  } else if (filters.stockStatus === "outofstock") {
-    filteredProducts = filteredProducts.filter((p) => !p.inStock);
-  }
+      // Price range filter
+      if (filters.priceRange !== "all") {
+        filteredProducts = filteredProducts.filter((p) => {
+          switch (filters.priceRange) {
+            case "under500":
+              return p.price < 500;
+            case "500to1000":
+              return p.price >= 500 && p.price <= 1000;
+            case "1000to5000":
+              return p.price >= 1000 && p.price <= 5000;
+            case "over5000":
+              return p.price > 5000;
+            default:
+              return true;
+          }
+        });
+      }
 
-  // On sale filter
-  if (filters.onSale) {
-    filteredProducts = filteredProducts.filter(
-      (p) => p.onSale && p.discountPercent > 0
-    );
-  }
+      // Stock filter
+      if (filters.stockStatus === "instock") {
+        filteredProducts = filteredProducts.filter((p) => p.inStock);
+      } else if (filters.stockStatus === "outofstock") {
+        filteredProducts = filteredProducts.filter((p) => !p.inStock);
+      }
 
-  // Sort products
-  const sortedProducts = [...filteredProducts].sort((a, b) => {
-    switch (filters.sortBy) {
-      case "price-low":
-        return a.price - b.price;
-      case "price-high":
-        return b.price - a.price;
-      case "name":
-        return a.title.localeCompare(b.title);
-      case "discount":
-        return b.discountPercent - a.discountPercent;
-      default:
-        return 0;
-    }
-  });
+      // On sale filter
+      if (filters.onSale) {
+        filteredProducts = filteredProducts.filter(
+          (p) => p.onSale && p.discountPercent > 0
+        );
+      }
 
-  const currentCategoryInfo = categoryInfo[categoryFilter];
+      // Sort products
+      const sortedProducts = [...filteredProducts].sort((a, b) => {
+        switch (filters.sortBy) {
+          case "price-low":
+            return a.price - b.price;
+          case "price-high":
+            return b.price - a.price;
+          case "name":
+            return a.title.localeCompare(b.title);
+          case "discount":
+            return b.discountPercent - a.discountPercent;
+          default:
+            return 0;
+        }
+      });
 
-  return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white pb-24 md:pb-8">
-      <UnifiedHeader />
+      const currentCategoryInfo = categoryInfo[categoryFilter];
 
-      <div className="max-w-7xl mx-auto px-4 py-6 md:py-8">
-        {/* Page Header */}
-        <div className="mb-6">
-          <div className="flex items-center gap-3 mb-2">
-            <span className="text-3xl">{currentCategoryInfo.emoji}</span>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
-              {currentCategoryInfo.name}
-            </h1>
-          </div>
-          {searchQuery && (
-            <p className="text-gray-600">
-              Showing results for "
-              <span className="font-medium text-[#6DB33F]">{searchQuery}</span>"
-            </p>
-          )}
-        </div>
+      return (
+        <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white pb-24 md:pb-8">
+          <UnifiedHeader />
 
-        {/* Category Filter Buttons */}
-        <div className="flex gap-3 mb-6 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4">
-          {(Object.keys(categoryInfo) as CategoryFilter[]).map((cat) => {
-            const info = categoryInfo[cat];
-            const isActive = categoryFilter === cat;
-            return (
+          <div className="max-w-7xl mx-auto px-4 py-6 md:py-8">
+            {/* Page Header */}
+            <div className="mb-6">
+              <div className="flex items-center gap-3 mb-2">
+                <span className="text-3xl">{currentCategoryInfo.emoji}</span>
+                <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
+                  {currentCategoryInfo.name}
+                </h1>
+              </div>
+              {searchQuery && (
+                <p className="text-gray-600">
+                  Showing results for "
+                  <span className="font-medium text-[#6DB33F]">
+                    {searchQuery}
+                  </span>
+                  "
+                </p>
+              )}
+            </div>
+
+            {/* Category Filter Buttons */}
+            <div className="flex gap-3 mb-6 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4">
+              {(Object.keys(categoryInfo) as CategoryFilter[]).map((cat) => {
+                const info = categoryInfo[cat];
+                const isActive = categoryFilter === cat;
+                return (
+                  <button
+                    key={cat}
+                    onClick={() => {
+                      setCategoryFilter(cat);
+                      setSelectedSubcategories([]);
+                    }}
+                    className={`flex items-center gap-2 px-5 py-3 rounded-xl font-medium transition-all whitespace-nowrap ${
+                      isActive
+                        ? "bg-gradient-to-r from-[#6DB33F] to-[#5da035] text-white shadow-lg shadow-[#6DB33F]/30"
+                        : "bg-white text-gray-700 border border-gray-200 hover:border-[#6DB33F]/50 hover:shadow-md"
+                    }`}
+                  >
+                    <span>{info.emoji}</span>
+                    <span>{info.name}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Subcategory Dropdown for specific categories */}
+            {(categoryFilter === "cleaning-chemicals" ||
+              categoryFilter === "cleaning-equipment") && (
+              <div className="mb-6">
+                <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Filter by Subcategory
+                  </label>
+                  <select
+                    value={selectedSubcategories[0] || ""}
+                    onChange={(e) => {
+                      if (e.target.value) {
+                        setSelectedSubcategories([e.target.value]);
+                      } else {
+                        setSelectedSubcategories([]);
+                      }
+                    }}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white text-sm font-medium text-gray-700 hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#6DB33F]/20 transition-all"
+                  >
+                    <option value="">
+                      All{" "}
+                      {categoryFilter === "cleaning-chemicals"
+                        ? "Chemicals"
+                        : "Equipment"}
+                    </option>
+                    {categories
+                      .find((cat) => cat.id === categoryFilter)
+                      ?.subcategories?.map((sub) => (
+                        <option key={sub.id} value={sub.id}>
+                          {sub.name}
+                        </option>
+                      )) || []}
+                  </select>
+                </div>
+              </div>
+            )}
+
+            {/* Quick Filters */}
+            <QuickFilters
+              currentFilters={filters}
+              onFilterChange={setFilters}
+              productCount={sortedProducts.length}
+            />
+
+            {/* View Mode Toggle & Advanced Filter */}
+            <div className="flex items-center justify-between mb-6">
               <button
-                key={cat}
-                onClick={() => {
-                  setCategoryFilter(cat);
-                  setSelectedSubcategories([]);
-                }}
-                className={`flex items-center gap-2 px-5 py-3 rounded-xl font-medium transition-all whitespace-nowrap ${
-                  isActive
-                    ? "bg-gradient-to-r from-[#6DB33F] to-[#5da035] text-white shadow-lg shadow-[#6DB33F]/30"
-                    : "bg-white text-gray-700 border border-gray-200 hover:border-[#6DB33F]/50 hover:shadow-md"
+                onClick={() => setShowFilters(true)}
+                className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl hover:shadow-md hover:border-[#6DB33F]/30 transition-all duration-200"
+              >
+                <Filter size={18} className="text-gray-600" />
+                <span className="text-gray-700 font-medium">
+                  Advanced Filters
+                </span>
+                {selectedSubcategories.length > 0 && (
+                  <span className="bg-gradient-to-r from-[#6DB33F] to-[#5da035] text-white text-xs px-2 py-0.5 rounded-full font-medium">
+                    {selectedSubcategories.length}
+                  </span>
+                )}
+              </button>
+
+              {/* View Mode Toggle */}
+              <div className="flex items-center gap-2 bg-gray-100 rounded-xl p-1">
+                <button
+                  onClick={() => setViewMode("grid")}
+                  className={`p-2 rounded-lg transition-all ${
+                    viewMode === "grid"
+                      ? "bg-white shadow-sm"
+                      : "hover:bg-gray-200"
+                  }`}
+                >
+                  <Grid3X3
+                    size={18}
+                    className={
+                      viewMode === "grid" ? "text-[#6DB33F]" : "text-gray-500"
+                    }
+                  />
+                </button>
+                <button
+                  onClick={() => setViewMode("compact")}
+                  className={`p-2 rounded-lg transition-all ${
+                    viewMode === "compact"
+                      ? "bg-white shadow-sm"
+                      : "hover:bg-gray-200"
+                  }`}
+                >
+                  <LayoutGrid
+                    size={18}
+                    className={
+                      viewMode === "compact"
+                        ? "text-[#6DB33F]"
+                        : "text-gray-500"
+                    }
+                  />
+                </button>
+              </div>
+            </div>
+
+            {/* Active Filters Tags */}
+            {(selectedSubcategories.length > 0 || searchQuery) && (
+              <div className="flex flex-wrap gap-2 mb-6">
+                {searchQuery && (
+                  <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-full text-sm font-medium">
+                    <Search size={14} />"{searchQuery}"
+                    <button
+                      onClick={() => {
+                        setSearchQuery("");
+                        navigate("/products");
+                      }}
+                      className="hover:bg-blue-100 rounded-full p-0.5 transition-colors"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                )}
+                {selectedSubcategories.map((subId) => {
+                  const subcat = categories
+                    .flatMap((cat) => cat.subcategories)
+                    .find((sub) => sub.id === subId);
+                  return (
+                    <button
+                      key={subId}
+                      onClick={() => toggleSubcategory(subId)}
+                      className="flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-[#6DB33F] to-[#5da035] text-white rounded-full text-sm font-medium hover:shadow-md transition-all"
+                    >
+                      {subcat?.name}
+                      <X size={14} />
+                    </button>
+                  );
+                })}
+                <button
+                  onClick={clearFilters}
+                  className="px-3 py-1.5 text-gray-500 text-sm font-medium hover:text-red-500 transition-colors"
+                >
+                  Clear all
+                </button>
+              </div>
+            )}
+
+            {/* Products Grid */}
+            {loading ? (
+              <div
+                className={`grid ${
+                  viewMode === "compact"
+                    ? "grid-cols-3 gap-2"
+                    : "grid-cols-2 gap-3"
+                } sm:gap-4 md:gap-6 ${
+                  viewMode === "compact"
+                    ? "md:grid-cols-4 lg:grid-cols-6"
+                    : "md:grid-cols-3 lg:grid-cols-4"
                 }`}
               >
-                <span>{info.emoji}</span>
-                <span>{info.name}</span>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Subcategory Dropdown for specific categories */}
-        {(categoryFilter === "cleaning-chemicals" ||
-          categoryFilter === "cleaning-equipment") && (
-          <div className="mb-6">
-            <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Filter by Subcategory
-              </label>
-              <select
-                value={selectedSubcategories[0] || ""}
-                onChange={(e) => {
-                  if (e.target.value) {
-                    setSelectedSubcategories([e.target.value]);
-                  } else {
-                    setSelectedSubcategories([]);
-                  }
-                }}
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white text-sm font-medium text-gray-700 hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#6DB33F]/20 transition-all"
+                {Array.from({ length: 12 }, (_, index) => (
+                  <ProductCardSkeleton key={index} />
+                ))}
+              </div>
+            ) : sortedProducts.length === 0 ? (
+              <div className="text-center py-16">
+                <div className="mb-4">
+                  <div className="w-24 h-24 bg-gray-100 rounded-full mx-auto flex items-center justify-center">
+                    <Sparkles size={40} className="text-gray-300" />
+                  </div>
+                </div>
+                <p className="text-gray-600 text-xl mb-2 font-semibold">
+                  No products found
+                </p>
+                <p className="text-gray-400 mb-6">
+                  Try adjusting your filters or search terms
+                </p>
+                <Button
+                  onClick={clearFilters}
+                  className="bg-gradient-to-r from-[#6DB33F] to-[#5da035] hover:from-[#5da035] hover:to-[#4d8f2e] text-white font-semibold px-8 py-6 rounded-xl shadow-md hover:shadow-lg transition-all"
+                >
+                  Clear All Filters
+                </Button>
+              </div>
+            ) : (
+              <div
+                className={`grid ${
+                  viewMode === "compact"
+                    ? "grid-cols-3 gap-2"
+                    : "grid-cols-2 gap-3"
+                } sm:gap-4 md:gap-6 ${
+                  viewMode === "compact"
+                    ? "md:grid-cols-4 lg:grid-cols-6"
+                    : "md:grid-cols-3 lg:grid-cols-4"
+                }`}
               >
-                <option value="">
-                  All{" "}
-                  {categoryFilter === "cleaning-chemicals"
-                    ? "Chemicals"
-                    : "Equipment"}
-                </option>
-                {categories
-                  .find((cat) => cat.id === categoryFilter)
-                  ?.subcategories.map((sub) => (
-                    <option key={sub.id} value={sub.id}>
-                      {sub.name}
-                    </option>
-                  ))}
-              </select>
-            </div>
-          </div>
-        )}
-
-        {/* Quick Filters */}
-        <QuickFilters
-          currentFilters={filters}
-          onFilterChange={setFilters}
-          productCount={sortedProducts.length}
-        />
-
-        {/* View Mode Toggle & Advanced Filter */}
-        <div className="flex items-center justify-between mb-6">
-          <button
-            onClick={() => setShowFilters(true)}
-            className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl hover:shadow-md hover:border-[#6DB33F]/30 transition-all duration-200"
-          >
-            <Filter size={18} className="text-gray-600" />
-            <span className="text-gray-700 font-medium">Advanced Filters</span>
-            {selectedSubcategories.length > 0 && (
-              <span className="bg-gradient-to-r from-[#6DB33F] to-[#5da035] text-white text-xs px-2 py-0.5 rounded-full font-medium">
-                {selectedSubcategories.length}
-              </span>
+                {sortedProducts.map((product) => (
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    onAddToCart={handleAddToCart}
+                    onQuickView={setQuickViewProduct}
+                    isInWishlist={wishlist.includes(product.id)}
+                    onToggleWishlist={toggleWishlist}
+                  />
+                ))}
+              </div>
             )}
-          </button>
 
-          {/* View Mode Toggle */}
-          <div className="flex items-center gap-2 bg-gray-100 rounded-xl p-1">
-            <button
-              onClick={() => setViewMode("grid")}
-              className={`p-2 rounded-lg transition-all ${
-                viewMode === "grid" ? "bg-white shadow-sm" : "hover:bg-gray-200"
-              }`}
-            >
-              <Grid3X3
-                size={18}
-                className={
-                  viewMode === "grid" ? "text-[#6DB33F]" : "text-gray-500"
-                }
-              />
-            </button>
-            <button
-              onClick={() => setViewMode("compact")}
-              className={`p-2 rounded-lg transition-all ${
-                viewMode === "compact"
-                  ? "bg-white shadow-sm"
-                  : "hover:bg-gray-200"
-              }`}
-            >
-              <LayoutGrid
-                size={18}
-                className={
-                  viewMode === "compact" ? "text-[#6DB33F]" : "text-gray-500"
-                }
-              />
-            </button>
+            {/* Results Summary */}
+            {!loading && sortedProducts.length > 0 && (
+              <div className="text-center py-8 text-gray-500">
+                Showing {sortedProducts.length} of {allProducts.length} products
+              </div>
+            )}
           </div>
+
+          {/* Filter Drawer */}
+          <FilterDrawer
+            isOpen={showFilters}
+            onClose={() => setShowFilters(false)}
+            selectedSubcategories={selectedSubcategories}
+            onToggleSubcategory={toggleSubcategory}
+            expandedCategories={expandedCategories}
+            onToggleCategory={toggleCategory}
+            priceRange={[0, 70000]}
+            onPriceRangeChange={() => {}}
+            stockFilter={
+              filters.stockStatus as "all" | "instock" | "outofstock"
+            }
+            onStockFilterChange={(val) =>
+              setFilters({ ...filters, stockStatus: val })
+            }
+            onClearFilters={clearFilters}
+            productsCount={sortedProducts.length}
+            categoryFilter={categoryFilter}
+            onCategoryFilterChange={(val) =>
+              setCategoryFilter(val as CategoryFilter)
+            }
+          />
+
+          {/* Quick View Modal */}
+          <QuickViewModal
+            product={quickViewProduct}
+            onClose={() => setQuickViewProduct(null)}
+            quantity={
+              quickViewProduct ? quantities[quickViewProduct.id] || 1 : 1
+            }
+            onQuantityChange={(qty) => {
+              if (quickViewProduct) {
+                setQuantities({ ...quantities, [quickViewProduct.id]: qty });
+              }
+            }}
+            onAddToCart={handleAddToCart}
+          />
         </div>
-
-        {/* Active Filters Tags */}
-        {(selectedSubcategories.length > 0 || searchQuery) && (
-          <div className="flex flex-wrap gap-2 mb-6">
-            {searchQuery && (
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-full text-sm font-medium">
-                <Search size={14} />"{searchQuery}"
-                <button
-                  onClick={() => {
-                    setSearchQuery("");
-                    navigate("/products");
-                  }}
-                  className="hover:bg-blue-100 rounded-full p-0.5 transition-colors"
-                >
-                  <X size={14} />
-                </button>
-              </div>
-            )}
-            {selectedSubcategories.map((subId) => {
-              const subcat = categories
-                .flatMap((cat) => cat.subcategories)
-                .find((sub) => sub.id === subId);
-              return (
-                <button
-                  key={subId}
-                  onClick={() => toggleSubcategory(subId)}
-                  className="flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-[#6DB33F] to-[#5da035] text-white rounded-full text-sm font-medium hover:shadow-md transition-all"
-                >
-                  {subcat?.name}
-                  <X size={14} />
-                </button>
-              );
-            })}
-            <button
-              onClick={clearFilters}
-              className="px-3 py-1.5 text-gray-500 text-sm font-medium hover:text-red-500 transition-colors"
-            >
-              Clear all
-            </button>
-          </div>
-        )}
-
-        {/* Products Grid */}
-        {loading ? (
-          <div
-            className={`grid ${
-              viewMode === "compact" ? "grid-cols-3 gap-2" : "grid-cols-2 gap-3"
-            } sm:gap-4 md:gap-6 ${
-              viewMode === "compact"
-                ? "md:grid-cols-4 lg:grid-cols-6"
-                : "md:grid-cols-3 lg:grid-cols-4"
-            }`}
-          >
-            {Array.from({ length: 12 }, (_, index) => (
-              <ProductCardSkeleton key={index} />
-            ))}
-          </div>
-        ) : sortedProducts.length === 0 ? (
-          <div className="text-center py-16">
-            <div className="mb-4">
-              <div className="w-24 h-24 bg-gray-100 rounded-full mx-auto flex items-center justify-center">
-                <Sparkles size={40} className="text-gray-300" />
-              </div>
-            </div>
-            <p className="text-gray-600 text-xl mb-2 font-semibold">
-              No products found
-            </p>
-            <p className="text-gray-400 mb-6">
-              Try adjusting your filters or search terms
-            </p>
-            <Button
-              onClick={clearFilters}
-              className="bg-gradient-to-r from-[#6DB33F] to-[#5da035] hover:from-[#5da035] hover:to-[#4d8f2e] text-white font-semibold px-8 py-6 rounded-xl shadow-md hover:shadow-lg transition-all"
-            >
-              Clear All Filters
-            </Button>
-          </div>
-        ) : (
-          <div
-            className={`grid ${
-              viewMode === "compact" ? "grid-cols-3 gap-2" : "grid-cols-2 gap-3"
-            } sm:gap-4 md:gap-6 ${
-              viewMode === "compact"
-                ? "md:grid-cols-4 lg:grid-cols-6"
-                : "md:grid-cols-3 lg:grid-cols-4"
-            }`}
-          >
-            {sortedProducts.map((product) => (
-              <ProductCard
-                key={product.id}
-                product={product}
-                onAddToCart={handleAddToCart}
-                onQuickView={setQuickViewProduct}
-                isInWishlist={wishlist.includes(product.id)}
-                onToggleWishlist={toggleWishlist}
-              />
-            ))}
-          </div>
-        )}
-
-        {/* Results Summary */}
-        {!loading && sortedProducts.length > 0 && (
-          <div className="text-center py-8 text-gray-500">
-            Showing {sortedProducts.length} of {allProducts.length} products
-          </div>
-        )}
-      </div>
-
-      {/* Filter Drawer */}
-      <FilterDrawer
-        isOpen={showFilters}
-        onClose={() => setShowFilters(false)}
-        selectedSubcategories={selectedSubcategories}
-        onToggleSubcategory={toggleSubcategory}
-        expandedCategories={expandedCategories}
-        onToggleCategory={toggleCategory}
-        priceRange={[0, 70000]}
-        onPriceRangeChange={() => {}}
-        stockFilter={filters.stockStatus as "all" | "instock" | "outofstock"}
-        onStockFilterChange={(val) =>
-          setFilters({ ...filters, stockStatus: val })
-        }
-        onClearFilters={clearFilters}
-        productsCount={sortedProducts.length}
-        categoryFilter={categoryFilter}
-        onCategoryFilterChange={(val) =>
-          setCategoryFilter(val as CategoryFilter)
-        }
-      />
-
-      {/* Quick View Modal */}
-      <QuickViewModal
-        product={quickViewProduct}
-        onClose={() => setQuickViewProduct(null)}
-        quantity={quickViewProduct ? quantities[quickViewProduct.id] || 1 : 1}
-        onQuantityChange={(qty) => {
-          if (quickViewProduct) {
-            setQuantities({ ...quantities, [quickViewProduct.id]: qty });
-          }
-        }}
-        onAddToCart={handleAddToCart}
-      />
-    </div>
-  );
+      );
+    }
+  }
 }
