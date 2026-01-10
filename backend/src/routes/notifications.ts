@@ -1,23 +1,31 @@
 import { Router, Request, Response } from 'express';
 import dotenv from 'dotenv';
-import { GoogleAuth } from 'google-auth-library';
 import * as admin from 'firebase-admin';
 
 dotenv.config();
 
 const router = Router();
 
-admin.initializeApp({
-  credential: admin.credential.cert({
-    projectId: process.env.FIREBASE_PROJECT_ID,
-    privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-    clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-  }),
-});
+// Initialize Firebase Admin only when needed
+let adminInitialized = false;
+
+function initializeFirebaseAdmin() {
+  if (adminInitialized) return;
+  if (!process.env.FIREBASE_PROJECT_ID || !process.env.FIREBASE_PRIVATE_KEY || !process.env.FIREBASE_CLIENT_EMAIL) {
+    throw new Error('Firebase credentials not configured');
+  }
+  admin.initializeApp({
+    credential: admin.credential.cert({
+      projectId: process.env.FIREBASE_PROJECT_ID,
+      privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+    }),
+  });
+  adminInitialized = true;
+}
 
 const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID || '';
 const FCM_V1_API_URL = `https://fcm.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/messages:send`;
-const messaging = admin.messaging();
 
 // In-memory storage for FCM tokens (in production, use a database)
 interface DeviceToken {
@@ -30,80 +38,7 @@ interface DeviceToken {
 
 const deviceTokens: Map<string, DeviceToken> = new Map();
 
-async function getFcmAccessToken(): Promise<string> {
-  const auth = new GoogleAuth({
-    scopes: ['https://www.googleapis.com/auth/firebase.messaging'],
-  });
-  const client = await auth.getClient();
-  const tokenResponse = await client.getAccessToken();
-  const token = tokenResponse?.token;
-  if (!token) throw new Error('Failed to get FCM OAuth access token');
-  return token;
-}
 
-// async function sendFCMNotification(
-//   tokens: string[],
-//   notification: { title: string; body: string; image?: string },
-//   data?: Record<string, string>
-// ): Promise<{ success: number; failure: number }> {
-//   if (!FIREBASE_PROJECT_ID) {
-//     console.warn('[FCM V1] FIREBASE_PROJECT_ID not configured');
-//     return { success: 0, failure: tokens.length };
-//   }
-
-//   const accessToken = await getFcmAccessToken();
-
-//   let successCount = 0;
-//   let failureCount = 0;
-
-//   for (const token of tokens) {
-//     try {
-//       const payload = {
-//         message: {
-//           token,
-//           notification: {
-//             title: notification.title,
-//             body: notification.body,
-//             image: notification.image,
-//           },
-//           data: {
-//             ...(data || {}),
-//             click_action: 'FLUTTER_NOTIFICATION_CLICK',
-//           },
-//           android: { priority: 'HIGH' },
-//         },
-//       };
-
-//       const resp = await fetch(FCM_V1_API_URL, {
-//         method: 'POST',
-//         headers: {
-//           Authorization: `Bearer ${accessToken}`,
-//           'Content-Type': 'application/json',
-//         },
-//         body: JSON.stringify(payload),
-//       });
-
-//       const raw = await resp.text();
-
-//       if (resp.ok) {
-//         successCount++;
-//         console.log(`[FCM V1] Sent to ${token.substring(0, 20)}...`);
-//       } else {
-//         failureCount++;
-//         console.error(`[FCM V1] Failed ${resp.status} for ${token.substring(0, 20)}...`, raw.slice(0, 300));
-//         if (raw.includes('UNREGISTERED') || raw.includes('NOT_FOUND')) {
-//           deviceTokens.delete(token);
-//           console.log(`[FCM V1] Removed invalid token: ${token.substring(0, 20)}...`);
-//         }
-//       }
-//     } catch (err) {
-//       failureCount++;
-//       console.error(`[FCM V1] Error sending to ${token.substring(0, 20)}...`, err);
-//     }
-//   }
-
-//   return { success: successCount, failure: failureCount };
-// }
 
 
 async function sendFCMNotification(
@@ -111,6 +46,15 @@ async function sendFCMNotification(
   notification: { title: string; body: string; image?: string },
   data?: Record<string, string>
 ): Promise<{ success: number; failure: number }> {
+  try {
+    initializeFirebaseAdmin();
+    const messaging = admin.messaging();
+  } catch (error) {
+    console.error('[FCM] Failed to initialize Firebase:', error);
+    return { success: 0, failure: tokens.length };
+  }
+
+  const messaging = admin.messaging();
   let successCount = 0;
   let failureCount = 0;
 
@@ -138,9 +82,9 @@ async function sendFCMNotification(
     } catch (error: any) {
       failureCount++;
       console.error(`[FCM] Error sending to ${token.substring(0, 20)}...`, error);
-      
+
       // Remove invalid tokens
-      if (error.code === 'messaging/invalid-registration-token' || 
+      if (error.code === 'messaging/invalid-registration-token' ||
           error.code === 'messaging/registration-token-not-registered') {
         deviceTokens.delete(token);
         console.log(`[FCM] Removed invalid token: ${token.substring(0, 20)}...`);

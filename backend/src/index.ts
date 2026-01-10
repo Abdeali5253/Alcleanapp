@@ -44,7 +44,7 @@ const healthCheck = (req: any, res: any) => {
 app.get('/health', healthCheck);
 
 // Routes
-// app.use('/api/notifications', notificationRoutes); // Temporarily commented for testing
+app.use('/api/notifications', notificationRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/cart', cartRoutes);

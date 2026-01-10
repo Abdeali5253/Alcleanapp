@@ -22,7 +22,7 @@ function isShopifyConfigured(): boolean {
 // GraphQL fetch helper
 async function shopifyFetch<T>(query: string, variables?: Record<string, any>): Promise<T> {
   const { url, token } = getShopifyConfig();
-  
+
   if (!isShopifyConfigured()) {
     throw new Error("Shopify not configured");
   }
@@ -35,6 +35,12 @@ async function shopifyFetch<T>(query: string, variables?: Record<string, any>): 
     },
     body: JSON.stringify({ query, variables }),
   });
+
+  if (!response.ok) {
+    const text = await response.text();
+    console.error(`[Shopify] HTTP error ${response.status}: ${text}`);
+    throw new Error(`Shopify API error: ${response.status} ${response.statusText}`);
+  }
 
   const json: any = await response.json();
 
