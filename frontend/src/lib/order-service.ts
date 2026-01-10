@@ -2,6 +2,7 @@ import { CartItem } from "./cart";
 import { authService } from "./auth";
 import { notificationService } from "./notifications";
 import { BACKEND_URL } from "./base-url";
+import { orderCacheService } from "./order-cache";
 
 export interface Order {
   id: string;
@@ -234,12 +235,16 @@ class OrderService {
       console.warn('[Order] Failed to create in Shopify, order saved locally only');
     }
 
+    // Add to local storage for backward compatibility
     this.orders.unshift(order);
     this.saveOrders();
 
+    // Add to cache
+    orderCacheService.addOrderToCache(order, customerInfo.email);
+
     // Note: Push notifications are handled by backend when order status changes
     // No need to send notification here as it will be triggered by backend
-    
+
     return order;
   }
 
@@ -318,28 +323,78 @@ class OrderService {
   }
 
   /**
-   * Get all orders for current user (combines local and Shopify)
+   * Get all orders for current user (combines cached, local and Shopify)
    */
   async getUserOrders(): Promise<Order[]> {
     const user = authService.getCurrentUser();
     if (!user) return [];
 
-    // Get local orders
-    const localOrders = this.orders.filter(order => order.customerEmail === user.email);
+    // Try to get cached orders first
+    let cachedOrders = orderCacheService.getCachedOrders(user.email);
 
-    // Fetch Shopify orders
-    const shopifyOrders = await this.fetchShopifyOrders();
+    if (cachedOrders.length === 0) {
+      console.log('[Orders] No cache found, fetching from APIs...');
 
-    // Combine and deduplicate (prefer Shopify orders)
-    const allOrders = [...shopifyOrders, ...localOrders];
-    const uniqueOrders = allOrders.filter((order, index, self) =>
-      index === self.findIndex(o => o.orderNumber === order.orderNumber)
-    );
+      // Get local orders (for backward compatibility)
+      const localOrders = this.orders.filter(order => order.customerEmail === user.email);
 
-    // Sort by date (newest first)
-    uniqueOrders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      // Fetch Shopify orders
+      const shopifyOrders = await this.fetchShopifyOrders();
 
-    return uniqueOrders;
+      // Combine and deduplicate (prefer Shopify orders)
+      const allOrders = [...shopifyOrders, ...localOrders];
+      const uniqueOrders = allOrders.filter((order, index, self) =>
+        index === self.findIndex(o => o.orderNumber === order.orderNumber)
+      );
+
+      // Sort by date (newest first)
+      uniqueOrders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+      // Cache the orders
+      orderCacheService.setCachedOrders(uniqueOrders, user.email);
+      cachedOrders = uniqueOrders;
+    } else {
+      console.log('[Orders] Using cached orders:', cachedOrders.length);
+
+      // Check if cache needs background refresh
+      if (orderCacheService.shouldRefresh()) {
+        console.log('[Orders] Cache is stale, refreshing in background...');
+        // Refresh in background
+        this.refreshOrdersInBackground(user.email).catch(err =>
+          console.error('[Orders] Background refresh failed:', err)
+        );
+      }
+    }
+
+    return cachedOrders;
+  }
+
+  /**
+   * Refresh orders in background and update cache
+   */
+  private async refreshOrdersInBackground(userEmail: string): Promise<void> {
+    try {
+      // Get local orders (for backward compatibility)
+      const localOrders = this.orders.filter(order => order.customerEmail === userEmail);
+
+      // Fetch Shopify orders
+      const shopifyOrders = await this.fetchShopifyOrders();
+
+      // Combine and deduplicate (prefer Shopify orders)
+      const allOrders = [...shopifyOrders, ...localOrders];
+      const uniqueOrders = allOrders.filter((order, index, self) =>
+        index === self.findIndex(o => o.orderNumber === order.orderNumber)
+      );
+
+      // Sort by date (newest first)
+      uniqueOrders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+      // Update cache
+      orderCacheService.setCachedOrders(uniqueOrders, userEmail);
+      console.log('[Orders] Background refresh complete');
+    } catch (error) {
+      console.error('[Orders] Background refresh error:', error);
+    }
   }
 
   /**
@@ -375,6 +430,9 @@ class OrderService {
       order.status = 'in-transit';
       this.saveOrders();
 
+      // Update in cache
+      orderCacheService.updateOrderInCache(order, order.customerEmail);
+
       // Notifications are handled by backend
     }
   }
@@ -385,15 +443,15 @@ class OrderService {
   async syncTrackingData() {
     const trackingData = await this.fetchTrackingData();
     const user = authService.getCurrentUser();
-    
+
     if (!user) return;
 
     // Match orders with tracking data by phone number
     const userPhone = user.phone?.replace(/\D/g, '');
-    
+
     trackingData.forEach((tracking: any) => {
       const trackingPhone = tracking.phone?.replace(/\D/g, '');
-      
+
       if (trackingPhone === userPhone) {
         const order = this.orders.find(o => o.orderNumber === tracking.order_id);
         if (order) {
@@ -402,16 +460,19 @@ class OrderService {
 
           order.trackingNumber = tracking.tracking_number;
           order.courier = tracking.courier;
-          
+
           // Update status based on tracking
           if (tracking.status?.toLowerCase().includes('delivered')) {
             order.status = 'delivered';
-            
+
             // Notifications handled by backend
           } else if (tracking.tracking_number && previousTracking !== tracking.tracking_number) {
             order.status = 'in-transit';
             // Notifications handled by backend
           }
+
+          // Update in cache
+          orderCacheService.updateOrderInCache(order, user.email);
         }
       }
     });

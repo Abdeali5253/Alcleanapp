@@ -34,7 +34,7 @@ class ProductCacheService {
       }
 
       const data: CacheData = JSON.parse(cachedData);
-      
+
       // Check version compatibility
       if (data.version !== this.CACHE_VERSION) {
         console.log("[ProductCache] Cache version mismatch, clearing cache");
@@ -45,7 +45,7 @@ class ProductCacheService {
       // Check if cache is expired (older than CACHE_DURATION_HOURS)
       const cacheAge = Date.now() - data.timestamp;
       const maxAge = CACHE_DURATION_HOURS * 60 * 60 * 1000;
-      
+
       if (cacheAge > maxAge) {
         console.log("[ProductCache] Cache expired, clearing");
         this.clearCache();
@@ -71,10 +71,10 @@ class ProductCacheService {
         timestamp: Date.now(),
         version: this.CACHE_VERSION,
       };
-      
+
       localStorage.setItem(CACHE_KEY, JSON.stringify(data));
       localStorage.setItem(CACHE_TIMESTAMP_KEY, data.timestamp.toString());
-      
+
       console.log(`[ProductCache] Cached ${products.length} products at ${new Date().toISOString()}`);
     } catch (error) {
       console.error("[ProductCache] Error saving cache:", error);
@@ -129,14 +129,14 @@ class ProductCacheService {
     try {
       const cachedData = localStorage.getItem(CACHE_KEY);
       const timestamp = localStorage.getItem(CACHE_TIMESTAMP_KEY);
-      
+
       if (!cachedData || !timestamp) {
         return { hasCache: false, productCount: 0, ageMinutes: 0, lastRefresh: "Never" };
       }
 
       const data: CacheData = JSON.parse(cachedData);
       const cacheAge = Date.now() - parseInt(timestamp, 10);
-      
+
       return {
         hasCache: true,
         productCount: data.products.length,
@@ -157,24 +157,35 @@ class ProductCacheService {
     const now = new Date();
     const midnight = new Date();
     midnight.setHours(24, 0, 0, 0); // Next midnight
-    
+
     const msUntilMidnight = midnight.getTime() - now.getTime();
-    
+
     console.log(`[ProductCache] Scheduling midnight refresh in ${Math.round(msUntilMidnight / 60000)} minutes`);
-    
+
     // Schedule the midnight refresh
     setTimeout(() => {
       console.log("[ProductCache] Midnight refresh triggered");
       this.clearCache();
-      
+
+      // Also clear order cache at midnight
+      try {
+        // Import order cache service dynamically to avoid circular dependency
+        import('./order-cache').then(({ orderCacheService }) => {
+          orderCacheService.clearCache();
+          console.log("[ProductCache] Order cache also cleared at midnight");
+        }).catch(err => console.error("[ProductCache] Error clearing order cache:", err));
+      } catch (error) {
+        console.error("[ProductCache] Error importing order cache:", error);
+      }
+
       // Emit event for UI to know cache was cleared
       window.dispatchEvent(new CustomEvent("alclean-cache-cleared"));
-      
+
       // Schedule next midnight refresh
       this.midnightRefreshScheduled = false;
       this.scheduleMidnightRefresh();
     }, msUntilMidnight);
-    
+
     this.midnightRefreshScheduled = true;
   }
 
@@ -184,6 +195,17 @@ class ProductCacheService {
   forceRefresh(): void {
     console.log("[ProductCache] Force refresh requested");
     this.clearCache();
+
+    // Also clear order cache
+    try {
+      import('./order-cache').then(({ orderCacheService }) => {
+        orderCacheService.clearCache();
+        console.log("[ProductCache] Order cache also cleared on force refresh");
+      }).catch(err => console.error("[ProductCache] Error clearing order cache:", err));
+    } catch (error) {
+      console.error("[ProductCache] Error importing order cache:", error);
+    }
+
     window.dispatchEvent(new CustomEvent("alclean-cache-cleared"));
   }
 }
