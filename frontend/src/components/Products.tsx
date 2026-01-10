@@ -10,38 +10,63 @@ import { QuickViewModal } from "./QuickViewModal";
 import { QuickFilters, FilterState, defaultFilters } from "./QuickFilters";
 import { Product } from "../types/shopify";
 import { categories } from "../lib/categories";
-import { getAllProducts } from "../lib/shopify";
+
 import { ProductCardSkeleton } from "./ProductCardSkeleton";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { cartService } from "../lib/cart";
 import { wishlistService } from "../lib/wishlist";
 
+type CategoryFilter =
+  | "all"
+  | "cleaning-chemicals"
+  | "cleaning-equipment"
+  | "car-washing"
+  | "bathroom-cleaning"
+  | "fabric-cleaning"
+  | "dishwashing";
 
-type CategoryFilter = "all" | "cleaning-chemicals" | "cleaning-equipment" | "car-washing" | "bathroom-cleaning" | "fabric-cleaning" | "dishwashing";
-
-const categoryInfo: Record<CategoryFilter, { name: string; emoji: string; color: string }> = {
-  "all": { name: "All Products", emoji: "📦", color: "#6DB33F" },
-  "cleaning-chemicals": { name: "Cleaning Chemicals", emoji: "🧪", color: "#9B59B6" },
-  "cleaning-equipment": { name: "Cleaning Equipment", emoji: "🧹", color: "#E74C3C" },
-  "dishwashing": { name: "Dishwashing", emoji: "🍽️", color: "#FF6B6B" },
+const categoryInfo: Record<
+  CategoryFilter,
+  { name: string; emoji: string; color: string }
+> = {
+  all: { name: "All Products", emoji: "📦", color: "#6DB33F" },
+  "cleaning-chemicals": {
+    name: "Cleaning Chemicals",
+    emoji: "🧪",
+    color: "#9B59B6",
+  },
+  "cleaning-equipment": {
+    name: "Cleaning Equipment",
+    emoji: "🧹",
+    color: "#E74C3C",
+  },
+  dishwashing: { name: "Dishwashing", emoji: "🍽️", color: "#FF6B6B" },
   "car-washing": { name: "Car Washing", emoji: "🚗", color: "#6DB33F" },
   "fabric-cleaning": { name: "Fabric Cleaning", emoji: "👕", color: "#00A3E0" },
-  "bathroom-cleaning": { name: "Bathroom Cleaning", emoji: "🚿", color: "#00A3E0" },
+  "bathroom-cleaning": {
+    name: "Bathroom Cleaning",
+    emoji: "🚿",
+    color: "#00A3E0",
+  },
 };
 
 export function Products() {
-  const [selectedSubcategories, setSelectedSubcategories] = useState<string[]>([]);
+  const [selectedSubcategories, setSelectedSubcategories] = useState<string[]>(
+    []
+  );
   const [showFilters, setShowFilters] = useState(false);
   const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [wishlist, setWishlist] = useState<string[]>([]);
-  const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
+  const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(
+    null
+  );
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState<FilterState>(defaultFilters);
-  const [viewMode, setViewMode] = useState<'grid' | 'compact'>('grid');
+  const [viewMode, setViewMode] = useState<"grid" | "compact">("grid");
   const location = useLocation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -58,7 +83,14 @@ export function Products() {
     setSelectedSubcategories([]);
 
     if (category) {
-      const validCategories = ["cleaning-chemicals", "cleaning-equipment", "car-washing", "bathroom-cleaning", "fabric-cleaning", "dishwashing"];
+      const validCategories = [
+        "cleaning-chemicals",
+        "cleaning-equipment",
+        "car-washing",
+        "bathroom-cleaning",
+        "fabric-cleaning",
+        "dishwashing",
+      ];
       if (validCategories.includes(category)) {
         setCategoryFilter(category as CategoryFilter);
       }
@@ -66,8 +98,8 @@ export function Products() {
 
     if (subcategory) {
       setSelectedSubcategories([subcategory]);
-      const parentCategory = categories.find(cat =>
-        cat.subcategories.some(sub => sub.id === subcategory)
+      const parentCategory = categories.find((cat) =>
+        cat.subcategories.some((sub) => sub.id === subcategory)
       );
       if (parentCategory && !expandedCategories.includes(parentCategory.id)) {
         setExpandedCategories([...expandedCategories, parentCategory.id]);
@@ -79,166 +111,30 @@ export function Products() {
     }
   }, [location.search]);
 
-  // Fetch products from Shopify
+  // Fetch products from backend API
   useEffect(() => {
     const fetchProducts = async () => {
       try {
         setLoading(true);
-        
-        // Import caching service
-        const { productCacheService } = await import("../lib/product-cache");
-        
-        // Try to get cached products first
-        let products = productCacheService.getCachedProducts();
-        
-        if (products.length === 0) {
-          // No cache, fetch from Shopify
-          console.log('[Products] No cache found, fetching from Shopify...');
-          products = await getAllProducts(700);
-          
-          // Save to cache
-          productCacheService.setCachedProducts(products);
+
+        // Import API service
+        const { getAllProducts } = await import("../lib/api");
+
+        console.log("[Products] Fetching products from backend API...");
+        const response = await getAllProducts();
+
+        if (response.success) {
+          const products = response.products;
+          console.log(
+            "[Products] Loaded products from backend:",
+            products.length
+          );
+          setAllProducts(products);
         } else {
-          console.log('[Products] Using cached products:', products.length);
-          
-          // Check if cache needs background refresh
-          if (productCacheService.shouldRefresh()) {
-            console.log('[Products] Cache is stale, refreshing in background...');
-            // Refresh in background
-            getAllProducts(700).then(freshProducts => {
-              productCacheService.setCachedProducts(freshProducts);
-              console.log('[Products] Background refresh complete');
-            }).catch(err => console.error('[Products] Background refresh failed:', err));
-          }
+          throw new Error(response.error || "Failed to fetch products");
         }
-        
-        // Categorize products based on their collections - STRICT RULES
-        const categorizedProducts = products.map(product => {
-          const collections = (product as any).collections || [];
-          const collectionHandles = collections.map((c: any) => c.handle.toLowerCase());
-          const productTitle = product.title.toLowerCase();
-          
-          let category = 'cleaning-chemicals';
-          let subcategory = '';
-          
-          // STRICT EQUIPMENT KEYWORDS - if product has ANY of these, it's equipment NOT chemical
-          const equipmentKeywords = [
-            'bucket', 'mop', 'wringer', 'trolley', 'cart', 'dustbin', 'bin',
-            'brush', 'broom', 'scrubber', 'sponge', 'cloth', 'towel', 'wiper',
-            'glove', 'dispenser', 'tissue', 'machine', 'vacuum', 'polish',
-            'squeegee', 'duster', 'holder', 'stand', 'rack', 'caddy',
-            'tool', 'equipment', 'robot', 'viper', 'vipers','dryer','rods','cleaning PADS', 'hand dryer' , 'Aluminium rod',
-            'Aluminium' , 'Telescopic Pole' , 'Cleaning Pole' ,'pole' , 'PAD' ,'Burnisher' ,'MASK' , 'Garbage Picker', 'LADDER' ,'Shoe Cover'
-          ];
-          
-          // Check if product title contains equipment keywords
-          const isEquipmentByTitle = equipmentKeywords.some(keyword => productTitle.includes(keyword));
-          
-          // PRIORITY 1: Equipment Collections OR Equipment Keywords in Title
-          if (
-            collectionHandles.some((h: string) => 
-              h.includes('equipment') || 
-              h.includes('tools') ||
-              h.includes('cleaning-machines') ||
-              h.includes('vacuum') ||
-              h.includes('polish-machine') ||
-              h.includes('tissue-rolls') ||
-              h.includes('cleaning-robot') ||
-              h.includes('floor-cleaning-vipers') ||
-              h.includes('safety-equipments') ||
-              h.includes('dustbin') ||
-              h.includes('mop-buckets') ||
-              h.includes('wringers')
-            ) || isEquipmentByTitle
-          ) {
-            category = 'cleaning-equipment';
-            
-            // Assign equipment subcategory
-            if (collectionHandles.some((h: string) => h.includes('mop') || h.includes('bucket') || h.includes('wringer'))) {
-              subcategory = 'mop-buckets';
-            } else if (collectionHandles.some((h: string) => h.includes('tissue'))) {
-              subcategory = 'tissue-dispensers';
-            } else if (collectionHandles.some((h: string) => h.includes('dustbin'))) {
-              subcategory = 'plastic-dustbin';
-            } else if (collectionHandles.some((h: string) => h.includes('floor-cleaning-vipers'))) {
-              subcategory = 'floor-cleaning-vipers';
-            } else if (collectionHandles.some((h: string) => h.includes('cleaning-tools'))) {
-              subcategory = 'cleaning-tools';
-            }
-          } 
-          // Priority 2: Fabric cleaning
-          else if (collectionHandles.some((h: string) => 
-            h.includes('fabric-washing') || 
-            h.includes('fabric-detergent') ||
-            h.includes('fabric-softener') ||
-            h.includes('fabric-color-bleach')
-          )) {
-            category = 'fabric-cleaning';
-            subcategory = 'fabric-washing';
-          } 
-          // Priority 3: Dishwashing
-          else if (collectionHandles.some((h: string) => 
-            h.includes('dish') && !h.includes('dispenser')
-          )) {
-            category = 'dishwashing';
-          } 
-          // Priority 4: Car washing
-          else if (collectionHandles.some((h: string) => 
-            h.includes('car-')
-          )) {
-            category = 'car-washing';
-          } 
-          // Priority 5: Bathroom cleaning
-          else if (collectionHandles.some((h: string) => 
-            h.includes('bathroom-cleaning-solution') || 
-            h.includes('toilet-bowl-cleaner')
-          )) {
-            category = 'bathroom-cleaning';
-          } 
-          // Priority 6: CLEANING CHEMICALS (ONLY chemicals, NO equipment)
-          else {
-            category = 'cleaning-chemicals';
-            
-            // Assign chemical subcategory based on collection
-            if (collectionHandles.some((h: string) => h.includes('floor-cleaning-chemical'))) {
-              subcategory = 'floor-cleaning-chemical';
-            } else if (collectionHandles.some((h: string) => h.includes('multi-purpose-chemicals'))) {
-              subcategory = 'multi-purpose-chemicals';
-            } else if (collectionHandles.some((h: string) => h.includes('industrial-cleaning-chemicals'))) {
-              subcategory = 'industrial-cleaning-chemicals';
-            } else if (collectionHandles.some((h: string) => h.includes('top-cleaning-chemicals'))) {
-              subcategory = 'top-cleaning-chemicals';
-            } else if (collectionHandles.some((h: string) => h.includes('home-page-industrial-cleaning-chemical'))) {
-              subcategory = 'home-page-industrial-cleaning-chemical';
-            } else if (collectionHandles.some((h: string) => h.includes('fabric-cleaning-chemical'))) {
-              subcategory = 'fabric-cleaning-chemical';
-            } else if (collectionHandles.some((h: string) => h.includes('bathroom-cleaning-chemical'))) {
-              subcategory = 'bathroom-cleaning-chemical';
-            } else if (collectionHandles.some((h: string) => h.includes('hand-washing-cleaning'))) {
-              subcategory = 'hand-washing-cleaning';
-            } else if (collectionHandles.some((h: string) => h.includes('kitchen-cleaning-solution'))) {
-              subcategory = 'kitchen-cleaning-solution';
-            }
-          }
-          
-          return { ...product, category, subcategory };
-        });
-        
-        console.log('[Products] Loaded and categorized ALL products:', {
-          total: categorizedProducts.length,
-          byCategory: {
-            chemicals: categorizedProducts.filter(p => p.category === 'cleaning-chemicals').length,
-            equipment: categorizedProducts.filter(p => p.category === 'cleaning-equipment').length,
-            carWashing: categorizedProducts.filter(p => p.category === 'car-washing').length,
-            bathroom: categorizedProducts.filter(p => p.category === 'bathroom-cleaning').length,
-            fabric: categorizedProducts.filter(p => p.category === 'fabric-cleaning').length,
-            dishwashing: categorizedProducts.filter(p => p.category === 'dishwashing').length,
-          },
-        });
-        
-        setAllProducts(categorizedProducts);
       } catch (error) {
-        console.error("Failed to fetch products from Shopify:", error);
+        console.error("Failed to fetch products from backend:", error);
         toast.error("Failed to load products. Please refresh the page.", {
           duration: 4000,
           position: "top-center",
@@ -276,7 +172,9 @@ export function Products() {
 
   const toggleCategory = (categoryId: string) => {
     if (expandedCategories.includes(categoryId)) {
-      setExpandedCategories(expandedCategories.filter(id => id !== categoryId));
+      setExpandedCategories(
+        expandedCategories.filter((id) => id !== categoryId)
+      );
     } else {
       setExpandedCategories([...expandedCategories, categoryId]);
     }
@@ -284,7 +182,9 @@ export function Products() {
 
   const toggleSubcategory = (subcategoryId: string) => {
     if (selectedSubcategories.includes(subcategoryId)) {
-      setSelectedSubcategories(selectedSubcategories.filter(id => id !== subcategoryId));
+      setSelectedSubcategories(
+        selectedSubcategories.filter((id) => id !== subcategoryId)
+      );
     } else {
       setSelectedSubcategories([...selectedSubcategories, subcategoryId]);
     }
@@ -295,7 +195,7 @@ export function Products() {
     setSearchQuery("");
     setCategoryFilter("all");
     setFilters(defaultFilters);
-    navigate('/products');
+    navigate("/products");
   };
 
   // Filter products
@@ -304,56 +204,73 @@ export function Products() {
   // Search filter
   if (searchQuery) {
     const query = searchQuery.toLowerCase();
-    filteredProducts = filteredProducts.filter(p => 
-      p.title.toLowerCase().includes(query) ||
-      p.description?.toLowerCase().includes(query) ||
-      p.tags.some(t => t.toLowerCase().includes(query))
+    filteredProducts = filteredProducts.filter(
+      (p) =>
+        p.title.toLowerCase().includes(query) ||
+        p.description?.toLowerCase().includes(query) ||
+        p.tags.some((t) => t.toLowerCase().includes(query))
     );
   }
 
   // Category filter
   if (categoryFilter !== "all") {
-    filteredProducts = filteredProducts.filter(p => p.category === categoryFilter);
+    filteredProducts = filteredProducts.filter(
+      (p) => p.category === categoryFilter
+    );
   }
 
   // Subcategory filter
   if (selectedSubcategories.length > 0) {
-    filteredProducts = filteredProducts.filter(p => selectedSubcategories.includes(p.subcategory));
+    filteredProducts = filteredProducts.filter((p) =>
+      selectedSubcategories.includes(p.subcategory)
+    );
   }
 
   // Price range filter
-  if (filters.priceRange !== 'all') {
-    filteredProducts = filteredProducts.filter(p => {
+  if (filters.priceRange !== "all") {
+    filteredProducts = filteredProducts.filter((p) => {
       switch (filters.priceRange) {
-        case 'under500': return p.price < 500;
-        case '500to1000': return p.price >= 500 && p.price <= 1000;
-        case '1000to5000': return p.price >= 1000 && p.price <= 5000;
-        case 'over5000': return p.price > 5000;
-        default: return true;
+        case "under500":
+          return p.price < 500;
+        case "500to1000":
+          return p.price >= 500 && p.price <= 1000;
+        case "1000to5000":
+          return p.price >= 1000 && p.price <= 5000;
+        case "over5000":
+          return p.price > 5000;
+        default:
+          return true;
       }
     });
   }
 
   // Stock filter
   if (filters.stockStatus === "instock") {
-    filteredProducts = filteredProducts.filter(p => p.inStock);
+    filteredProducts = filteredProducts.filter((p) => p.inStock);
   } else if (filters.stockStatus === "outofstock") {
-    filteredProducts = filteredProducts.filter(p => !p.inStock);
+    filteredProducts = filteredProducts.filter((p) => !p.inStock);
   }
 
   // On sale filter
   if (filters.onSale) {
-    filteredProducts = filteredProducts.filter(p => p.onSale && p.discountPercent > 0);
+    filteredProducts = filteredProducts.filter(
+      (p) => p.onSale && p.discountPercent > 0
+    );
   }
 
   // Sort products
   const sortedProducts = [...filteredProducts].sort((a, b) => {
     switch (filters.sortBy) {
-      case "price-low": return a.price - b.price;
-      case "price-high": return b.price - a.price;
-      case "name": return a.title.localeCompare(b.title);
-      case "discount": return b.discountPercent - a.discountPercent;
-      default: return 0;
+      case "price-low":
+        return a.price - b.price;
+      case "price-high":
+        return b.price - a.price;
+      case "name":
+        return a.title.localeCompare(b.title);
+      case "discount":
+        return b.discountPercent - a.discountPercent;
+      default:
+        return 0;
     }
   });
 
@@ -374,7 +291,8 @@ export function Products() {
           </div>
           {searchQuery && (
             <p className="text-gray-600">
-              Showing results for "<span className="font-medium text-[#6DB33F]">{searchQuery}</span>"
+              Showing results for "
+              <span className="font-medium text-[#6DB33F]">{searchQuery}</span>"
             </p>
           )}
         </div>
@@ -405,7 +323,8 @@ export function Products() {
         </div>
 
         {/* Subcategory Dropdown for specific categories */}
-        {(categoryFilter === "cleaning-chemicals" || categoryFilter === "cleaning-equipment") && (
+        {(categoryFilter === "cleaning-chemicals" ||
+          categoryFilter === "cleaning-equipment") && (
           <div className="mb-6">
             <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -422,10 +341,15 @@ export function Products() {
                 }}
                 className="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white text-sm font-medium text-gray-700 hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#6DB33F]/20 transition-all"
               >
-                <option value="">All {categoryFilter === "cleaning-chemicals" ? "Chemicals" : "Equipment"}</option>
+                <option value="">
+                  All{" "}
+                  {categoryFilter === "cleaning-chemicals"
+                    ? "Chemicals"
+                    : "Equipment"}
+                </option>
                 {categories
-                  .find(cat => cat.id === categoryFilter)
-                  ?.subcategories.map(sub => (
+                  .find((cat) => cat.id === categoryFilter)
+                  ?.subcategories.map((sub) => (
                     <option key={sub.id} value={sub.id}>
                       {sub.name}
                     </option>
@@ -460,20 +384,32 @@ export function Products() {
           {/* View Mode Toggle */}
           <div className="flex items-center gap-2 bg-gray-100 rounded-xl p-1">
             <button
-              onClick={() => setViewMode('grid')}
+              onClick={() => setViewMode("grid")}
               className={`p-2 rounded-lg transition-all ${
-                viewMode === 'grid' ? 'bg-white shadow-sm' : 'hover:bg-gray-200'
+                viewMode === "grid" ? "bg-white shadow-sm" : "hover:bg-gray-200"
               }`}
             >
-              <Grid3X3 size={18} className={viewMode === 'grid' ? 'text-[#6DB33F]' : 'text-gray-500'} />
+              <Grid3X3
+                size={18}
+                className={
+                  viewMode === "grid" ? "text-[#6DB33F]" : "text-gray-500"
+                }
+              />
             </button>
             <button
-              onClick={() => setViewMode('compact')}
+              onClick={() => setViewMode("compact")}
               className={`p-2 rounded-lg transition-all ${
-                viewMode === 'compact' ? 'bg-white shadow-sm' : 'hover:bg-gray-200'
+                viewMode === "compact"
+                  ? "bg-white shadow-sm"
+                  : "hover:bg-gray-200"
               }`}
             >
-              <LayoutGrid size={18} className={viewMode === 'compact' ? 'text-[#6DB33F]' : 'text-gray-500'} />
+              <LayoutGrid
+                size={18}
+                className={
+                  viewMode === "compact" ? "text-[#6DB33F]" : "text-gray-500"
+                }
+              />
             </button>
           </div>
         </div>
@@ -483,20 +419,22 @@ export function Products() {
           <div className="flex flex-wrap gap-2 mb-6">
             {searchQuery && (
               <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-full text-sm font-medium">
-                <Search size={14} />
-                "{searchQuery}"
-                <button onClick={() => {
-                  setSearchQuery("");
-                  navigate('/products');
-                }} className="hover:bg-blue-100 rounded-full p-0.5 transition-colors">
+                <Search size={14} />"{searchQuery}"
+                <button
+                  onClick={() => {
+                    setSearchQuery("");
+                    navigate("/products");
+                  }}
+                  className="hover:bg-blue-100 rounded-full p-0.5 transition-colors"
+                >
                   <X size={14} />
                 </button>
               </div>
             )}
             {selectedSubcategories.map((subId) => {
               const subcat = categories
-                .flatMap(cat => cat.subcategories)
-                .find(sub => sub.id === subId);
+                .flatMap((cat) => cat.subcategories)
+                .find((sub) => sub.id === subId);
               return (
                 <button
                   key={subId}
@@ -519,7 +457,15 @@ export function Products() {
 
         {/* Products Grid */}
         {loading ? (
-          <div className={`grid ${viewMode === 'compact' ? 'grid-cols-3 gap-2' : 'grid-cols-2 gap-3'} sm:gap-4 md:gap-6 ${viewMode === 'compact' ? 'md:grid-cols-4 lg:grid-cols-6' : 'md:grid-cols-3 lg:grid-cols-4'}`}>
+          <div
+            className={`grid ${
+              viewMode === "compact" ? "grid-cols-3 gap-2" : "grid-cols-2 gap-3"
+            } sm:gap-4 md:gap-6 ${
+              viewMode === "compact"
+                ? "md:grid-cols-4 lg:grid-cols-6"
+                : "md:grid-cols-3 lg:grid-cols-4"
+            }`}
+          >
             {Array.from({ length: 12 }, (_, index) => (
               <ProductCardSkeleton key={index} />
             ))}
@@ -531,17 +477,29 @@ export function Products() {
                 <Sparkles size={40} className="text-gray-300" />
               </div>
             </div>
-            <p className="text-gray-600 text-xl mb-2 font-semibold">No products found</p>
-            <p className="text-gray-400 mb-6">Try adjusting your filters or search terms</p>
-            <Button 
-              onClick={clearFilters} 
+            <p className="text-gray-600 text-xl mb-2 font-semibold">
+              No products found
+            </p>
+            <p className="text-gray-400 mb-6">
+              Try adjusting your filters or search terms
+            </p>
+            <Button
+              onClick={clearFilters}
               className="bg-gradient-to-r from-[#6DB33F] to-[#5da035] hover:from-[#5da035] hover:to-[#4d8f2e] text-white font-semibold px-8 py-6 rounded-xl shadow-md hover:shadow-lg transition-all"
             >
               Clear All Filters
             </Button>
           </div>
         ) : (
-          <div className={`grid ${viewMode === 'compact' ? 'grid-cols-3 gap-2' : 'grid-cols-2 gap-3'} sm:gap-4 md:gap-6 ${viewMode === 'compact' ? 'md:grid-cols-4 lg:grid-cols-6' : 'md:grid-cols-3 lg:grid-cols-4'}`}>
+          <div
+            className={`grid ${
+              viewMode === "compact" ? "grid-cols-3 gap-2" : "grid-cols-2 gap-3"
+            } sm:gap-4 md:gap-6 ${
+              viewMode === "compact"
+                ? "md:grid-cols-4 lg:grid-cols-6"
+                : "md:grid-cols-3 lg:grid-cols-4"
+            }`}
+          >
             {sortedProducts.map((product) => (
               <ProductCard
                 key={product.id}
@@ -574,18 +532,22 @@ export function Products() {
         priceRange={[0, 70000]}
         onPriceRangeChange={() => {}}
         stockFilter={filters.stockStatus as "all" | "instock" | "outofstock"}
-        onStockFilterChange={(val) => setFilters({...filters, stockStatus: val})}
+        onStockFilterChange={(val) =>
+          setFilters({ ...filters, stockStatus: val })
+        }
         onClearFilters={clearFilters}
         productsCount={sortedProducts.length}
         categoryFilter={categoryFilter}
-        onCategoryFilterChange={(val) => setCategoryFilter(val as CategoryFilter)}
+        onCategoryFilterChange={(val) =>
+          setCategoryFilter(val as CategoryFilter)
+        }
       />
 
       {/* Quick View Modal */}
       <QuickViewModal
         product={quickViewProduct}
         onClose={() => setQuickViewProduct(null)}
-        quantity={quickViewProduct ? (quantities[quickViewProduct.id] || 1) : 1}
+        quantity={quickViewProduct ? quantities[quickViewProduct.id] || 1 : 1}
         onQuantityChange={(qty) => {
           if (quickViewProduct) {
             setQuantities({ ...quantities, [quickViewProduct.id]: qty });

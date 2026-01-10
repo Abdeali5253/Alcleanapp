@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { 
-  User, 
-  LogOut, 
-  Bell, 
-  HelpCircle, 
-  ChevronRight, 
+import {
+  User,
+  LogOut,
+  Bell,
+  HelpCircle,
+  ChevronRight,
   Info,
   MessageCircle,
   LogIn,
@@ -16,7 +16,7 @@ import {
   Mail,
   Phone as PhoneIcon,
   Lock,
-  Heart
+  Heart,
 } from "lucide-react";
 import { authService, User as AuthUser } from "../lib/auth";
 import { Button } from "./ui/button";
@@ -78,7 +78,7 @@ export function Account() {
   const [isSignup, setIsSignup] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
-  
+
   // Form fields
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -95,23 +95,25 @@ export function Account() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!email || !password) {
       toast.error("Please enter email and password");
       return;
     }
-    
+
     setIsLoggingIn(true);
 
     try {
       await authService.logIn(email, password);
-      
+
       const redirectPath = authService.getRedirectAfterLogin();
       if (redirectPath) {
         navigate(redirectPath);
       }
     } catch (error: any) {
-      toast.error(error.message || "Login failed. Please check your credentials.");
+      toast.error(
+        error.message || "Login failed. Please check your credentials."
+      );
     } finally {
       setIsLoggingIn(false);
     }
@@ -119,22 +121,22 @@ export function Account() {
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!firstName || !email || !password) {
       toast.error("Please fill all required fields");
       return;
     }
-    
+
     if (password.length < 6) {
       toast.error("Password must be at least 6 characters");
       return;
     }
-    
+
     setIsLoggingIn(true);
 
     try {
       await authService.signUp(email, password, firstName, lastName, phone);
-      
+
       const redirectPath = authService.getRedirectAfterLogin();
       if (redirectPath) {
         navigate(redirectPath);
@@ -148,12 +150,12 @@ export function Account() {
 
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!email) {
       toast.error("Please enter your email address");
       return;
     }
-    
+
     setIsLoggingIn(true);
 
     try {
@@ -198,7 +200,10 @@ export function Account() {
               <div>
                 <Label htmlFor="email">Email Address</Label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                  <Mail
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                    size={18}
+                  />
                   <Input
                     id="email"
                     type="email"
@@ -256,8 +261,8 @@ export function Account() {
                 {isSignup ? "Create Account" : "Welcome Back"}
               </h1>
               <p className="text-gray-600">
-                {isSignup 
-                  ? "Sign up to start shopping with AlClean" 
+                {isSignup
+                  ? "Sign up to start shopping with AlClean"
                   : "Login to access your account and orders"}
               </p>
             </div>
@@ -287,11 +292,14 @@ export function Account() {
                     />
                   </div>
                 </div>
-                
+
                 <div>
                   <Label htmlFor="email">Email Address *</Label>
                   <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                    <Mail
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                      size={18}
+                    />
                     <Input
                       id="email"
                       type="email"
@@ -303,11 +311,14 @@ export function Account() {
                     />
                   </div>
                 </div>
-                
+
                 <div>
                   <Label htmlFor="phone">Phone Number</Label>
                   <div className="relative">
-                    <PhoneIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                    <PhoneIcon
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                      size={18}
+                    />
                     <Input
                       id="phone"
                       type="tel"
@@ -318,11 +329,14 @@ export function Account() {
                     />
                   </div>
                 </div>
-                
+
                 <div>
                   <Label htmlFor="password">Password *</Label>
                   <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                    <Lock
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                      size={18}
+                    />
                     <Input
                       id="password"
                       type={showPassword ? "text" : "password"}
@@ -356,7 +370,10 @@ export function Account() {
                 <div>
                   <Label htmlFor="email">Email Address</Label>
                   <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                    <Mail
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                      size={18}
+                    />
                     <Input
                       id="email"
                       type="email"
@@ -368,11 +385,14 @@ export function Account() {
                     />
                   </div>
                 </div>
-                
+
                 <div>
                   <Label htmlFor="password">Password</Label>
                   <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                    <Lock
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                      size={18}
+                    />
                     <Input
                       id="password"
                       type={showPassword ? "text" : "password"}
@@ -381,6 +401,7 @@ export function Account() {
                       onChange={(e) => setPassword(e.target.value)}
                       className="pl-10 pr-10"
                       required
+                      autoComplete="current-password"
                     />
                     <button
                       type="button"
@@ -413,7 +434,9 @@ export function Account() {
             )}
 
             <div className="mt-6 text-center text-gray-600">
-              {isSignup ? "Already have an account? " : "Don't have an account? "}
+              {isSignup
+                ? "Already have an account? "
+                : "Don't have an account? "}
               <button
                 onClick={() => {
                   setIsSignup(!isSignup);
@@ -434,7 +457,7 @@ export function Account() {
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
       <UnifiedHeader />
-      
+
       {/* User Profile Section */}
       <div className="bg-[#6DB33F] text-white">
         <div className="max-w-md mx-auto px-4 py-6">

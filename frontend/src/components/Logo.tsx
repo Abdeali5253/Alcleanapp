@@ -11,18 +11,19 @@ export function Logo({ className = "", linkTo = "/", size = "md" }: LogoProps) {
   const sizeClasses = {
     sm: "h-8 w-auto",
     md: "h-10 w-auto",
-    lg: "h-14 w-auto"
+    lg: "h-14 w-auto",
   };
 
   const logoContent = (
-    <img 
-      src={logoImage} 
-      alt="AlClean" 
+    <img
+      src={logoImage}
+      alt="AlClean"
       className={`${sizeClasses[size]} object-contain ${className}`}
     />
   );
 
-  if (linkTo) {
+  // Don't wrap in Link if linkTo is empty or if we're outside Router context
+  if (linkTo && linkTo.trim() !== "") {
     return (
       <Link to={linkTo} className="inline-block">
         {logoContent}

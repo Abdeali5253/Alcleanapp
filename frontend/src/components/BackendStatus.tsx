@@ -3,41 +3,47 @@
  * Shows connection status with backend endpoints
  */
 
-import { useState, useEffect } from 'react';
-import { AlertCircle, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
+import { useState, useEffect } from "react";
+import { AlertCircle, CheckCircle, XCircle, RefreshCw } from "lucide-react";
 import { BACKEND_URL } from "../lib/base-url";
 
 export function BackendStatus() {
-  const [status, setStatus] = useState<'checking' | 'connected' | 'error' | 'not-found'>('checking');
-  const [errorMessage, setErrorMessage] = useState('');
+  const [status, setStatus] = useState<
+    "checking" | "connected" | "error" | "not-found"
+  >("checking");
+  const [errorMessage, setErrorMessage] = useState("");
   const [showDetails, setShowDetails] = useState(false);
 
   const checkBackendStatus = async () => {
-    setStatus('checking');
-    setErrorMessage('');
+    setStatus("checking");
+    setErrorMessage("");
 
     try {
       // Use /api prefix - Kubernetes ingress routes to backend on port 8001
-      const response = await fetch(`${BACKEND_URL}/api/health`);
+      const response = await fetch(`${BACKEND_URL}/health`);
 
       if (response.ok) {
         const data = await response.json();
-        if (data.status === 'ok') {
-          setStatus('connected');
+        if (data.status === "ok") {
+          setStatus("connected");
         } else {
-          setStatus('error');
-          setErrorMessage('Backend returned unhealthy status');
+          setStatus("error");
+          setErrorMessage("Backend returned unhealthy status");
         }
       } else {
-        setStatus('error');
+        setStatus("error");
         setErrorMessage(`HTTP ${response.status}`);
       }
     } catch (error) {
-      setStatus('not-found');
-      if (error instanceof TypeError && error.message.includes('fetch')) {
-        setErrorMessage('Backend service not available (check if port 8001 is running)');
+      setStatus("not-found");
+      if (error instanceof TypeError && error.message.includes("fetch")) {
+        setErrorMessage(
+          "Backend service not available (check if port 8001 is running)"
+        );
       } else {
-        setErrorMessage(error instanceof Error ? error.message : 'Unknown error');
+        setErrorMessage(
+          error instanceof Error ? error.message : "Unknown error"
+        );
       }
     }
   };
@@ -47,16 +53,19 @@ export function BackendStatus() {
   }, []);
 
   // Don't show anything if checking or connected - only show on error
-  if (status === 'checking' || status === 'connected') {
+  if (status === "checking" || status === "connected") {
     return null;
   }
 
   // Don't show error on localhost development
-  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+  if (
+    window.location.hostname === "localhost" ||
+    window.location.hostname === "127.0.0.1"
+  ) {
     return null;
   }
 
-  if (status === 'not-found') {
+  if (status === "not-found") {
     return (
       <div className="fixed bottom-4 right-4 bg-blue-50 border border-blue-200 rounded-lg p-4 shadow-lg max-w-md z-50">
         <div className="flex items-center gap-3">
@@ -69,7 +78,7 @@ export function BackendStatus() {
     );
   }
 
-  if (status as string === 'connected') {
+  if ((status as string) === "connected") {
     return (
       <div className="fixed bottom-4 right-4 bg-green-50 border border-green-200 rounded-lg p-4 shadow-lg max-w-md z-50">
         <div className="flex items-center justify-between gap-3">
@@ -77,7 +86,9 @@ export function BackendStatus() {
             <CheckCircle className="w-5 h-5 text-green-600" />
             <div>
               <p className="text-green-900">Backend Connected ✓</p>
-              <p className="text-green-700 text-sm">Shopify integration working</p>
+              <p className="text-green-700 text-sm">
+                Shopify integration working
+              </p>
             </div>
           </div>
           <button
@@ -107,7 +118,7 @@ export function BackendStatus() {
             </button>
           </div>
           <p className="text-red-700 text-sm mb-2">{errorMessage}</p>
-          
+
           {!showDetails ? (
             <button
               onClick={() => setShowDetails(true)}
@@ -117,15 +128,30 @@ export function BackendStatus() {
             </button>
           ) : (
             <div className="mt-3 p-3 bg-white rounded border border-red-200 text-sm">
-              <p className="text-red-900 mb-2">⚠️ Orders will save locally but won't sync to Shopify</p>
-              
+              <p className="text-red-900 mb-2">
+                ⚠️ Orders will save locally but won't sync to Shopify
+              </p>
+
               <div className="space-y-2 text-red-800">
                 <p className="font-medium">To fix this:</p>
                 <ol className="list-decimal list-inside space-y-1 text-xs">
-                  <li>Go to <code className="bg-red-100 px-1 rounded">/server</code> directory</li>
-                  <li>Run: <code className="bg-red-100 px-1 rounded">npm install</code></li>
-                  <li>Create <code className="bg-red-100 px-1 rounded">.env</code> file with your keys</li>
-                  <li>Run: <code className="bg-red-100 px-1 rounded">npm run dev</code></li>
+                  <li>
+                    Go to{" "}
+                    <code className="bg-red-100 px-1 rounded">/server</code>{" "}
+                    directory
+                  </li>
+                  <li>
+                    Run:{" "}
+                    <code className="bg-red-100 px-1 rounded">npm install</code>
+                  </li>
+                  <li>
+                    Create <code className="bg-red-100 px-1 rounded">.env</code>{" "}
+                    file with your keys
+                  </li>
+                  <li>
+                    Run:{" "}
+                    <code className="bg-red-100 px-1 rounded">npm run dev</code>
+                  </li>
                   <li>Click retry button above</li>
                 </ol>
               </div>

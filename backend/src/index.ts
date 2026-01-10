@@ -1,9 +1,13 @@
+import dotenv from 'dotenv';
+// Load environment variables FIRST, before any other imports
+dotenv.config();
+
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import notificationRoutes from './routes/notifications.js';
-
-dotenv.config();
+import productRoutes from './routes/products.js';
+import authRoutes from './routes/auth.js';
+import cartRoutes from './routes/cart.js';
 
 const app = express();
 const port: number = Number(process.env.PORT) || 3001;
@@ -30,6 +34,7 @@ const healthCheck = (req: any, res: any) => {
       },
       shopify: {
         adminApiConfigured: !!process.env.SHOPIFY_ADMIN_API_TOKEN,
+        storefrontConfigured: !!(process.env.SHOPIFY_STORE_DOMAIN && process.env.SHOPIFY_STOREFRONT_TOKEN),
       },
     },
     info: 'Storefront API is used directly from frontend - Admin API for order creation',
@@ -39,7 +44,10 @@ const healthCheck = (req: any, res: any) => {
 app.get('/health', healthCheck);
 
 // Routes
-app.use('/api/notifications', notificationRoutes);
+// app.use('/api/notifications', notificationRoutes); // Temporarily commented for testing
+app.use('/api/products', productRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/api/cart', cartRoutes);
 
 // 404 handler
 app.use((req, res) => {
@@ -70,6 +78,9 @@ app.listen(port, "0.0.0.0", () => {
   console.log('  POST /api/notifications/register');
   console.log('  POST /api/notifications/send');
   console.log('  GET  /api/notifications/devices');
+  console.log('  GET  /api/products');
+  console.log('  GET  /api/products/:id');
+  console.log('  GET  /api/products/collection/:handle');
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 });
 

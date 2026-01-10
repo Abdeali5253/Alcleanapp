@@ -1,13 +1,6 @@
-// Cart Service with Shopify Checkout Integration
+// Cart Service using Backend API
 import { Product } from "../types/shopify";
-import { 
-  checkoutCreate, 
-  checkoutLineItemsAdd, 
-  checkoutCustomerAssociateV2,
-  checkoutShippingAddressUpdateV2,
-  ShopifyCheckout,
-  CheckoutLineItem
-} from "./shopify";
+import { BACKEND_URL } from "./base-url";
 import { authService } from "./auth";
 
 export interface CartItem {
@@ -163,15 +156,15 @@ class CartService {
     this.saveCart();
   }
 
-  // Create Shopify Checkout and get WebView URL
-  async createCheckout(): Promise<{ checkoutUrl: string; checkout: ShopifyCheckout }> {
+  // Create checkout using backend API
+  async createCheckout(): Promise<{ checkoutUrl: string; checkout: any }> {
     if (this.items.length === 0) {
       throw new Error("Cart is empty");
     }
 
     // Convert cart items to checkout line items
     // Ensure quantity is always an integer
-    const lineItems: CheckoutLineItem[] = this.items.map(item => ({
+    const lineItems = this.items.map(item => ({
       variantId: item.product.variantId,
       quantity: Math.max(1, Math.floor(Number(item.quantity) || 1)),
     }));
@@ -179,24 +172,55 @@ class CartService {
     console.log("[Cart] Creating checkout with line items:", lineItems);
 
     const user = authService.getUser();
-    
-    // Create checkout
-    const checkout = await checkoutCreate(lineItems, user?.email);
-    this.saveCheckoutId(checkout.id);
 
-    // Associate customer if logged in
-    if (user?.accessToken) {
-      try {
-        await checkoutCustomerAssociateV2(checkout.id, user.accessToken);
-      } catch (error) {
-        console.warn("[Cart] Failed to associate customer:", error);
+    try {
+      // Create checkout via backend
+      const response = await fetch(`${BACKEND_URL}/api/cart/checkout`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          lineItems,
+          email: user?.email,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to create checkout');
       }
-    }
 
-    return {
-      checkoutUrl: checkout.webUrl,
-      checkout,
-    };
+      const checkout = data.checkout;
+      this.saveCheckoutId(checkout.id);
+
+      // Associate customer if logged in
+      if (user?.accessToken) {
+        try {
+          const encodedCheckoutId = encodeURIComponent(checkout.id);
+          await fetch(`${BACKEND_URL}/api/cart/checkout/${encodedCheckoutId}/customer`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              accessToken: user.accessToken,
+            }),
+          });
+        } catch (error) {
+          console.warn("[Cart] Failed to associate customer:", error);
+        }
+      }
+
+      return {
+        checkoutUrl: checkout.webUrl,
+        checkout,
+      };
+    } catch (error: any) {
+      console.error("[Cart] Checkout creation error:", error);
+      throw error;
+    }
   }
 
   // Update shipping address on checkout
@@ -209,14 +233,29 @@ class CartService {
     country: string;
     zip: string;
     phone: string;
-  }): Promise<ShopifyCheckout | null> {
+  }): Promise<any> {
     if (!this.checkoutId) {
       console.warn("[Cart] No checkout to update");
       return null;
     }
 
     try {
-      return await checkoutShippingAddressUpdateV2(this.checkoutId, address);
+      const encodedCheckoutId = encodeURIComponent(this.checkoutId);
+      const response = await fetch(`${BACKEND_URL}/api/cart/checkout/${encodedCheckoutId}/shipping-address`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ address }),
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to update shipping address');
+      }
+
+      return data.checkout;
     } catch (error) {
       console.error("[Cart] Failed to update shipping:", error);
       return null;

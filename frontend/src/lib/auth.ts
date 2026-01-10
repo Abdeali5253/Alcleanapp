@@ -1,11 +1,6 @@
-// Auth Service using Shopify Storefront API
+// Auth Service using Backend API
 import { toast } from "sonner";
-import { 
-  customerCreate, 
-  customerAccessTokenCreate, 
-  getCustomer, 
-  customerRecover 
-} from "./shopify";
+import { BACKEND_URL } from "./base-url";
 
 export interface User {
   id: string;
@@ -87,25 +82,38 @@ class AuthService {
     return this.user?.accessToken || null;
   }
 
-  // Sign up with Shopify
+  // Sign up with backend API
   async signUp(
-    email: string, 
-    password: string, 
-    firstName: string, 
-    lastName: string, 
+    email: string,
+    password: string,
+    firstName: string,
+    lastName: string,
     phone?: string
   ): Promise<User> {
     try {
-      const customer = await customerCreate(email, password, firstName, lastName, phone);
-      
+      const response = await fetch(`${BACKEND_URL}/api/auth/signup`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          password,
+          firstName,
+          lastName,
+          phone,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to create account');
+      }
+
       const user: User = {
-        id: customer.id,
-        email: customer.email,
-        name: `${customer.firstName} ${customer.lastName}`.trim(),
-        firstName: customer.firstName,
-        lastName: customer.lastName,
-        phone: customer.phone || '',
-        accessToken: customer.accessToken,
+        ...data.user,
+        accessToken: '', // Will be set after login
       };
 
       this.saveUser(user);
@@ -117,25 +125,27 @@ class AuthService {
     }
   }
 
-  // Log in with Shopify
+  // Log in with backend API
   async logIn(email: string, password: string): Promise<User> {
     try {
-      const accessToken = await customerAccessTokenCreate(email, password);
-      const customer = await getCustomer(accessToken);
-      
-      if (!customer) {
-        throw new Error("Failed to get customer details");
+      const response = await fetch(`${BACKEND_URL}/api/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          password,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to login');
       }
 
-      const user: User = {
-        id: customer.id,
-        email: customer.email,
-        name: `${customer.firstName || ''} ${customer.lastName || ''}`.trim() || email,
-        firstName: customer.firstName || '',
-        lastName: customer.lastName || '',
-        phone: customer.phone || '',
-        accessToken,
-      };
+      const user: User = data.user;
 
       this.saveUser(user);
       toast.success("Logged in successfully!");
@@ -159,20 +169,21 @@ class AuthService {
     }
 
     try {
-      const customer = await getCustomer(this.user.accessToken);
-      if (!customer?.orders?.edges) {
+      const response = await fetch(`${BACKEND_URL}/api/auth/customer`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${this.user.accessToken}`,
+        },
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        console.error("[Auth] Get orders error:", data.error);
         return [];
       }
 
-      return customer.orders.edges.map((edge: any) => ({
-        id: edge.node.id,
-        orderNumber: edge.node.orderNumber,
-        processedAt: edge.node.processedAt,
-        financialStatus: edge.node.financialStatus,
-        fulfillmentStatus: edge.node.fulfillmentStatus,
-        totalPrice: edge.node.totalPrice,
-        lineItems: edge.node.lineItems.edges.map((li: any) => li.node),
-      }));
+      return data.orders || [];
     } catch (error) {
       console.error("[Auth] Get orders error:", error);
       return [];
@@ -182,7 +193,22 @@ class AuthService {
   // Password reset
   async requestPasswordReset(email: string): Promise<void> {
     try {
-      await customerRecover(email);
+      const response = await fetch(`${BACKEND_URL}/api/auth/recover`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to send password reset email');
+      }
+
       toast.success("Password reset email sent!");
     } catch (error: any) {
       console.error("[Auth] Password reset error:", error);

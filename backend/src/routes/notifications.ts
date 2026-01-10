@@ -114,27 +114,37 @@ async function sendFCMNotification(
   let successCount = 0;
   let failureCount = 0;
 
-  const message = {
-  notification: {
-    title: "Test Title",
-    body: "Test Body"
-  },
-  token: getFcmAccessToken(),
-};
-
   for (const token of tokens) {
     try {
-      const response = await messaging.send(message);
-      if (response.successCount > 0) {
+      const message: admin.messaging.Message = {
+        notification: {
+          title: notification.title,
+          body: notification.body,
+          imageUrl: notification.image,
+        },
+        data: data || {},
+        token: token,
+      };
+
+      // messaging.send() returns a string (message ID) on success
+      const messageId = await messaging.send(message);
+      if (messageId) {
         successCount++;
-        console.log(`[FCM] Sent to ${token.substring(0, 20)}...`);
+        console.log(`[FCM] Sent to ${token.substring(0, 20)}... (messageId: ${messageId})`);
       } else {
         failureCount++;
         console.error(`[FCM] Failed to send to ${token.substring(0, 20)}`);
       }
-    } catch (error) {
+    } catch (error: any) {
       failureCount++;
       console.error(`[FCM] Error sending to ${token.substring(0, 20)}...`, error);
+      
+      // Remove invalid tokens
+      if (error.code === 'messaging/invalid-registration-token' || 
+          error.code === 'messaging/registration-token-not-registered') {
+        deviceTokens.delete(token);
+        console.log(`[FCM] Removed invalid token: ${token.substring(0, 20)}...`);
+      }
     }
   }
 
