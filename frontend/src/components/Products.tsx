@@ -248,30 +248,60 @@ export function Products() {
     }
   }, [location.search]);
 
-  // Fetch products from backend API
+  // Fetch products using product cache (like Home page)
   useEffect(() => {
     const fetchProducts = async () => {
       try {
         setLoading(true);
 
-        // Import API service
-        const { getAllProducts } = await import("../lib/api");
+        // Import caching service
+        const { productCacheService } = await import("../lib/product-cache");
 
-        console.log("[Products] Fetching products from backend API...");
-        const response = await getAllProducts();
+        // Try to get cached products first
+        let allProducts = productCacheService.getCachedProducts();
 
-        if (response.success && response.products) {
-          const products = response.products;
+        if (allProducts.length === 0) {
+          // No cache, fetch from backend API
           console.log(
-            "[Products] Loaded products from backend:",
-            products.length
+            "[Products] No cache found, fetching from backend API..."
           );
-          setAllProducts(products);
+          const { getAllProducts } = await import("../lib/api");
+          const response = await getAllProducts();
+
+          if (response.success && response.products) {
+            allProducts = response.products;
+            // Save to cache
+            productCacheService.setCachedProducts(allProducts);
+          } else {
+            throw new Error(response.error || "Failed to fetch products");
+          }
         } else {
-          throw new Error(response.error || "Failed to fetch products");
+          console.log("[Products] Using cached products:", allProducts.length);
+
+          // Check if cache needs background refresh
+          if (productCacheService.shouldRefresh()) {
+            console.log(
+              "[Products] Cache is stale, refreshing in background..."
+            );
+            // Refresh in background
+            import("../lib/api")
+              .then(async ({ getAllProducts }) => {
+                const response = await getAllProducts();
+                if (response.success && response.products) {
+                  productCacheService.setCachedProducts(response.products);
+                  console.log("[Products] Background refresh complete");
+                }
+              })
+              .catch((err) =>
+                console.error("[Products] Background refresh failed:", err)
+              );
+          }
         }
+
+        console.log("[Products] Loaded products:", allProducts.length);
+        setAllProducts(allProducts);
       } catch (error) {
-        console.error("Failed to fetch products from backend:", error);
+        console.error("Failed to fetch products:", error);
         toast.error("Failed to load products. Please refresh the page.", {
           duration: 4000,
           position: "top-center",
