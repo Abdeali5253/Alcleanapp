@@ -255,6 +255,25 @@ class CartService {
         throw new Error(data.error || 'Failed to update shipping address');
       }
 
+      // Modify the checkout URL to pre-fill the form with shipping address
+      if (data.checkout && data.checkout.webUrl) {
+        const url = new URL(data.checkout.webUrl);
+
+        // Add shipping address parameters to pre-fill the form
+        if (address.firstName) url.searchParams.set('checkout[shipping_address][first_name]', address.firstName);
+        if (address.lastName) url.searchParams.set('checkout[shipping_address][last_name]', address.lastName);
+        if (address.address1) url.searchParams.set('checkout[shipping_address][address1]', address.address1);
+        if (address.city) url.searchParams.set('checkout[shipping_address][city]', address.city);
+        if (address.province) url.searchParams.set('checkout[shipping_address][province]', address.province);
+        if (address.country) url.searchParams.set('checkout[shipping_address][country]', address.country);
+        if (address.zip) url.searchParams.set('checkout[shipping_address][zip]', address.zip);
+        if (address.phone) url.searchParams.set('checkout[shipping_address][phone]', address.phone);
+
+        // Update the checkout URL with pre-filled parameters
+        data.checkout.webUrl = url.toString();
+        console.log("[Cart] Checkout URL updated with pre-filled address:", data.checkout.webUrl);
+      }
+
       return data.checkout;
     } catch (error) {
       console.error("[Cart] Failed to update shipping:", error);
