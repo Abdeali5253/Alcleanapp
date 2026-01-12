@@ -218,7 +218,7 @@ function shouldRefreshCache(): boolean {
 /**
  * Get cached products or fetch fresh ones
  */
-async function getCachedProducts(maxProducts: number = 700): Promise<any[]> {
+async function getCachedProducts(maxProducts: number = 2000): Promise<any[]> {
   if (!shouldRefreshCache() && productCache) {
     console.log('[Backend] Using cached products:', productCache.length);
     return productCache;
@@ -323,8 +323,8 @@ async function fetchAllProducts(maxProducts: number = 700): Promise<any[]> {
  */
 router.get('/', async (req: Request, res: Response) => {
   try {
-    const { category, subcategory, search, limit = '700' } = req.query;
-    const maxProducts = parseInt(limit as string) || 700;
+    const { category, subcategory, search, limit = '2000' } = req.query;
+    const maxProducts = parseInt(limit as string) || 2000;
 
     // Check if Shopify is configured
     if (!isShopifyConfigured()) {

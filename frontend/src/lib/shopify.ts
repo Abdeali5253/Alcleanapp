@@ -161,6 +161,7 @@ function transformProduct(node: any): Product {
   return {
     id: node.id,
     title: node.title || '',
+    handle: node.handle || '',
     description: node.description || '',
     image: node.featuredImage?.url || node.images?.edges?.[0]?.node?.url || '',
     images: node.images?.edges?.map((img: any) => img.node.url) || [],
@@ -180,6 +181,7 @@ function transformProduct(node: any): Product {
     sku: variant?.sku || '',
     weight: variant?.weight ? `${variant.weight} ${variant.weightUnit || 'KILOGRAMS'}` : '',
     vendor: node.vendor || '',
+    brand: node.vendor || '',
   };
 }
 
@@ -248,7 +250,7 @@ export async function getAllProducts(maxProducts: number = 700): Promise<Product
         { first: Math.min(250, maxProducts - allProducts.length), after: cursor }
       );
 
-      const products = data.products.edges.map(edge => {
+      const products = data.products.edges.map((edge: { node: any }) => {
         const product = transformProduct(edge.node);
         // Add collections info
         const collections = edge.node.collections?.edges?.map((c: any) => ({
@@ -905,7 +907,7 @@ export interface CategorizedProducts {
 /**
  * Fetch all products from Shopify with collections
  */
-export async function getAllProductsFromShopify(maxProducts: number = 250): Promise<Product[]> {
+export async function getAllProductsFromShopify(maxProducts: number = 2000): Promise<Product[]> {
   const query = `
     query GetAllProducts($first: Int!, $after: String) {
       products(first: $first, after: $after) {

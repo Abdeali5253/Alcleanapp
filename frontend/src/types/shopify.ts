@@ -27,6 +27,7 @@ export interface Product {
   // Extended fields
   sku: string | null;
   brand: string | null;
+  vendor: string | null;
   weight: string | null;
   isNew: boolean;
   
