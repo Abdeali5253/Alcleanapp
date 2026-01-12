@@ -248,57 +248,64 @@ export function Products() {
     }
   }, [location.search]);
 
-  // Fetch products using product cache (like Home page)
+  // Fetch products based on category
   useEffect(() => {
     const fetchProducts = async () => {
       try {
         setLoading(true);
 
-        // Import caching service
-        const { productCacheService } = await import("../lib/product-cache");
+        const { getAllProducts, getProductsByCollection } = await import("../lib/shopify");
 
-        // Try to get cached products first
-        let allProducts = productCacheService.getCachedProducts();
+        let allProducts: Product[] = [];
 
-        if (allProducts.length === 0) {
-          // No cache, fetch from backend API
-          console.log(
-            "[Products] No cache found, fetching from backend API..."
-          );
-          const { getAllProducts } = await import("../lib/api");
-          const response = await getAllProducts();
+        if (categoryFilter === "all") {
+          // Fetch all products with caching
+          const { productCacheService } = await import("../lib/product-cache");
 
-          if (response.success && response.products) {
-            allProducts = response.products;
-            // Save to cache
+          // Try to get cached products first
+          allProducts = productCacheService.getCachedProducts();
+
+          if (allProducts.length === 0) {
+            console.log("[Products] No cache found, fetching all products...");
+            allProducts = await getAllProducts(2000);
             productCacheService.setCachedProducts(allProducts);
+
+            // Background refresh if needed
+            if (productCacheService.shouldRefresh()) {
+              console.log("[Products] Cache is stale, refreshing in background...");
+              getAllProducts(2000).then(products => {
+                productCacheService.setCachedProducts(products);
+                console.log("[Products] Background refresh complete");
+              }).catch(err => console.error("[Products] Background refresh failed:", err));
+            }
           } else {
-            throw new Error(response.error || "Failed to fetch products");
+            console.log("[Products] Using cached products:", allProducts.length);
           }
         } else {
-          console.log("[Products] Using cached products:", allProducts.length);
+          // Fetch from specific collections
+          const collections = categoryInfo[categoryFilter].collections || [];
+          console.log(`[Products] Fetching products for category ${categoryFilter} from collections:`, collections);
 
-          // Check if cache needs background refresh
-          if (productCacheService.shouldRefresh()) {
-            console.log(
-              "[Products] Cache is stale, refreshing in background..."
-            );
-            // Refresh in background
-            import("../lib/api")
-              .then(async ({ getAllProducts }) => {
-                const response = await getAllProducts();
-                if (response.success && response.products) {
-                  productCacheService.setCachedProducts(response.products);
-                  console.log("[Products] Background refresh complete");
-                }
-              })
-              .catch((err) =>
-                console.error("[Products] Background refresh failed:", err)
-              );
+          for (const collection of collections) {
+            try {
+              const products = await getProductsByCollection(collection, 250);
+              allProducts = allProducts.concat(products);
+            } catch (e) {
+              console.error(`Failed to fetch from collection ${collection}`, e);
+            }
           }
+
+          // Remove duplicates
+          const seen = new Set<string>();
+          allProducts = allProducts.filter(p => {
+            if (seen.has(p.id)) return false;
+            seen.add(p.id);
+            return true;
+          });
+
+          console.log(`[Products] Loaded ${allProducts.length} products for category ${categoryFilter}`);
         }
 
-        console.log("[Products] Loaded products:", allProducts.length);
         setAllProducts(allProducts);
       } catch (error) {
         console.error("Failed to fetch products:", error);
@@ -312,7 +319,7 @@ export function Products() {
     };
 
     fetchProducts();
-  }, []);
+  }, [categoryFilter]);
 
   const handleAddToCart = (product: Product, quantity: number = 1) => {
     cartService.addToCart(product, quantity);
@@ -377,50 +384,6 @@ export function Products() {
         p.description?.toLowerCase().includes(query) ||
         p.tags.some((t) => t.toLowerCase().includes(query))
     );
-  }
-
-  // Category filter - now based on Shopify collections and tags
-  if (categoryFilter !== "all") {
-    const categoryConfig = categoryInfo[categoryFilter];
-    if (categoryConfig.collections || categoryConfig.tags) {
-      filteredProducts = filteredProducts.filter((p) => {
-        // Check collections
-        const productCollections = (p as any).collections || [];
-        const collectionHandles = productCollections.map(
-          (c: any) => c.handle?.toLowerCase() || ""
-        );
-
-        const matchesCollection =
-          categoryConfig.collections?.some((collection) =>
-            collectionHandles.some((handle: string) => {
-              const normalizedCollection = collection
-                .toLowerCase()
-                .replace(/[^a-z0-9]/g, "");
-              const normalizedHandle = handle.replace(/[^a-z0-9]/g, "");
-              return (
-                normalizedHandle.includes(normalizedCollection) ||
-                normalizedCollection.includes(normalizedHandle)
-              );
-            })
-          ) || false;
-
-        // Check tags
-        const productTags = p.tags?.map((t) => t.toLowerCase()) || [];
-        const matchesTag =
-          categoryConfig.tags?.some((tag) =>
-            productTags.some((productTag) => {
-              const normalizedTag = tag.toLowerCase().replace(/[^a-z0-9]/g, "");
-              const normalizedProductTag = productTag.replace(/[^a-z0-9]/g, "");
-              return (
-                normalizedProductTag.includes(normalizedTag) ||
-                normalizedTag.includes(normalizedProductTag)
-              );
-            })
-          ) || false;
-
-        return matchesCollection || matchesTag;
-      });
-    }
   }
 
   // Subcategory filter
