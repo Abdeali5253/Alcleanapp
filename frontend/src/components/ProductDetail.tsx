@@ -32,7 +32,7 @@ export function ProductDetail() {
         console.log('[ProductDetail] Looking for product:', decodedParam);
         
         // Get all products and find the matching one
-        const allProducts = await getAllProducts(250);
+        const allProducts = await getAllProducts(700);
         
         // Check if the parameter is a Shopify GID (ID) or a handle
         let productData: Product | undefined;

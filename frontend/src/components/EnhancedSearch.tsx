@@ -47,7 +47,7 @@ export function EnhancedSearch({ isOpen, onClose }: EnhancedSearchProps) {
   useEffect(() => {
     const loadProducts = async () => {
       try {
-        const products = await getAllProducts(250);
+        const products = await getAllProducts(700);
         setAllProducts(products);
       } catch (error) {
         console.error("Failed to load products:", error);
