@@ -283,8 +283,16 @@ class NativeNotificationService {
       // On push notification received (foreground)
       PushNotifications.addListener("pushNotificationReceived", (notification: any) => {
         try {
-          log("NativeNotif", "Push notification received (foreground)", notification);
+          log("NativeNotif", "🔔 PUSH NOTIFICATION RECEIVED (foreground)", {
+            title: notification?.title,
+            body: notification?.body,
+            data: notification?.data,
+            fullNotification: notification
+          });
           this.handlePushNotification(notification);
+
+          // Also show an alert for testing
+          alert(`Push received: ${notification?.title} - ${notification?.body}`);
         } catch (e) {
           logError("NativeNotif", "Error handling push notification", e);
         }
