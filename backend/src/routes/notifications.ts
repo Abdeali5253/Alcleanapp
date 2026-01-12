@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import dotenv from 'dotenv';
-import * as admin from 'firebase-admin';
+import { initializeApp, cert } from 'firebase-admin/app';
+import { getMessaging, Message } from 'firebase-admin/messaging';
 
 dotenv.config();
 
@@ -29,8 +30,8 @@ function initializeFirebaseAdmin() {
   console.log('[FCM] Client email:', process.env.FIREBASE_CLIENT_EMAIL);
   console.log('[FCM] Private key length:', privateKey.length);
 
-  admin.initializeApp({
-    credential: admin.credential.cert({
+  initializeApp({
+    credential: cert({
       projectId: process.env.FIREBASE_PROJECT_ID,
       privateKey: privateKey,
       clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
@@ -68,7 +69,7 @@ async function sendFCMNotification(
   try {
     console.log('[FCM] Initializing Firebase Admin...');
     initializeFirebaseAdmin();
-    const messaging = admin.messaging();
+    const messaging = getMessaging();
     console.log('[FCM] Firebase Admin initialized successfully');
   } catch (error: any) {
     console.error('[FCM] Failed to initialize Firebase:', error);
@@ -80,7 +81,7 @@ async function sendFCMNotification(
     return { success: 0, failure: tokens.length };
   }
 
-  const messaging = admin.messaging();
+  const messaging = getMessaging();
   let successCount = 0;
   let failureCount = 0;
 
@@ -88,7 +89,7 @@ async function sendFCMNotification(
     try {
       console.log(`[FCM] Sending to token: ${token.substring(0, 30)}...`);
 
-      const message: admin.messaging.Message = {
+      const message: Message = {
         notification: {
           title: notification.title,
           body: notification.body,
