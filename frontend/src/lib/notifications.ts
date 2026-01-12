@@ -124,6 +124,12 @@ class NotificationService {
             nativeNotificationService.subscribe((nativeNotifs) => {
               this.syncFromNativeNotifications(nativeNotifs);
             });
+
+            // Subscribe to token changes to fetch notification history
+            nativeNotificationService.subscribeToToken(async (token) => {
+              console.log("[Notifications] Token received, fetching notification history");
+              await this.fetchNotificationHistory(token);
+            });
           }
         } catch (e) {
           console.error("[Notifications] Native init error:", e);
@@ -580,15 +586,22 @@ class NotificationService {
 
   // Fetch notification history from backend
   private async fetchNotificationHistory(token: string): Promise<void> {
+    console.log("[Notifications] Fetching notification history for token:", token.substring(0, 20) + "...");
     try {
-      const response = await fetch(`${BACKEND_URL}/api/notifications/history?token=${encodeURIComponent(token)}`);
+      const url = `${BACKEND_URL}/api/notifications/history?token=${encodeURIComponent(token)}`;
+      console.log("[Notifications] History URL:", url);
+      const response = await fetch(url);
+      console.log("[Notifications] History response status:", response.status);
       if (response.ok) {
         const data = await response.json();
+        console.log("[Notifications] History data:", data);
         if (data.success && data.notifications) {
+          console.log(`[Notifications] Found ${data.notifications.length} notifications in history`);
           // Add any missing notifications to inbox
           data.notifications.forEach((notif: any) => {
             const existing = this.notifications.find(n => n.id === notif.id);
             if (!existing) {
+              console.log("[Notifications] Adding notification from history:", notif.title);
               this.addNotification({
                 id: notif.id,
                 title: notif.title,
@@ -598,12 +611,16 @@ class NotificationService {
                 read: notif.read || false,
                 data: notif.data
               });
+            } else {
+              console.log("[Notifications] Notification already exists:", notif.title);
             }
           });
           console.log(`[Notifications] Fetched ${data.notifications.length} notifications from history`);
+        } else {
+          console.log("[Notifications] No notifications in history or invalid response");
         }
       } else {
-        console.log("[Notifications] History fetch failed:", response.status);
+        console.log("[Notifications] History fetch failed:", response.status, await response.text());
       }
     } catch (e) {
       console.error("[Notifications] History fetch error:", e);

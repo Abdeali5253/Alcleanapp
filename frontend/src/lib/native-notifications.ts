@@ -61,6 +61,7 @@ class NativeNotificationService {
   private fcmToken: string | null = null;
   private notifications: NativeNotification[] = [];
   private listeners: ((notifications: NativeNotification[]) => void)[] = [];
+  private tokenListeners: ((token: string) => void)[] = [];
   private isInitialized = false;
   private notificationIdCounter = 1;
   private pluginsLoaded = false;
@@ -263,13 +264,22 @@ class NativeNotificationService {
       // On registration success - get FCM token
       PushNotifications.addListener("registration", async (token: any) => {
         try {
-          log("NativeNotif", "FCM Token received", { 
+          log("NativeNotif", "FCM Token received", {
             token: token.value ? token.value.substring(0, 50) + "..." : "null",
             fullLength: token.value?.length || 0
           });
           this.fcmToken = token.value;
           this.saveFCMToken(token.value);
           await this.registerTokenWithBackend(token.value);
+
+          // Notify token listeners
+          this.tokenListeners.forEach(listener => {
+            try {
+              listener(token.value);
+            } catch (e) {
+              logError("NativeNotif", "Token listener error", e);
+            }
+          });
         } catch (e) {
           logError("NativeNotif", "Error in registration listener", e);
         }
@@ -695,6 +705,14 @@ class NativeNotificationService {
     this.listeners.push(callback);
     return () => {
       this.listeners = this.listeners.filter((l) => l !== callback);
+    };
+  }
+
+  // Subscribe to token changes
+  subscribeToToken(callback: (token: string) => void): () => void {
+    this.tokenListeners.push(callback);
+    return () => {
+      this.tokenListeners = this.tokenListeners.filter((l) => l !== callback);
     };
   }
 
