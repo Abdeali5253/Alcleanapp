@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Search, X, TrendingUp, Clock, Mic, MicOff, Tag } from "lucide-react";
 import { Product } from "../types/shopify";
-import { getAllProducts } from "../lib/shopify";
+import { getAllProducts } from "../lib/api";
 import { Link, useNavigate } from "react-router-dom";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 
@@ -47,8 +47,12 @@ export function EnhancedSearch({ isOpen, onClose }: EnhancedSearchProps) {
   useEffect(() => {
     const loadProducts = async () => {
       try {
-        const products = await getAllProducts(700);
-        setAllProducts(products);
+        const response = await getAllProducts();
+        if (response.success && response.products) {
+          setAllProducts(response.products);
+        } else {
+          console.error("Failed to load products:", response.error);
+        }
       } catch (error) {
         console.error("Failed to load products:", error);
       } finally {
@@ -92,7 +96,10 @@ export function EnhancedSearch({ isOpen, onClose }: EnhancedSearchProps) {
 
   const saveRecentSearch = (query: string) => {
     if (!query.trim()) return;
-    const updated = [query, ...recentSearches.filter((s) => s !== query)].slice(0, 5);
+    const updated = [query, ...recentSearches.filter((s) => s !== query)].slice(
+      0,
+      5
+    );
     setRecentSearches(updated);
     localStorage.setItem(recentSearchesKey, JSON.stringify(updated));
   };
@@ -112,16 +119,20 @@ export function EnhancedSearch({ isOpen, onClose }: EnhancedSearchProps) {
 
   // Voice search (Web Speech API)
   const toggleVoiceSearch = () => {
-    if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
-      alert('Voice search is not supported in this browser');
+    if (
+      !("webkitSpeechRecognition" in window || "SpeechRecognition" in window)
+    ) {
+      alert("Voice search is not supported in this browser");
       return;
     }
 
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const SpeechRecognition =
+      (window as any).SpeechRecognition ||
+      (window as any).webkitSpeechRecognition;
     const recognition = new SpeechRecognition();
     recognition.continuous = false;
     recognition.interimResults = false;
-    recognition.lang = 'en-US';
+    recognition.lang = "en-US";
 
     recognition.onstart = () => setIsListening(true);
     recognition.onend = () => setIsListening(false);
@@ -143,7 +154,10 @@ export function EnhancedSearch({ isOpen, onClose }: EnhancedSearchProps) {
   return (
     <>
       {/* Backdrop */}
-      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40" onClick={onClose} />
+      <div
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
+        onClick={onClose}
+      />
 
       {/* Search Modal */}
       <div className="fixed inset-x-0 top-0 z-50 p-4 pt-[env(safe-area-inset-top)]">
@@ -152,13 +166,18 @@ export function EnhancedSearch({ isOpen, onClose }: EnhancedSearchProps) {
           <div className="p-4 border-b border-gray-100">
             <div className="flex items-center gap-3">
               <div className="flex-1 relative">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                <Search
+                  className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
+                  size={20}
+                />
                 <input
                   ref={inputRef}
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSearch(searchQuery)}
+                  onKeyDown={(e) =>
+                    e.key === "Enter" && handleSearch(searchQuery)
+                  }
                   placeholder="Search products, categories..."
                   className="w-full pl-12 pr-24 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-[#6DB33F] focus:bg-white focus:outline-none transition-all text-base"
                 />
@@ -166,14 +185,16 @@ export function EnhancedSearch({ isOpen, onClose }: EnhancedSearchProps) {
                   <button
                     onClick={toggleVoiceSearch}
                     className={`p-2 rounded-xl transition-colors ${
-                      isListening ? 'bg-red-100 text-red-600' : 'hover:bg-gray-200 text-gray-400'
+                      isListening
+                        ? "bg-red-100 text-red-600"
+                        : "hover:bg-gray-200 text-gray-400"
                     }`}
                   >
                     {isListening ? <MicOff size={18} /> : <Mic size={18} />}
                   </button>
                   {searchQuery && (
                     <button
-                      onClick={() => setSearchQuery('')}
+                      onClick={() => setSearchQuery("")}
                       className="p-2 hover:bg-gray-200 rounded-xl text-gray-400"
                     >
                       <X size={18} />
@@ -253,10 +274,22 @@ export function EnhancedSearch({ isOpen, onClose }: EnhancedSearchProps) {
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     {[
-                      { name: 'Cleaning Chemicals', link: '/products?category=cleaning-chemicals' },
-                      { name: 'Cleaning Equipment', link: '/products?category=cleaning-equipment' },
-                      { name: 'Car Washing', link: '/products?category=car-washing' },
-                      { name: 'Dishwashing', link: '/products?category=dishwashing' },
+                      {
+                        name: "Cleaning Chemicals",
+                        link: "/products?category=cleaning-chemicals",
+                      },
+                      {
+                        name: "Cleaning Equipment",
+                        link: "/products?category=cleaning-equipment",
+                      },
+                      {
+                        name: "Car Washing",
+                        link: "/products?category=car-washing",
+                      },
+                      {
+                        name: "Dishwashing",
+                        link: "/products?category=dishwashing",
+                      },
                     ].map((cat, i) => (
                       <Link
                         key={i}
@@ -273,8 +306,12 @@ export function EnhancedSearch({ isOpen, onClose }: EnhancedSearchProps) {
             ) : filteredProducts.length === 0 ? (
               <div className="p-8 text-center">
                 <Search size={48} className="mx-auto mb-4 text-gray-300" />
-                <p className="text-gray-600 font-medium">No products found for "{searchQuery}"</p>
-                <p className="text-gray-400 text-sm mt-2">Try different keywords or browse categories</p>
+                <p className="text-gray-600 font-medium">
+                  No products found for "{searchQuery}"
+                </p>
+                <p className="text-gray-400 text-sm mt-2">
+                  Try different keywords or browse categories
+                </p>
               </div>
             ) : (
               <div className="divide-y divide-gray-50">
@@ -292,15 +329,23 @@ export function EnhancedSearch({ isOpen, onClose }: EnhancedSearchProps) {
                       />
                       {!product.inStock && (
                         <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                          <span className="text-white text-[10px] font-medium">Out of Stock</span>
+                          <span className="text-white text-[10px] font-medium">
+                            Out of Stock
+                          </span>
                         </div>
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className="text-gray-900 font-medium line-clamp-1">{product.title}</h3>
-                      <p className="text-gray-400 text-xs mb-1">{product.category}</p>
+                      <h3 className="text-gray-900 font-medium line-clamp-1">
+                        {product.title}
+                      </h3>
+                      <p className="text-gray-400 text-xs mb-1">
+                        {product.category}
+                      </p>
                       <div className="flex items-center gap-2">
-                        <span className="text-[#6DB33F] font-bold">Rs.{product.price.toLocaleString()}</span>
+                        <span className="text-[#6DB33F] font-bold">
+                          Rs.{product.price.toLocaleString()}
+                        </span>
                         {product.onSale && product.originalPrice && (
                           <span className="text-gray-300 line-through text-sm">
                             Rs.{product.originalPrice.toLocaleString()}
@@ -315,7 +360,7 @@ export function EnhancedSearch({ isOpen, onClose }: EnhancedSearchProps) {
                     </div>
                   </button>
                 ))}
-                
+
                 {/* Search All Results Button */}
                 <div className="p-4">
                   <button

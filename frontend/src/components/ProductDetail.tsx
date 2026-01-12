@@ -4,7 +4,7 @@ import { ArrowLeft, ShoppingCart, Heart, Minus, Plus } from "lucide-react";
 import { Button } from "./ui/button";
 import { UnifiedHeader } from "./UnifiedHeader";
 import { toast } from "sonner";
-import { getAllProducts } from "../lib/shopify";
+import { getAllProducts } from "../lib/api";
 import { Product } from "../types/shopify";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { cartService } from "../lib/cart";
@@ -29,24 +29,28 @@ export function ProductDetail() {
         setLoading(true);
         // Decode the parameter from URL
         const decodedParam = decodeURIComponent(id);
-        console.log('[ProductDetail] Looking for product:', decodedParam);
-        
+        console.log("[ProductDetail] Looking for product:", decodedParam);
+
         // Get all products and find the matching one
-        const allProducts = await getAllProducts(700);
-        
+        const response = await getAllProducts();
+        if (!response.success || !response.products) {
+          throw new Error(response.error || "Failed to fetch products");
+        }
+        const allProducts = response.products;
+
         // Check if the parameter is a Shopify GID (ID) or a handle
         let productData: Product | undefined;
-        if (decodedParam.startsWith('gid://')) {
+        if (decodedParam.startsWith("gid://")) {
           // Search by ID
-          productData = allProducts.find(p => p.id === decodedParam);
-          console.log('[ProductDetail] Searching by ID');
+          productData = allProducts.find((p: Product) => p.id === decodedParam);
+          console.log("[ProductDetail] Searching by ID");
         } else {
           // Search by handle
-          productData = allProducts.find(p => p.handle === decodedParam);
-          console.log('[ProductDetail] Searching by handle');
+          productData = allProducts.find((p: Product) => p.handle === decodedParam);
+          console.log("[ProductDetail] Searching by handle");
         }
-        
-        console.log('[ProductDetail] Found product:', productData?.title);
+
+        console.log("[ProductDetail] Found product:", productData?.title);
         setProduct(productData || null);
       } catch (error) {
         console.error("Failed to fetch product:", error);
@@ -61,10 +65,10 @@ export function ProductDetail() {
 
   const handleAddToCart = () => {
     if (!product) return;
-    
+
     // Add to cart using cart service
     cartService.addToCart(product, quantity);
-    
+
     toast.success(`${quantity}x ${product.title} added to cart!`, {
       duration: 2000,
       position: "top-center",
@@ -355,12 +359,16 @@ export function ProductDetail() {
               <div className="flex flex-wrap gap-2">
                 {product.category && (
                   <span className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium">
-                    {product.category.replace(/-/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())}
+                    {product.category
+                      .replace(/-/g, " ")
+                      .replace(/\b\w/g, (l) => l.toUpperCase())}
                   </span>
                 )}
                 {product.subcategory && (
                   <span className="bg-[#6DB33F]/10 text-[#6DB33F] px-4 py-2 rounded-lg text-sm font-medium">
-                    {product.subcategory.replace(/-/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())}
+                    {product.subcategory
+                      .replace(/-/g, " ")
+                      .replace(/\b\w/g, (l) => l.toUpperCase())}
                   </span>
                 )}
               </div>
