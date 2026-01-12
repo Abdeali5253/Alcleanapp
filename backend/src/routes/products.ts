@@ -110,16 +110,16 @@ function categorizeProduct(title: string, productType: string, tags: string[]): 
 
 function categorizeEquipment(titleLower: string): { category: string; subcategory: string } {
   if (titleLower.includes("mop") || titleLower.includes("bucket") || titleLower.includes("trolley")) {
-    return { category: "cleaning-equipment", subcategory: "mop-bucket-trolley" };
+    return { category: "cleaning-equipment", subcategory: "mop-buckets" };
   }
   if (titleLower.includes("broom") || titleLower.includes("brush") || titleLower.includes("scrubber")) {
     return { category: "cleaning-equipment", subcategory: "brooms-brushes" };
   }
   if (titleLower.includes("window") || titleLower.includes("squeegee") || titleLower.includes("viper")) {
-    return { category: "cleaning-equipment", subcategory: "window-cleaning" };
+    return { category: "cleaning-equipment", subcategory: "cleaning-tools" };
   }
   if (titleLower.includes("vacuum") || titleLower.includes("sweeper") || titleLower.includes("machine")) {
-    return { category: "cleaning-equipment", subcategory: "machines" };
+    return { category: "cleaning-equipment", subcategory: "cleaning-machines" };
   }
   if (titleLower.includes("garbage") || titleLower.includes("bin") || titleLower.includes("waste") || titleLower.includes("picker")) {
     return { category: "cleaning-equipment", subcategory: "waste-management" };
@@ -146,14 +146,42 @@ function categorizeChemical(titleLower: string): { category: string; subcategory
   }
   // Floor
   if (titleLower.includes("floor") || titleLower.includes("tile") || titleLower.includes("marble")) {
-    return { category: "cleaning-chemicals", subcategory: "floor-cleaner" };
+    return { category: "cleaning-chemicals", subcategory: "floor-cleaning-chemical" };
   }
   // Glass
   if (titleLower.includes("glass") || titleLower.includes("mirror") || titleLower.includes("window cleaner")) {
     return { category: "cleaning-chemicals", subcategory: "glass-cleaner" };
   }
+  // Industrial
+  if (titleLower.includes("industrial")) {
+    return { category: "cleaning-chemicals", subcategory: "industrial-cleaning-chemicals" };
+  }
+  // Top
+  if (titleLower.includes("top")) {
+    return { category: "cleaning-chemicals", subcategory: "top-cleaning-chemicals" };
+  }
+  // Kitchen
+  if (titleLower.includes("kitchen") && !titleLower.includes("dish")) {
+    return { category: "cleaning-chemicals", subcategory: "kitchen-cleaning-solution" };
+  }
+  // Bathroom chemical
+  if (titleLower.includes("bathroom") && titleLower.includes("chemical")) {
+    return { category: "cleaning-chemicals", subcategory: "bathroom-cleaning-chemical" };
+  }
+  // Solar
+  if (titleLower.includes("solar")) {
+    return { category: "cleaning-chemicals", subcategory: "solar-panel-cleaner-solution" };
+  }
+  // Degreaser
+  if (titleLower.includes("degreaser")) {
+    return { category: "cleaning-chemicals", subcategory: "degreaser-multi-clean" };
+  }
+  // Food grade
+  if (titleLower.includes("food") || titleLower.includes("grade")) {
+    return { category: "cleaning-chemicals", subcategory: "food-grade-cleaning-solution" };
+  }
   // Default to multi-purpose
-  return { category: "cleaning-chemicals", subcategory: "multi-purpose" };
+  return { category: "cleaning-chemicals", subcategory: "multi-purpose-chemicals" };
 }
 
 // Transform Shopify product to our Product type

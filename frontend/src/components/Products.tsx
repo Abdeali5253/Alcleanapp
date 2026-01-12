@@ -254,7 +254,9 @@ export function Products() {
       try {
         setLoading(true);
 
-        const { getAllProducts, getProductsByCollection } = await import("../lib/shopify");
+        const { getAllProducts, getProductsByCollection } = await import(
+          "../lib/shopify"
+        );
 
         let allProducts: Product[] = [];
 
@@ -272,19 +274,31 @@ export function Products() {
 
             // Background refresh if needed
             if (productCacheService.shouldRefresh()) {
-              console.log("[Products] Cache is stale, refreshing in background...");
-              getAllProducts(2000).then(products => {
-                productCacheService.setCachedProducts(products);
-                console.log("[Products] Background refresh complete");
-              }).catch(err => console.error("[Products] Background refresh failed:", err));
+              console.log(
+                "[Products] Cache is stale, refreshing in background..."
+              );
+              getAllProducts(2000)
+                .then((products) => {
+                  productCacheService.setCachedProducts(products);
+                  console.log("[Products] Background refresh complete");
+                })
+                .catch((err) =>
+                  console.error("[Products] Background refresh failed:", err)
+                );
             }
           } else {
-            console.log("[Products] Using cached products:", allProducts.length);
+            console.log(
+              "[Products] Using cached products:",
+              allProducts.length
+            );
           }
         } else {
           // Fetch from specific collections
           const collections = categoryInfo[categoryFilter].collections || [];
-          console.log(`[Products] Fetching products for category ${categoryFilter} from collections:`, collections);
+          console.log(
+            `[Products] Fetching products for category ${categoryFilter} from collections:`,
+            collections
+          );
 
           for (const collection of collections) {
             try {
@@ -297,13 +311,15 @@ export function Products() {
 
           // Remove duplicates
           const seen = new Set<string>();
-          allProducts = allProducts.filter(p => {
+          allProducts = allProducts.filter((p) => {
             if (seen.has(p.id)) return false;
             seen.add(p.id);
             return true;
           });
 
-          console.log(`[Products] Loaded ${allProducts.length} products for category ${categoryFilter}`);
+          console.log(
+            `[Products] Loaded ${allProducts.length} products for category ${categoryFilter}`
+          );
         }
 
         setAllProducts(allProducts);
@@ -383,6 +399,13 @@ export function Products() {
         p.title.toLowerCase().includes(query) ||
         p.description?.toLowerCase().includes(query) ||
         p.tags.some((t) => t.toLowerCase().includes(query))
+    );
+  }
+
+  // Additional category filter to ensure correctness
+  if (categoryFilter !== "all") {
+    filteredProducts = filteredProducts.filter(
+      (p) => p.category === categoryFilter
     );
   }
 
