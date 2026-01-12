@@ -14,10 +14,25 @@ function initializeFirebaseAdmin() {
   if (!process.env.FIREBASE_PROJECT_ID || !process.env.FIREBASE_PRIVATE_KEY || !process.env.FIREBASE_CLIENT_EMAIL) {
     throw new Error('Firebase credentials not configured');
   }
+
+  // Handle private key formatting - it might already have newlines or escaped
+  let privateKey = process.env.FIREBASE_PRIVATE_KEY;
+  if (privateKey.includes('\\n')) {
+    privateKey = privateKey.replace(/\\n/g, '\n');
+  }
+  // Ensure it starts and ends with proper markers
+  if (!privateKey.includes('-----BEGIN PRIVATE KEY-----')) {
+    privateKey = `-----BEGIN PRIVATE KEY-----\n${privateKey}\n-----END PRIVATE KEY-----\n`;
+  }
+
+  console.log('[FCM] Initializing with project:', process.env.FIREBASE_PROJECT_ID);
+  console.log('[FCM] Client email:', process.env.FIREBASE_CLIENT_EMAIL);
+  console.log('[FCM] Private key length:', privateKey.length);
+
   admin.initializeApp({
     credential: admin.credential.cert({
       projectId: process.env.FIREBASE_PROJECT_ID,
-      privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+      privateKey: privateKey,
       clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
     }),
   });
@@ -46,11 +61,22 @@ async function sendFCMNotification(
   notification: { title: string; body: string; image?: string },
   data?: Record<string, string>
 ): Promise<{ success: number; failure: number }> {
+  console.log(`[FCM] Attempting to send to ${tokens.length} tokens`);
+  console.log(`[FCM] Notification:`, notification);
+  console.log(`[FCM] Data:`, data);
+
   try {
+    console.log('[FCM] Initializing Firebase Admin...');
     initializeFirebaseAdmin();
     const messaging = admin.messaging();
-  } catch (error) {
+    console.log('[FCM] Firebase Admin initialized successfully');
+  } catch (error: any) {
     console.error('[FCM] Failed to initialize Firebase:', error);
+    console.error('[FCM] Error details:', {
+      message: error?.message,
+      stack: error?.stack,
+      code: error?.code
+    });
     return { success: 0, failure: tokens.length };
   }
 
@@ -60,6 +86,8 @@ async function sendFCMNotification(
 
   for (const token of tokens) {
     try {
+      console.log(`[FCM] Sending to token: ${token.substring(0, 30)}...`);
+
       const message: admin.messaging.Message = {
         notification: {
           title: notification.title,
@@ -70,18 +98,25 @@ async function sendFCMNotification(
         token: token,
       };
 
+      console.log(`[FCM] Message payload:`, JSON.stringify(message, null, 2));
+
       // messaging.send() returns a string (message ID) on success
       const messageId = await messaging.send(message);
       if (messageId) {
         successCount++;
-        console.log(`[FCM] Sent to ${token.substring(0, 20)}... (messageId: ${messageId})`);
+        console.log(`[FCM] SUCCESS: Sent to ${token.substring(0, 20)}... (messageId: ${messageId})`);
       } else {
         failureCount++;
-        console.error(`[FCM] Failed to send to ${token.substring(0, 20)}`);
+        console.error(`[FCM] FAILED: No messageId returned for ${token.substring(0, 20)}`);
       }
     } catch (error: any) {
       failureCount++;
-      console.error(`[FCM] Error sending to ${token.substring(0, 20)}...`, error);
+      console.error(`[FCM] ERROR sending to ${token.substring(0, 20)}...`, {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        stack: error.stack
+      });
 
       // Remove invalid tokens
       if (error.code === 'messaging/invalid-registration-token' ||
@@ -92,6 +127,7 @@ async function sendFCMNotification(
     }
   }
 
+  console.log(`[FCM] Send operation complete: ${successCount} success, ${failureCount} failure`);
   return { success: successCount, failure: failureCount };
 }
 

@@ -162,12 +162,18 @@ class NativeNotificationService {
   // Request permission and register (separate from initialize)
   async registerForPush(): Promise<boolean> {
     log("NativeNotif", "registerForPush called");
-    
+
     if (!this.isNativePlatform()) {
       log("NativeNotif", "Not native platform, skipping");
       return false;
     }
-    
+
+    // If we already have a token, no need to register again
+    if (this.fcmToken) {
+      log("NativeNotif", "Already have FCM token, skipping registration");
+      return true;
+    }
+
     try {
       // Ensure plugins are loaded
       log("NativeNotif", "Ensuring plugins loaded...");
@@ -176,7 +182,7 @@ class NativeNotificationService {
         logError("NativeNotif", "Failed to load plugins");
         return false;
       }
-      
+
       if (!PushNotifications) {
         logError("NativeNotif", "PushNotifications plugin not available");
         return false;
@@ -185,14 +191,14 @@ class NativeNotificationService {
       // Step 1: Request permission with timeout protection
       log("NativeNotif", "Step 1: Requesting permissions...");
       let permStatus: any = null;
-      
+
       try {
         // Create a promise that times out after 30 seconds
         const permPromise = PushNotifications.requestPermissions();
         const timeoutPromise = new Promise((_, reject) => {
           setTimeout(() => reject(new Error("Permission request timeout")), 30000);
         });
-        
+
         permStatus = await Promise.race([permPromise, timeoutPromise]);
         log("NativeNotif", "Permission result", permStatus);
       } catch (permError: any) {
@@ -216,17 +222,17 @@ class NativeNotificationService {
         if (!this.isInitialized) {
           this.setupPushListeners();
         }
-        
+
         await PushNotifications.register();
         log("NativeNotif", "Registration call completed - waiting for token...");
-        
+
         // Wait for token to arrive via listener (up to 10 seconds)
         const tokenWaitStart = Date.now();
         while (!this.fcmToken && (Date.now() - tokenWaitStart) < 10000) {
           await new Promise(resolve => setTimeout(resolve, 500));
           log("NativeNotif", "Waiting for FCM token...", { hasToken: !!this.fcmToken, elapsed: Date.now() - tokenWaitStart });
         }
-        
+
         if (this.fcmToken) {
           log("NativeNotif", "FCM Token received successfully!");
           return true;
