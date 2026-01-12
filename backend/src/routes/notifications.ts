@@ -16,14 +16,21 @@ function initializeFirebaseAdmin() {
     throw new Error('Firebase credentials not configured');
   }
 
-  // Handle private key formatting - it might already have newlines or escaped
+  // Handle private key formatting - Firebase service account keys are usually already properly formatted
   let privateKey = process.env.FIREBASE_PRIVATE_KEY;
-  if (privateKey.includes('\\n')) {
+
+  // If the key contains escaped newlines (\n), unescape them
+  if (privateKey && privateKey.includes('\\n')) {
     privateKey = privateKey.replace(/\\n/g, '\n');
   }
-  // Ensure it starts and ends with proper markers
+
+  // Validate that we have a proper private key
+  if (!privateKey || privateKey.length < 500) {
+    throw new Error(`Invalid Firebase private key: key is too short (${privateKey?.length || 0} chars). Please check your FIREBASE_PRIVATE_KEY environment variable.`);
+  }
+
   if (!privateKey.includes('-----BEGIN PRIVATE KEY-----')) {
-    privateKey = `-----BEGIN PRIVATE KEY-----\n${privateKey}\n-----END PRIVATE KEY-----\n`;
+    throw new Error('Invalid Firebase private key: missing BEGIN PRIVATE KEY header. Please ensure you\'re using the full private_key from your Firebase service account JSON.');
   }
 
   console.log('[FCM] Initializing with project:', process.env.FIREBASE_PROJECT_ID);
