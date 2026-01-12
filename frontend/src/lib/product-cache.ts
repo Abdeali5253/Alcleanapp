@@ -3,8 +3,6 @@
 
 import { Product } from "../types/shopify";
 
-const CACHE_KEY = "alclean_products_cache";
-const CACHE_TIMESTAMP_KEY = "alclean_products_cache_timestamp";
 const CACHE_DURATION_HOURS = 24; // Cache validity duration
 
 interface CacheData {
@@ -22,14 +20,23 @@ class ProductCacheService {
     this.scheduleMidnightRefresh();
   }
 
+  private getCacheKey(key: string): string {
+    return `alclean_products_cache_${key}`;
+  }
+
+  private getTimestampKey(key: string): string {
+    return `alclean_products_cache_timestamp_${key}`;
+  }
+
   /**
    * Get cached products if available and not expired
    */
-  getCachedProducts(): Product[] {
+  getCachedProducts(key: string = "all"): Product[] {
     try {
-      const cachedData = localStorage.getItem(CACHE_KEY);
+      const cacheKey = this.getCacheKey(key);
+      const cachedData = localStorage.getItem(cacheKey);
       if (!cachedData) {
-        console.log("[ProductCache] No cache found");
+        console.log(`[ProductCache] No cache found for ${key}`);
         return [];
       }
 
@@ -37,8 +44,8 @@ class ProductCacheService {
 
       // Check version compatibility
       if (data.version !== this.CACHE_VERSION) {
-        console.log("[ProductCache] Cache version mismatch, clearing cache");
-        this.clearCache();
+        console.log(`[ProductCache] Cache version mismatch for ${key}, clearing cache`);
+        this.clearCache(key);
         return [];
       }
 
@@ -47,16 +54,16 @@ class ProductCacheService {
       const maxAge = CACHE_DURATION_HOURS * 60 * 60 * 1000;
 
       if (cacheAge > maxAge) {
-        console.log("[ProductCache] Cache expired, clearing");
-        this.clearCache();
+        console.log(`[ProductCache] Cache expired for ${key}, clearing`);
+        this.clearCache(key);
         return [];
       }
 
-      console.log(`[ProductCache] Returning ${data.products.length} cached products (age: ${Math.round(cacheAge / 60000)} minutes)`);
+      console.log(`[ProductCache] Returning ${data.products.length} cached products for ${key} (age: ${Math.round(cacheAge / 60000)} minutes)`);
       return data.products;
     } catch (error) {
-      console.error("[ProductCache] Error reading cache:", error);
-      this.clearCache();
+      console.error(`[ProductCache] Error reading cache for ${key}:`, error);
+      this.clearCache(key);
       return [];
     }
   }
@@ -64,33 +71,38 @@ class ProductCacheService {
   /**
    * Save products to cache
    */
-  setCachedProducts(products: Product[]): void {
+  setCachedProducts(products: Product[], key: string = "all"): void {
     try {
+      const cacheKey = this.getCacheKey(key);
+      const timestampKey = this.getTimestampKey(key);
       const data: CacheData = {
         products,
         timestamp: Date.now(),
         version: this.CACHE_VERSION,
       };
 
-      localStorage.setItem(CACHE_KEY, JSON.stringify(data));
-      localStorage.setItem(CACHE_TIMESTAMP_KEY, data.timestamp.toString());
+      localStorage.setItem(cacheKey, JSON.stringify(data));
+      localStorage.setItem(timestampKey, data.timestamp.toString());
 
-      console.log(`[ProductCache] Cached ${products.length} products at ${new Date().toISOString()}`);
+      console.log(`[ProductCache] Cached ${products.length} products for ${key} at ${new Date().toISOString()}`);
     } catch (error) {
-      console.error("[ProductCache] Error saving cache:", error);
+      console.error(`[ProductCache] Error saving cache for ${key}:`, error);
       // If storage is full, clear old cache and try again
       if (error instanceof DOMException && error.name === "QuotaExceededError") {
-        console.log("[ProductCache] Storage full, clearing and retrying...");
-        this.clearCache();
+        console.log(`[ProductCache] Storage full for ${key}, clearing and retrying...`);
+        this.clearCache(key);
         try {
+          const cacheKey = this.getCacheKey(key);
+          const timestampKey = this.getTimestampKey(key);
           const data: CacheData = {
             products,
             timestamp: Date.now(),
             version: this.CACHE_VERSION,
           };
-          localStorage.setItem(CACHE_KEY, JSON.stringify(data));
+          localStorage.setItem(cacheKey, JSON.stringify(data));
+          localStorage.setItem(timestampKey, data.timestamp.toString());
         } catch (retryError) {
-          console.error("[ProductCache] Retry failed:", retryError);
+          console.error(`[ProductCache] Retry failed for ${key}:`, retryError);
         }
       }
     }
@@ -99,8 +111,9 @@ class ProductCacheService {
   /**
    * Check if cache should be refreshed (for background refresh)
    */
-  shouldRefresh(): boolean {
-    const timestamp = localStorage.getItem(CACHE_TIMESTAMP_KEY);
+  shouldRefresh(key: string = "all"): boolean {
+    const timestampKey = this.getTimestampKey(key);
+    const timestamp = localStorage.getItem(timestampKey);
     if (!timestamp) return true;
 
     const cacheAge = Date.now() - parseInt(timestamp, 10);
@@ -112,11 +125,18 @@ class ProductCacheService {
   /**
    * Clear the cache
    */
-  clearCache(): void {
+  clearCache(key?: string): void {
     try {
-      localStorage.removeItem(CACHE_KEY);
-      localStorage.removeItem(CACHE_TIMESTAMP_KEY);
-      console.log("[ProductCache] Cache cleared");
+      if (key) {
+        localStorage.removeItem(this.getCacheKey(key));
+        localStorage.removeItem(this.getTimestampKey(key));
+        console.log(`[ProductCache] Cache cleared for ${key}`);
+      } else {
+        // Clear all caches
+        const keys = Object.keys(localStorage).filter(k => k.startsWith('alclean_products_cache'));
+        keys.forEach(k => localStorage.removeItem(k));
+        console.log("[ProductCache] All caches cleared");
+      }
     } catch (error) {
       console.error("[ProductCache] Error clearing cache:", error);
     }
@@ -125,10 +145,12 @@ class ProductCacheService {
   /**
    * Get cache info for debugging
    */
-  getCacheInfo(): { hasCache: boolean; productCount: number; ageMinutes: number; lastRefresh: string } {
+  getCacheInfo(key: string = "all"): { hasCache: boolean; productCount: number; ageMinutes: number; lastRefresh: string } {
     try {
-      const cachedData = localStorage.getItem(CACHE_KEY);
-      const timestamp = localStorage.getItem(CACHE_TIMESTAMP_KEY);
+      const cacheKey = this.getCacheKey(key);
+      const timestampKey = this.getTimestampKey(key);
+      const cachedData = localStorage.getItem(cacheKey);
+      const timestamp = localStorage.getItem(timestampKey);
 
       if (!cachedData || !timestamp) {
         return { hasCache: false, productCount: 0, ageMinutes: 0, lastRefresh: "Never" };
