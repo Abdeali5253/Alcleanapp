@@ -393,6 +393,28 @@ class NativeNotificationService {
   // Handle notification action (user tap)
   private handleNotificationAction(notification: any): void {
     log("NativeNotif", "Handling notification action", notification);
+
+    // For background notifications, add to inbox when user taps
+    if (notification) {
+      const title = notification?.title || notification?.notification?.title || "AlClean";
+      const body = notification?.body || notification?.notification?.body || "";
+      const imageUrl = notification?.data?.imageUrl || notification?.notification?.image;
+
+      const nativeNotif: NativeNotification = {
+        id: `tapped_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        title,
+        body,
+        type: notification?.data?.type || "general",
+        timestamp: Date.now(),
+        read: false,
+        data: notification?.data,
+        imageUrl,
+      };
+
+      this.addNotification(nativeNotif);
+      log("NativeNotif", "Added tapped notification to inbox", { title, body });
+    }
+
     if (notification?.data) {
       this.handleNotificationData(notification.data);
     }

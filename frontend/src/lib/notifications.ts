@@ -101,7 +101,7 @@ class NotificationService {
       // Use native notifications on Android/iOS
       if (isNativePlatform()) {
         console.log("[Notifications] Using native notifications");
-        
+
         try {
           const success = await nativeNotificationService.initialize();
           console.log("[Notifications] Native init result:", success);
@@ -116,6 +116,8 @@ class NotificationService {
             this.fcmToken = nativeNotificationService.getFCMToken();
             if (this.fcmToken) {
               this.saveFCMToken(this.fcmToken);
+              // Fetch recent notifications from backend
+              await this.fetchNotificationHistory(this.fcmToken);
             }
 
             // Subscribe to native notification changes
@@ -555,7 +557,7 @@ class NotificationService {
   // Create a test notification
   async sendTestNotification(): Promise<void> {
     console.log("[Notifications] sendTestNotification called");
-    
+
     try {
       if (isNativePlatform()) {
         await nativeNotificationService.sendTestNotification();
@@ -573,6 +575,38 @@ class NotificationService {
       });
     } catch (e) {
       console.error("[Notifications] Send test notification error:", e);
+    }
+  }
+
+  // Fetch notification history from backend
+  private async fetchNotificationHistory(token: string): Promise<void> {
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/notifications/history?token=${encodeURIComponent(token)}`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.notifications) {
+          // Add any missing notifications to inbox
+          data.notifications.forEach((notif: any) => {
+            const existing = this.notifications.find(n => n.id === notif.id);
+            if (!existing) {
+              this.addNotification({
+                id: notif.id,
+                title: notif.title,
+                body: notif.body,
+                type: notif.data?.type || 'general',
+                timestamp: new Date(notif.timestamp),
+                read: notif.read || false,
+                data: notif.data
+              });
+            }
+          });
+          console.log(`[Notifications] Fetched ${data.notifications.length} notifications from history`);
+        }
+      } else {
+        console.log("[Notifications] History fetch failed:", response.status);
+      }
+    } catch (e) {
+      console.error("[Notifications] History fetch error:", e);
     }
   }
 

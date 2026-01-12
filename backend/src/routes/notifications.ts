@@ -61,6 +61,20 @@ interface DeviceToken {
 
 const deviceTokens: Map<string, DeviceToken> = new Map();
 
+// In-memory storage for sent notifications (in production, use a database)
+interface SentNotification {
+  id: string;
+  token: string;
+  title: string;
+  body: string;
+  data: any;
+  timestamp: string;
+  delivered: boolean;
+  read: boolean;
+}
+
+const sentNotifications: Map<string, SentNotification> = new Map();
+
 
 
 
@@ -113,6 +127,19 @@ async function sendFCMNotification(
       if (messageId) {
         successCount++;
         console.log(`[FCM] SUCCESS: Sent to ${token.substring(0, 20)}... (messageId: ${messageId})`);
+
+        // Store notification for history
+        const notificationId = `sent_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        sentNotifications.set(`${token}_${notificationId}`, {
+          id: notificationId,
+          token,
+          title: notification.title,
+          body: notification.body,
+          data: data || {},
+          timestamp: new Date().toISOString(),
+          delivered: true,
+          read: false,
+        });
       } else {
         failureCount++;
         console.error(`[FCM] FAILED: No messageId returned for ${token.substring(0, 20)}`);
@@ -381,6 +408,45 @@ router.delete('/unregister', async (req: Request, res: Response) => {
 });
 
 /**
+ * GET /api/notifications/history
+ * Get notification history for a device token
+ */
+router.get('/history', async (req: Request, res: Response) => {
+  try {
+    const { token } = req.query;
+
+    if (!token || typeof token !== 'string') {
+      return res.status(400).json({
+        success: false,
+        error: 'Token is required',
+      });
+    }
+
+    // Get notifications for this token (last 24 hours)
+    const userNotifications = Array.from(sentNotifications.values())
+      .filter(n => n.token === token)
+      .filter(n => {
+        const notificationTime = new Date(n.timestamp);
+        const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        return notificationTime > oneDayAgo;
+      })
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+    res.json({
+      success: true,
+      notifications: userNotifications,
+      count: userNotifications.length,
+    });
+  } catch (error: any) {
+    console.error('[Notifications] History fetch error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to fetch notification history',
+    });
+  }
+});
+
+/**
  * GET /api/notifications/status
  * Get notification service status
  */
@@ -390,6 +456,7 @@ router.get('/status', async (req: Request, res: Response) => {
     status: {
       fcmConfigured: !!FCM_SERVER_KEY,
       registeredDevices: deviceTokens.size,
+      storedNotifications: sentNotifications.size,
       platforms: {
         android: Array.from(deviceTokens.values()).filter(d => d.platform === 'android').length,
         ios: Array.from(deviceTokens.values()).filter(d => d.platform === 'ios').length,
