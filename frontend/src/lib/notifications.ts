@@ -647,6 +647,9 @@ class NotificationService {
         console.error("[Notifications] Listener error:", e);
       }
     });
+
+    // Dispatch custom event for components listening on window
+    window.dispatchEvent(new CustomEvent("alclean-notification"));
   }
 
   private generateId(): string {

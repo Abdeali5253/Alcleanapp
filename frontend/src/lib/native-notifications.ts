@@ -353,16 +353,21 @@ class NativeNotificationService {
   // Handle incoming push notification
   private handlePushNotification(notification: any): void {
     log("NativeNotif", "Handling push notification", notification);
-    
+
+    // Handle FCM structure where title/body might be in notification.notification
+    const title = notification?.title || notification?.notification?.title || "AlClean";
+    const body = notification?.body || notification?.notification?.body || "";
+    const imageUrl = notification?.data?.imageUrl || notification?.notification?.image;
+
     const nativeNotif: NativeNotification = {
       id: `push_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      title: notification?.title || "AlClean",
-      body: notification?.body || "",
+      title,
+      body,
       type: notification?.data?.type || "general",
       timestamp: Date.now(),
       read: false,
       data: notification?.data,
-      imageUrl: notification?.data?.imageUrl,
+      imageUrl,
     };
 
     this.addNotification(nativeNotif);

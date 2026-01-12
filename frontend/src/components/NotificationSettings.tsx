@@ -371,16 +371,6 @@ export function NotificationSettings() {
           </div>
         )}
 
-        {/* FCM Token Info (Debug) */}
-        {fcmToken && (
-          <div className="bg-gray-100 rounded-xl p-4 mb-6">
-            <h4 className="font-semibold text-gray-700 mb-2 text-sm">Device Token</h4>
-            <p className="text-xs text-gray-500 font-mono break-all">
-              {fcmToken.substring(0, 50)}...
-            </p>
-          </div>
-        )}
-
         {/* Info Box */}
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
           <h3 className="font-semibold text-blue-900 mb-2">Why enable notifications?</h3>
