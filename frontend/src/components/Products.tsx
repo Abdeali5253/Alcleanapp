@@ -272,22 +272,47 @@ export function Products() {
           if (categoryFilter === "all") {
             allProducts = await getAllProducts(2000);
           } else {
-            // Fetch from specific collections
+            // Fetch from specific collections in parallel
             const collections = categoryInfo[categoryFilter].collections || [];
-            console.log(`[Products] Fetching products for category ${categoryFilter} from collections:`, collections);
+            console.log(
+              `[Products] Fetching products for category ${categoryFilter} from collections:`,
+              collections
+            );
 
-            for (const collection of collections) {
-              try {
-                const products = await getProductsByCollection(collection, 250);
-                allProducts = allProducts.concat(products);
-              } catch (e) {
-                console.error(`Failed to fetch from collection ${collection}`, e);
-              }
+            // Map collections to subcategory IDs where they don't match
+            let subcategoryMap: Record<string, string> = {};
+            if (categoryFilter === "cleaning-equipment") {
+              subcategoryMap = {
+                "mop-buckets-wringers-cleaning-janitrol-trolleys": "mop-buckets",
+                "floor-cleaning-vipers-brushes-wet-mops-dry-mops": "floor-cleaning-vipers",
+                // Add more mappings if needed
+              };
             }
+
+            const fetchPromises = collections.map((collection) =>
+              getProductsByCollection(collection, 250)
+                .then((products) => ({ collection, products }))
+                .catch((e) => {
+                  console.error(
+                    `Failed to fetch from collection ${collection}`,
+                    e
+                  );
+                  return { collection, products: [] };
+                })
+            );
+
+            const results = await Promise.all(fetchPromises);
+            allProducts = [];
+            results.forEach(({ collection, products }) => {
+              products.forEach((p) => {
+                p.subcategory = subcategoryMap[collection] || collection; // Assign subcategory based on collection
+                allProducts.push(p);
+              });
+            });
 
             // Remove duplicates
             const seen = new Set<string>();
-            allProducts = allProducts.filter(p => {
+            allProducts = allProducts.filter((p) => {
               if (seen.has(p.id)) return false;
               seen.add(p.id);
               return true;
@@ -299,35 +324,77 @@ export function Products() {
 
           // Background refresh if needed
           if (productCacheService.shouldRefresh(cacheKey)) {
-            console.log(`[Products] Cache is stale for ${cacheKey}, refreshing in background...`);
+            console.log(
+              `[Products] Cache is stale for ${cacheKey}, refreshing in background...`
+            );
             if (categoryFilter === "all") {
-              getAllProducts(2000).then(products => {
-                productCacheService.setCachedProducts(products, cacheKey);
-                console.log("[Products] Background refresh complete");
-              }).catch(err => console.error("[Products] Background refresh failed:", err));
+              getAllProducts(2000)
+                .then((products) => {
+                  productCacheService.setCachedProducts(products, cacheKey);
+                  console.log("[Products] Background refresh complete");
+                })
+                .catch((err) =>
+                  console.error("[Products] Background refresh failed:", err)
+                );
             } else {
               // For category, refetch from collections
-              const collections = categoryInfo[categoryFilter].collections || [];
-              let refreshedProducts: Product[] = [];
-              Promise.all(collections.map(collection => getProductsByCollection(collection, 250)))
-                .then(results => {
-                  results.forEach(products => refreshedProducts = refreshedProducts.concat(products));
+              const collections =
+                categoryInfo[categoryFilter].collections || [];
+              // Map collections to subcategory IDs where they don't match
+              let subcategoryMap: Record<string, string> = {};
+              if (categoryFilter === "cleaning-equipment") {
+                subcategoryMap = {
+                  "mop-buckets-wringers-cleaning-janitrol-trolleys": "mop-buckets",
+                  "floor-cleaning-vipers-brushes-wet-mops-dry-mops": "floor-cleaning-vipers",
+                  // Add more mappings if needed
+                };
+              }
+              const fetchPromises = collections.map((collection) =>
+                getProductsByCollection(collection, 250)
+                  .then((products) => ({ collection, products }))
+                  .catch((e) => {
+                    console.error(
+                      `Failed to fetch from collection ${collection}`,
+                      e
+                    );
+                    return { collection, products: [] };
+                  })
+              );
+              Promise.all(fetchPromises)
+                .then((results) => {
+                  let refreshedProducts: Product[] = [];
+                  results.forEach(({ collection, products }) => {
+                    products.forEach((p) => {
+                      p.subcategory = subcategoryMap[collection] || collection; // Assign subcategory based on collection
+                      refreshedProducts.push(p);
+                    });
+                  });
                   const seen = new Set<string>();
-                  refreshedProducts = refreshedProducts.filter(p => {
+                  refreshedProducts = refreshedProducts.filter((p) => {
                     if (seen.has(p.id)) return false;
                     seen.add(p.id);
                     return true;
                   });
-                  productCacheService.setCachedProducts(refreshedProducts, cacheKey);
+                  productCacheService.setCachedProducts(
+                    refreshedProducts,
+                    cacheKey
+                  );
                   console.log("[Products] Background refresh complete");
                 })
-                .catch(err => console.error("[Products] Background refresh failed:", err));
+                .catch((err) =>
+                  console.error("[Products] Background refresh failed:", err)
+                );
             }
           }
 
-          console.log(`[Products] Loaded and cached ${allProducts.length} products for ${cacheKey}`);
+          console.log(
+            `[Products] Loaded and cached ${allProducts.length} products for ${cacheKey}`
+          );
         } else {
-          console.log(`[Products] Using cached products for ${cacheKey}:`, allProducts.length);
+          console.log(
+            `[Products] Using cached products for ${cacheKey}:`,
+            allProducts.length
+          );
         }
 
         setAllProducts(allProducts);
