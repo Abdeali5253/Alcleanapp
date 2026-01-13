@@ -31,16 +31,12 @@ export const categories: Category[] = [
         name: "Top Cleaning Chemicals",
       },
       {
-        id: "home-page-industrial-cleaning-chemical",
-        name: "Industrial Cleaning Chemical (Home Page)",
-      },
-      {
         id: "fabric-cleaning-chemical",
         name: "Fabric Cleaning Chemical",
       },
       {
         id: "bathroom-cleaning-chemical",
-        name: "Bathroom Cleaning Chemical",
+        name: "Bathroom Cleaning Solution",
       },
       {
         id: "hand-washing-cleaning",
