@@ -85,30 +85,18 @@ const categoryInfo: Record<
       "cleaning-equipment",
       "home-page-cleaning-tools",
       "top-cleaning-equipments",
-      "solar-panel-glass-window-cleaning-equipments",
-      "home-page-solar-panel-glass-window-cleaning-equipments",
       "cleaning-tools",
-      "home-use-floor-cleaning-equipments",
-      "floor-cleaning-vipers-brushes-wet-mops-dry-mops",
-      "mop-buckets-wringers-cleaning-janitrol-trolleys",
-      "industrial-wet-mop",
-      "industrial-floor-brush",
-      "home-page-plastic-dustbin",
-      "industrial-floor-vipers",
-      "industrial-dry-mop",
-      "industrial-floor-broom",
-      "bathroom-cleaning-equipment",
-      "folding-ladder",
-      "home-page-garbage-snake-collector",
-      "safety-equipments",
-      "home-page-safety-equipment",
-      "home-page-cleaning-robots",
-      "cleaning-robots",
-      "home-page-stainless-steel-dustbin",
-      "tissue-rolls-dispensers",
+      "floor-cleaning-vipers",
+      "mop-buckets",
+      "home-page-mop-buckets",
       "soap-dispenser",
       "home-page-soap-dispenser",
-      "home-page-tissue-rolls-dispensers",
+      "tissue-rolls-dispensers",
+      "plastic-dustbin",
+      "safety-equipments",
+      "cleaning-robot",
+      "cleaning-machines",
+      "floor-cleaning-equipments",
     ],
     tags: [
       "cleaning equipment",
@@ -279,16 +267,6 @@ export function Products() {
               collections
             );
 
-            // Map collections to subcategory IDs where they don't match
-            let subcategoryMap: Record<string, string> = {};
-            if (categoryFilter === "cleaning-equipment") {
-              subcategoryMap = {
-                "mop-buckets-wringers-cleaning-janitrol-trolleys": "mop-buckets",
-                "floor-cleaning-vipers-brushes-wet-mops-dry-mops": "floor-cleaning-vipers",
-                // Add more mappings if needed
-              };
-            }
-
             const fetchPromises = collections.map((collection) =>
               getProductsByCollection(collection, 250)
                 .then((products) => ({ collection, products }))
@@ -305,7 +283,7 @@ export function Products() {
             allProducts = [];
             results.forEach(({ collection, products }) => {
               products.forEach((p) => {
-                p.subcategory = subcategoryMap[collection] || collection; // Assign subcategory based on collection
+                p.subcategory = collection; // Assign subcategory based on collection
                 allProducts.push(p);
               });
             });
@@ -340,15 +318,6 @@ export function Products() {
               // For category, refetch from collections
               const collections =
                 categoryInfo[categoryFilter].collections || [];
-              // Map collections to subcategory IDs where they don't match
-              let subcategoryMap: Record<string, string> = {};
-              if (categoryFilter === "cleaning-equipment") {
-                subcategoryMap = {
-                  "mop-buckets-wringers-cleaning-janitrol-trolleys": "mop-buckets",
-                  "floor-cleaning-vipers-brushes-wet-mops-dry-mops": "floor-cleaning-vipers",
-                  // Add more mappings if needed
-                };
-              }
               const fetchPromises = collections.map((collection) =>
                 getProductsByCollection(collection, 250)
                   .then((products) => ({ collection, products }))
@@ -365,7 +334,7 @@ export function Products() {
                   let refreshedProducts: Product[] = [];
                   results.forEach(({ collection, products }) => {
                     products.forEach((p) => {
-                      p.subcategory = subcategoryMap[collection] || collection; // Assign subcategory based on collection
+                      p.subcategory = collection; // Assign subcategory based on collection
                       refreshedProducts.push(p);
                     });
                   });
