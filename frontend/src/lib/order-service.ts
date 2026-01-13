@@ -203,49 +203,75 @@ class OrderService {
   ): Promise<Order> {
     const subtotal = cartItems.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
     const total = subtotal + deliveryCharge;
+    const orderNumber = this.generateOrderNumber();
 
-    const order: Order = {
-      id: Date.now().toString(),
-      orderNumber: this.generateOrderNumber(),
-      customerName: customerInfo.name,
-      customerEmail: customerInfo.email,
-      customerPhone: customerInfo.phone,
-      customerAddress: customerInfo.address,
-      city: customerInfo.city,
-      items: cartItems,
-      subtotal,
-      deliveryCharge,
-      total,
-      paymentMethod,
-      status: 'pending',
-      createdAt: new Date().toISOString(),
-      companyType: 'alclean',
-    };
+    try {
+      // Create order via backend
+      const response = await fetch(`${BACKEND_URL}/api/shopify/create-order`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          orderNumber,
+          customerName: customerInfo.name,
+          customerEmail: customerInfo.email,
+          customerPhone: customerInfo.phone,
+          customerAddress: customerInfo.address,
+          city: customerInfo.city,
+          items: cartItems.map(item => ({
+            variantId: item.product.variantId,
+            quantity: item.quantity,
+            price: item.product.price,
+            title: item.product.title,
+          })),
+          subtotal,
+          deliveryCharge,
+          total,
+          paymentMethod,
+        }),
+      });
 
-    // Create order in Shopify
-    const shopifyResult = await this.createShopifyDraftOrder(order);
-    if (shopifyResult) {
-      order.shopifyDraftOrderId = shopifyResult.draftOrderId;
-      if (shopifyResult.orderId) {
-        order.shopifyOrderId = shopifyResult.orderId;
-        order.status = 'processing';
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to create order');
       }
-      console.log('[Order] Created in Shopify:', shopifyResult);
-    } else {
-      console.warn('[Order] Failed to create in Shopify, order saved locally only');
+
+      const order: Order = {
+        id: Date.now().toString(),
+        orderNumber,
+        customerName: customerInfo.name,
+        customerEmail: customerInfo.email,
+        customerPhone: customerInfo.phone,
+        customerAddress: customerInfo.address,
+        city: customerInfo.city,
+        items: cartItems,
+        subtotal,
+        deliveryCharge,
+        total,
+        paymentMethod,
+        status: data.orderId ? 'processing' : 'pending',
+        createdAt: new Date().toISOString(),
+        companyType: 'alclean',
+        shopifyDraftOrderId: data.draftOrderId,
+        shopifyOrderId: data.orderId,
+      };
+
+      console.log('[Order] Created via backend:', data);
+
+      // Add to local storage for backward compatibility
+      this.orders.unshift(order);
+      this.saveOrders();
+
+      // Add to cache
+      orderCacheService.addOrderToCache(order, customerInfo.email);
+
+      return order;
+    } catch (error) {
+      console.error('[Order] Backend creation failed:', error);
+      throw error;
     }
-
-    // Add to local storage for backward compatibility
-    this.orders.unshift(order);
-    this.saveOrders();
-
-    // Add to cache
-    orderCacheService.addOrderToCache(order, customerInfo.email);
-
-    // Note: Push notifications are handled by backend when order status changes
-    // No need to send notification here as it will be triggered by backend
-
-    return order;
   }
 
   /**

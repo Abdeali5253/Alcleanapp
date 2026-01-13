@@ -3,7 +3,8 @@ import { Button } from "./ui/button";
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { authService } from "../lib/auth";
-import { orderService, Order } from "../lib/order-service";
+import { Order } from "../lib/order-service";
+import { BACKEND_URL } from "../lib/base-url";
 import { UnifiedHeader } from "./UnifiedHeader";
 
 export function Tracking() {
@@ -22,10 +23,31 @@ export function Tracking() {
     }
 
     try {
-      const userOrders = await orderService.getUserOrders();
-      setOrders(userOrders);
+      const user = authService.getCurrentUser();
+      if (!user?.accessToken) {
+        console.error('[Tracking] No access token');
+        setIsLoading(false);
+        return;
+      }
+
+      const response = await fetch(`${BACKEND_URL}/api/orders`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${user.accessToken}`,
+        },
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        console.error('[Tracking] Backend error:', data.error);
+        setOrders([]);
+      } else {
+        setOrders(data.orders || []);
+      }
     } catch (error) {
       console.error('[Tracking] Error loading orders:', error);
+      setOrders([]);
     } finally {
       setIsLoading(false);
     }
