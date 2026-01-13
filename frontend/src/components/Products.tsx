@@ -25,6 +25,52 @@ type CategoryFilter =
   | "fabric-cleaning"
   | "dishwashing";
 
+const collectionToSubcategory: Record<string, string> = {
+  // Cleaning Chemicals mappings
+  'cleaning-chemicals': 'industrial-cleaning-chemicals',
+  'industrial-cleaning-chemicals': 'industrial-cleaning-chemicals',
+  'multi-purpose-chemicals': 'multi-purpose-chemicals',
+  'floor-cleaning-chemical': 'floor-cleaning-chemical',
+  'top-cleaning-chemicals': 'top-cleaning-chemicals',
+  'kitchen-cleaning-solution': 'kitchen-cleaning-solution',
+  'bathroom-cleaning-solution': 'bathroom-cleaning-chemical',
+  'fabric-washing': 'fabric-cleaning-chemical',
+  'fabric-detergent': 'fabric-cleaning-chemical',
+  'fabric-color-bleach': 'fabric-cleaning-chemical',
+  'fabric-cleaner': 'fabric-cleaning-chemical',
+  'fabric-softener-enhancer': 'fabric-cleaning-chemical',
+  'white-cloth-bleach': 'fabric-cleaning-chemical',
+  'solar-panel-cleaner-solution': 'solar-panel-cleaner-solution',
+  'industrial-floor-degreaser': 'industrial-floor-degreaser',
+  'degreaser-multi-clean': 'degreaser-multi-clean',
+  'kitchen-degreaser': 'kitchen-cleaning-solution',
+  'food-grade-cleaning-solution': 'food-grade-cleaning-solution',
+  'industrial-cleaning-solutions': 'industrial-cleaning-chemicals',
+  // Cleaning Equipment mappings
+  'cleaning-equipment': 'cleaning-equipment',
+  'home-page-cleaning-tools': 'home-page-cleaning-tools',
+  'top-cleaning-equipments': 'top-cleaning-equipments',
+  'cleaning-tools': 'cleaning-tools',
+  'floor-cleaning-vipers': 'floor-cleaning-vipers',
+  'mop-buckets': 'mop-buckets',
+  'home-page-mop-buckets': 'home-page-mop-buckets',
+  'soap-dispenser': 'soap-dispenser',
+  'home-page-soap-dispenser': 'home-page-soap-dispenser',
+  'tissue-rolls-dispensers': 'tissue-rolls-dispensers',
+  'plastic-dustbin': 'plastic-dustbin',
+  'safety-equipments': 'safety-equipments',
+  'cleaning-robot': 'cleaning-robot',
+  'cleaning-machines': 'cleaning-machines',
+  'floor-cleaning-equipments': 'floor-cleaning-equipments',
+  // Other categories
+  'dish-wash-powder': 'dish-wash',
+  'dish-wash': 'dish-wash',
+  'car-cleaning-solution': 'car-shampoo',
+  'toilet-bowl-cleaner': 'bathroom-cleaner',
+  'bathroom-cleaner': 'bathroom-cleaner',
+  'bathroom-cleaning-chemical': 'bathroom-cleaner',
+};
+
 const categoryInfo: Record<
   CategoryFilter,
   {
@@ -283,7 +329,8 @@ export function Products() {
             allProducts = [];
             results.forEach(({ collection, products }) => {
               products.forEach((p) => {
-                p.subcategory = collection; // Assign subcategory based on collection
+                p.subcategory = collectionToSubcategory[collection] || collection; // Assign subcategory based on collection
+                p.category = categoryFilter; // Ensure correct category
                 allProducts.push(p);
               });
             });
@@ -334,7 +381,8 @@ export function Products() {
                   let refreshedProducts: Product[] = [];
                   results.forEach(({ collection, products }) => {
                     products.forEach((p) => {
-                      p.subcategory = collection; // Assign subcategory based on collection
+                      p.subcategory = collectionToSubcategory[collection] || collection; // Assign subcategory based on collection
+                      p.category = categoryFilter; // Ensure correct category
                       refreshedProducts.push(p);
                     });
                   });
@@ -536,11 +584,10 @@ export function Products() {
                   setCategoryFilter(cat);
                   setSelectedSubcategories([]);
                 }}
-                className={`flex items-center gap-2 px-5 py-3 rounded-xl font-medium transition-all whitespace-nowrap ${
-                  isActive
-                    ? "bg-gradient-to-r from-[#6DB33F] to-[#5da035] text-white shadow-lg shadow-[#6DB33F]/30"
-                    : "bg-white text-gray-700 border border-gray-200 hover:border-[#6DB33F]/50 hover:shadow-md"
-                }`}
+                className={`flex items-center gap-2 px-5 py-3 rounded-xl font-medium transition-all whitespace-nowrap ${isActive
+                  ? "bg-gradient-to-r from-[#6DB33F] to-[#5da035] text-white shadow-lg shadow-[#6DB33F]/30"
+                  : "bg-white text-gray-700 border border-gray-200 hover:border-[#6DB33F]/50 hover:shadow-md"
+                  }`}
               >
                 <span>{info.emoji}</span>
                 <span>{info.name}</span>
@@ -552,39 +599,39 @@ export function Products() {
         {/* Subcategory Dropdown for specific categories */}
         {(categoryFilter === "cleaning-chemicals" ||
           categoryFilter === "cleaning-equipment") && (
-          <div className="mb-6">
-            <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm relative z-10">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Filter by Subcategory
-              </label>
-              <select
-                value={selectedSubcategories[0] || ""}
-                onChange={(e) => {
-                  if (e.target.value) {
-                    setSelectedSubcategories([e.target.value]);
-                  } else {
-                    setSelectedSubcategories([]);
-                  }
-                }}
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white text-sm font-medium text-gray-700 hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#6DB33F]/20 transition-all"
-              >
-                <option value="">
-                  All{" "}
-                  {categoryFilter === "cleaning-chemicals"
-                    ? "Chemicals"
-                    : "Equipment"}
-                </option>
-                {categories
-                  .find((cat) => cat.id === categoryFilter)
-                  ?.subcategories?.map((sub) => (
-                    <option key={sub.id} value={sub.id}>
-                      {sub.name}
-                    </option>
-                  )) || []}
-              </select>
+            <div className="mb-6">
+              <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm relative z-10">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Filter by Subcategory
+                </label>
+                <select
+                  value={selectedSubcategories[0] || ""}
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      setSelectedSubcategories([e.target.value]);
+                    } else {
+                      setSelectedSubcategories([]);
+                    }
+                  }}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white text-sm font-medium text-gray-700 hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#6DB33F]/20 transition-all"
+                >
+                  <option value="">
+                    All{" "}
+                    {categoryFilter === "cleaning-chemicals"
+                      ? "Chemicals"
+                      : "Equipment"}
+                  </option>
+                  {categories
+                    .find((cat) => cat.id === categoryFilter)
+                    ?.subcategories?.map((sub) => (
+                      <option key={sub.id} value={sub.id}>
+                        {sub.name}
+                      </option>
+                    )) || []}
+                </select>
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
         {/* Quick Filters */}
         <QuickFilters
@@ -612,9 +659,8 @@ export function Products() {
           <div className="flex items-center gap-2 bg-gray-100 rounded-xl p-1">
             <button
               onClick={() => setViewMode("grid")}
-              className={`p-2 rounded-lg transition-all ${
-                viewMode === "grid" ? "bg-white shadow-sm" : "hover:bg-gray-200"
-              }`}
+              className={`p-2 rounded-lg transition-all ${viewMode === "grid" ? "bg-white shadow-sm" : "hover:bg-gray-200"
+                }`}
             >
               <Grid3X3
                 size={18}
@@ -625,11 +671,10 @@ export function Products() {
             </button>
             <button
               onClick={() => setViewMode("compact")}
-              className={`p-2 rounded-lg transition-all ${
-                viewMode === "compact"
-                  ? "bg-white shadow-sm"
-                  : "hover:bg-gray-200"
-              }`}
+              className={`p-2 rounded-lg transition-all ${viewMode === "compact"
+                ? "bg-white shadow-sm"
+                : "hover:bg-gray-200"
+                }`}
             >
               <LayoutGrid
                 size={18}
@@ -685,13 +730,11 @@ export function Products() {
         {/* Products Grid */}
         {loading ? (
           <div
-            className={`grid ${
-              viewMode === "compact" ? "grid-cols-3 gap-2" : "grid-cols-2 gap-3"
-            } sm:gap-4 md:gap-6 ${
-              viewMode === "compact"
+            className={`grid ${viewMode === "compact" ? "grid-cols-3 gap-2" : "grid-cols-2 gap-3"
+              } sm:gap-4 md:gap-6 ${viewMode === "compact"
                 ? "md:grid-cols-4 lg:grid-cols-6"
                 : "md:grid-cols-3 lg:grid-cols-4"
-            }`}
+              }`}
           >
             {Array.from({ length: 12 }, (_, index) => (
               <ProductCardSkeleton key={index} />
@@ -719,13 +762,11 @@ export function Products() {
           </div>
         ) : (
           <div
-            className={`grid ${
-              viewMode === "compact" ? "grid-cols-3 gap-2" : "grid-cols-2 gap-3"
-            } sm:gap-4 md:gap-6 ${
-              viewMode === "compact"
+            className={`grid ${viewMode === "compact" ? "grid-cols-3 gap-2" : "grid-cols-2 gap-3"
+              } sm:gap-4 md:gap-6 ${viewMode === "compact"
                 ? "md:grid-cols-4 lg:grid-cols-6"
                 : "md:grid-cols-3 lg:grid-cols-4"
-            }`}
+              }`}
           >
             {sortedProducts.map((product) => (
               <ProductCard
@@ -757,7 +798,7 @@ export function Products() {
         expandedCategories={expandedCategories}
         onToggleCategory={toggleCategory}
         priceRange={[0, 70000]}
-        onPriceRangeChange={() => {}}
+        onPriceRangeChange={() => { }}
         stockFilter={filters.stockStatus as "all" | "instock" | "outofstock"}
         onStockFilterChange={(val) =>
           setFilters({ ...filters, stockStatus: val })
