@@ -609,7 +609,8 @@ class NotificationService {
                 type: notif.data?.type || 'general',
                 timestamp: new Date(notif.timestamp),
                 read: notif.read || false,
-                data: notif.data
+                data: notif.data,
+                imageUrl: notif.data?.imageUrl
               });
             } else {
               console.log("[Notifications] Notification already exists:", notif.title);

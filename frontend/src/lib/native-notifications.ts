@@ -382,6 +382,11 @@ class NativeNotificationService {
 
     this.addNotification(nativeNotif);
 
+    // Store in backend for history
+    this.storeReceivedNotificationInBackend(nativeNotif).catch(e => {
+      logError("NativeNotif", "Failed to store received notification in backend", e);
+    });
+
     // Show local notification for foreground push (non-blocking)
     this.showLocalNotification({
       title: nativeNotif.title,
@@ -396,7 +401,7 @@ class NativeNotificationService {
     } catch (e) {
       logError("NativeNotif", "Failed to dispatch event", e);
     }
-    
+
     log("NativeNotif", "Push notification handled and stored");
   }
 
@@ -422,6 +427,12 @@ class NativeNotificationService {
       };
 
       this.addNotification(nativeNotif);
+
+      // Store in backend for history
+      this.storeReceivedNotificationInBackend(nativeNotif).catch(e => {
+        logError("NativeNotif", "Failed to store tapped notification in backend", e);
+      });
+
       log("NativeNotif", "Added tapped notification to inbox", { title, body });
     }
 
@@ -821,7 +832,7 @@ class NativeNotificationService {
   // Send test notification
   async sendTestNotification(): Promise<void> {
     log("NativeNotif", "Sending test notification...");
-    
+
     if (this.isNativePlatform()) {
       await this.showLocalNotification({
         title: "🎉 Test Notification",
@@ -839,8 +850,39 @@ class NativeNotificationService {
       timestamp: Date.now(),
       read: false,
     });
-    
+
     log("NativeNotif", "Test notification sent");
+  }
+
+  // Store received notification in backend for history
+  private async storeReceivedNotificationInBackend(notification: NativeNotification): Promise<void> {
+    if (!this.fcmToken) {
+      log("NativeNotif", "No FCM token available, skipping backend storage");
+      return;
+    }
+
+    try {
+      const backendUrl = (import.meta as any).env?.VITE_BACKEND_URL || "";
+      const response = await fetch(`${backendUrl}/api/notifications/store-received`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          token: this.fcmToken,
+          title: notification.title,
+          body: notification.body,
+          data: notification.data,
+          timestamp: new Date(notification.timestamp).toISOString(),
+        }),
+      });
+
+      if (response.ok) {
+        log("NativeNotif", "Notification stored in backend successfully");
+      } else {
+        logError("NativeNotif", `Failed to store notification in backend: ${response.status}`);
+      }
+    } catch (error: any) {
+      logError("NativeNotif", "Error storing notification in backend", error?.message || error);
+    }
   }
 
   // Private methods

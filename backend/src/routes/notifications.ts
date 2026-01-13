@@ -408,6 +408,49 @@ router.delete('/unregister', async (req: Request, res: Response) => {
 });
 
 /**
+ * POST /api/notifications/store-received
+ * Store a received notification for history (for notifications sent via Firebase Console)
+ */
+router.post('/store-received', async (req: Request, res: Response) => {
+  try {
+    const { token, title, body, data, timestamp } = req.body;
+
+    if (!token || !title || !body) {
+      return res.status(400).json({
+        success: false,
+        error: 'token, title, and body are required',
+      });
+    }
+
+    // Store notification for history
+    const notificationId = `received_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    sentNotifications.set(`${token}_${notificationId}`, {
+      id: notificationId,
+      token,
+      title,
+      body,
+      data: data || {},
+      timestamp: timestamp || new Date().toISOString(),
+      delivered: true,
+      read: false,
+    });
+
+    console.log(`[Notifications] Stored received notification: ${title} for token ${token.substring(0, 20)}...`);
+
+    res.json({
+      success: true,
+      message: 'Notification stored successfully',
+    });
+  } catch (error: any) {
+    console.error('[Notifications] Store received error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to store notification',
+    });
+  }
+});
+
+/**
  * GET /api/notifications/history
  * Get notification history for a device token
  */
