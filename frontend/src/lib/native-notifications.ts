@@ -311,7 +311,10 @@ class NativeNotificationService {
       // On push notification action performed (user tapped)
       PushNotifications.addListener("pushNotificationActionPerformed", (action: any) => {
         try {
-          log("NativeNotif", "Notification action performed", action);
+          log("NativeNotif", "👆 NOTIFICATION ACTION PERFORMED (tapped)", {
+            action: action,
+            notification: action?.notification
+          });
           this.handleNotificationAction(action.notification);
         } catch (e) {
           logError("NativeNotif", "Error handling notification action", e);
