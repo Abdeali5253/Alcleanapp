@@ -485,13 +485,6 @@ export function Products() {
     filteredProducts = filteredProducts.filter((p) => !p.inStock);
   }
 
-  // On sale filter
-  if (filters.onSale) {
-    filteredProducts = filteredProducts.filter(
-      (p) => p.onSale && p.discountPercent > 0
-    );
-  }
-
   // Sort products
   const sortedProducts = [...filteredProducts].sort((a, b) => {
     switch (filters.sortBy) {
@@ -560,7 +553,7 @@ export function Products() {
         {(categoryFilter === "cleaning-chemicals" ||
           categoryFilter === "cleaning-equipment") && (
           <div className="mb-6">
-            <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
+            <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm relative z-10">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Filter by Subcategory
               </label>
