@@ -17,7 +17,7 @@ const firebaseConfig = {
 const VAPID_KEY = import.meta.env.VITE_FIREBASE_VAPID_KEY || '';
 let app: FirebaseApp | null = null;
 let messaging: Messaging | null = null;
-const isAndroid = Capacitor.getPlatform() === "android";
+const isNative = Capacitor.isNativePlatform();
 
 export function initializeFirebase(): FirebaseApp | null {
   if (app) return app;
@@ -60,18 +60,18 @@ export async function requestNotificationPermission(): Promise<string | null> {
   try {
     // Check if running in a context that supports notifications
     
-    if (isAndroid || !canUseNotification()) {
+    if (!isNative || !canUseNotification()) {
       console.warn("[Firebase] Notifications not supported in this environment");
       return null;
     }
-    
+
     // Check if service workers are supported
     if (!('serviceWorker' in navigator)) {
       console.warn('[Firebase] Service workers not supported');
       return null;
     }
-    
-    if (isAndroid || !canUseNotification()) return null;
+
+    if (!isNative || !canUseNotification()) return null;
     const permission = await Notification.requestPermission();
     
     if (permission !== 'granted') {

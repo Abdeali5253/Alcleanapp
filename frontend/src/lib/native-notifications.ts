@@ -1,4 +1,4 @@
-// Native Push & Local Notifications for Android using Capacitor
+// Native Push & Local Notifications for Android and iOS using Capacitor
 // With defensive error handling to prevent crashes
 
 import { Capacitor } from "@capacitor/core";
