@@ -210,7 +210,7 @@ function transformProduct(node: any): any {
     originalPrice: compareAtPrice,
     onSale,
     discountPercent,
-    inStock: (variant?.availableForSale ?? false) && quantityAvailable > 0,
+    inStock: quantityAvailable > 0,
     lowStock: quantityAvailable > 0 && quantityAvailable <= 5,
     quantityAvailable,
     isNew: tags.some((t: string) => t.toLowerCase().includes('new')),

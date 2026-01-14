@@ -13,15 +13,15 @@ interface ProductCardProps {
   onToggleWishlist: (productId: string) => void;
 }
 
-export function ProductCard({ 
-  product, 
-  onAddToCart, 
+export function ProductCard({
+  product,
+  onAddToCart,
   onQuickView,
   isInWishlist,
-  onToggleWishlist 
+  onToggleWishlist
 }: ProductCardProps) {
   const navigate = useNavigate();
-  const discount = product.originalPrice 
+  const discount = product.originalPrice
     ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
     : 0;
 
@@ -48,16 +48,16 @@ export function ProductCard({
       </button>
 
       {/* Product Image */}
-      <div 
+      <div
         className="aspect-square bg-gradient-to-br from-gray-50 to-gray-100 relative overflow-hidden cursor-pointer"
         onClick={handleCardClick}
       >
-        <img 
-          src={product.image} 
-          alt={product.title} 
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+        <img
+          src={product.image}
+          alt={product.title}
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
         />
-        
+
         {/* Badges */}
         <div className="absolute top-3 left-3 flex flex-col gap-1.5">
           {product.onSale && discount > 0 && (
@@ -91,12 +91,14 @@ export function ProductCard({
           {product.title}
         </h3>
 
-        <p className="text-xs text-gray-500 mb-3 font-medium">{product.weight}</p>
+        <p className="text-xs text-gray-500 mb-3 font-medium">
+          {product.inStock ? `${product.quantityAvailable} in stock` : 'Out of stock'}
+        </p>
 
         {/* Price */}
-        <PriceDisplay 
-          price={product.price} 
-         // originalPrice={product.originalPrice} 
+        <PriceDisplay
+          price={product.price}
+          // originalPrice={product.originalPrice} 
           className="mb-4"
         />
 
@@ -114,9 +116,9 @@ export function ProductCard({
             Add to Cart
           </Button>
         ) : (
-          <Button 
-            size="sm" 
-            disabled 
+          <Button
+            size="sm"
+            disabled
             className="w-full bg-gray-200 text-gray-500 h-10 rounded-xl cursor-not-allowed"
           >
             Out of Stock

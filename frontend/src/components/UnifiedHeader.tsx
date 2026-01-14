@@ -57,7 +57,7 @@ export function UnifiedHeader({ cartCount }: UnifiedHeaderProps) {
   return (
     <>
       {/* Header */}
-      <header className="bg-white shadow-md sticky top-0 z-50">
+      <header className="bg-white shadow-md sticky top-0 z-50 md:sticky fixed md:relative">
         {/* Top Bar - Contact Info (Desktop Only) */}
         <div className="bg-[#6DB33F] text-white py-2 hidden md:block">
           <div className="max-w-7xl mx-auto px-4 flex items-center justify-between text-sm">
@@ -97,35 +97,31 @@ export function UnifiedHeader({ cartCount }: UnifiedHeaderProps) {
             <nav className="hidden md:flex items-center gap-6">
               <Link
                 to="/"
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
-                  isActive('/') ? 'text-[#6DB33F] bg-[#6DB33F]/10' : 'text-gray-700 hover:text-[#6DB33F]'
-                }`}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${isActive('/') ? 'text-[#6DB33F] bg-[#6DB33F]/10' : 'text-gray-700 hover:text-[#6DB33F]'
+                  }`}
               >
                 <Home size={18} />
                 <span>Home</span>
               </Link>
               <Link
                 to="/products"
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
-                  isActive('/products') ? 'text-[#6DB33F] bg-[#6DB33F]/10' : 'text-gray-700 hover:text-[#6DB33F]'
-                }`}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${isActive('/products') ? 'text-[#6DB33F] bg-[#6DB33F]/10' : 'text-gray-700 hover:text-[#6DB33F]'
+                  }`}
               >
                 <Package size={18} />
                 <span>Products</span>
               </Link>
               <Link
                 to="/about"
-                className={`px-3 py-2 rounded-lg transition-colors ${
-                  isActive('/about') ? 'text-[#6DB33F] bg-[#6DB33F]/10' : 'text-gray-700 hover:text-[#6DB33F]'
-                }`}
+                className={`px-3 py-2 rounded-lg transition-colors ${isActive('/about') ? 'text-[#6DB33F] bg-[#6DB33F]/10' : 'text-gray-700 hover:text-[#6DB33F]'
+                  }`}
               >
                 About
               </Link>
               <Link
                 to="/contact"
-                className={`px-3 py-2 rounded-lg transition-colors ${
-                  isActive('/contact') ? 'text-[#6DB33F] bg-[#6DB33F]/10' : 'text-gray-700 hover:text-[#6DB33F]'
-                }`}
+                className={`px-3 py-2 rounded-lg transition-colors ${isActive('/contact') ? 'text-[#6DB33F] bg-[#6DB33F]/10' : 'text-gray-700 hover:text-[#6DB33F]'
+                  }`}
               >
                 Contact
               </Link>
@@ -196,9 +192,8 @@ export function UnifiedHeader({ cartCount }: UnifiedHeaderProps) {
               <Link
                 to="/"
                 onClick={() => setShowMobileMenu(false)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg ${
-                  isActive('/') ? 'bg-[#6DB33F] text-white' : 'hover:bg-gray-100'
-                }`}
+                className={`flex items-center gap-3 px-4 py-3 rounded-lg ${isActive('/') ? 'bg-[#6DB33F] text-white' : 'hover:bg-gray-100'
+                  }`}
               >
                 <Home size={20} />
                 <span>Home</span>
@@ -206,9 +201,8 @@ export function UnifiedHeader({ cartCount }: UnifiedHeaderProps) {
               <Link
                 to="/products"
                 onClick={() => setShowMobileMenu(false)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg ${
-                  isActive('/products') ? 'bg-[#6DB33F] text-white' : 'hover:bg-gray-100'
-                }`}
+                className={`flex items-center gap-3 px-4 py-3 rounded-lg ${isActive('/products') ? 'bg-[#6DB33F] text-white' : 'hover:bg-gray-100'
+                  }`}
               >
                 <Package size={20} />
                 <span>Products</span>
@@ -216,9 +210,8 @@ export function UnifiedHeader({ cartCount }: UnifiedHeaderProps) {
               <Link
                 to="/cart"
                 onClick={() => setShowMobileMenu(false)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg ${
-                  isActive('/cart') ? 'bg-[#6DB33F] text-white' : 'hover:bg-gray-100'
-                }`}
+                className={`flex items-center gap-3 px-4 py-3 rounded-lg ${isActive('/cart') ? 'bg-[#6DB33F] text-white' : 'hover:bg-gray-100'
+                  }`}
               >
                 <ShoppingCart size={20} />
                 <span>Cart {actualCartCount > 0 && `(${actualCartCount})`}</span>
@@ -226,9 +219,8 @@ export function UnifiedHeader({ cartCount }: UnifiedHeaderProps) {
               <Link
                 to="/account"
                 onClick={() => setShowMobileMenu(false)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg ${
-                  isActive('/account') ? 'bg-[#6DB33F] text-white' : 'hover:bg-gray-100'
-                }`}
+                className={`flex items-center gap-3 px-4 py-3 rounded-lg ${isActive('/account') ? 'bg-[#6DB33F] text-white' : 'hover:bg-gray-100'
+                  }`}
               >
                 <User size={20} />
                 <span>Account</span>
@@ -236,9 +228,8 @@ export function UnifiedHeader({ cartCount }: UnifiedHeaderProps) {
               <Link
                 to="/tracking"
                 onClick={() => setShowMobileMenu(false)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg ${
-                  isActive('/tracking') ? 'bg-[#6DB33F] text-white' : 'hover:bg-gray-100'
-                }`}
+                className={`flex items-center gap-3 px-4 py-3 rounded-lg ${isActive('/tracking') ? 'bg-[#6DB33F] text-white' : 'hover:bg-gray-100'
+                  }`}
               >
                 <MapPin size={20} />
                 <span>Track Order</span>
@@ -246,18 +237,16 @@ export function UnifiedHeader({ cartCount }: UnifiedHeaderProps) {
               <Link
                 to="/about"
                 onClick={() => setShowMobileMenu(false)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg ${
-                  isActive('/about') ? 'bg-[#6DB33F] text-white' : 'hover:bg-gray-100'
-                }`}
+                className={`flex items-center gap-3 px-4 py-3 rounded-lg ${isActive('/about') ? 'bg-[#6DB33F] text-white' : 'hover:bg-gray-100'
+                  }`}
               >
                 <span>About Us</span>
               </Link>
               <Link
                 to="/contact"
                 onClick={() => setShowMobileMenu(false)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg ${
-                  isActive('/contact') ? 'bg-[#6DB33F] text-white' : 'hover:bg-gray-100'
-                }`}
+                className={`flex items-center gap-3 px-4 py-3 rounded-lg ${isActive('/contact') ? 'bg-[#6DB33F] text-white' : 'hover:bg-gray-100'
+                  }`}
               >
                 <span>Contact Us</span>
               </Link>
