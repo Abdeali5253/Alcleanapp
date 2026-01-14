@@ -2,6 +2,8 @@ import { Router, Request, Response } from 'express';
 import dotenv from 'dotenv';
 import { initializeApp, cert } from 'firebase-admin/app';
 import { getMessaging, Message } from 'firebase-admin/messaging';
+import fs from 'fs';
+import path from 'path';
 
 dotenv.config();
 
@@ -50,7 +52,7 @@ function initializeFirebaseAdmin() {
 const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID || '';
 const FCM_V1_API_URL = `https://fcm.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/messages:send`;
 
-// In-memory storage for FCM tokens (in production, use a database)
+// Persistent storage for FCM tokens and notifications
 interface DeviceToken {
   token: string;
   platform: 'web' | 'android' | 'ios';
@@ -59,11 +61,9 @@ interface DeviceToken {
   userId?: string;
 }
 
-const deviceTokens: Map<string, DeviceToken> = new Map();
-
-// In-memory storage for sent notifications (in production, use a database)
 interface SentNotification {
   id: string;
+  userId?: string; // Associate with user instead of token
   token: string;
   title: string;
   body: string;
@@ -73,7 +73,75 @@ interface SentNotification {
   read: boolean;
 }
 
+// File paths for persistent storage
+const DATA_DIR = path.join(process.cwd(), 'data');
+const DEVICES_FILE = path.join(DATA_DIR, 'devices.json');
+const NOTIFICATIONS_FILE = path.join(DATA_DIR, 'notifications.json');
+
+// In-memory maps for fast access
+const deviceTokens: Map<string, DeviceToken> = new Map();
 const sentNotifications: Map<string, SentNotification> = new Map();
+
+// Ensure data directory exists
+function ensureDataDir() {
+  if (!fs.existsSync(DATA_DIR)) {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+  }
+}
+
+// Load data from files
+function loadDevices() {
+  try {
+    ensureDataDir();
+    if (fs.existsSync(DEVICES_FILE)) {
+      const data = fs.readFileSync(DEVICES_FILE, 'utf8');
+      const devices: DeviceToken[] = JSON.parse(data);
+      devices.forEach(device => deviceTokens.set(device.token, device));
+      console.log(`[Notifications] Loaded ${devices.length} devices from storage`);
+    }
+  } catch (error) {
+    console.error('[Notifications] Failed to load devices:', error);
+  }
+}
+
+function loadNotifications() {
+  try {
+    ensureDataDir();
+    if (fs.existsSync(NOTIFICATIONS_FILE)) {
+      const data = fs.readFileSync(NOTIFICATIONS_FILE, 'utf8');
+      const notifications: SentNotification[] = JSON.parse(data);
+      notifications.forEach(notification => sentNotifications.set(notification.id, notification));
+      console.log(`[Notifications] Loaded ${notifications.length} notifications from storage`);
+    }
+  } catch (error) {
+    console.error('[Notifications] Failed to load notifications:', error);
+  }
+}
+
+// Save data to files
+function saveDevices() {
+  try {
+    ensureDataDir();
+    const devices = Array.from(deviceTokens.values());
+    fs.writeFileSync(DEVICES_FILE, JSON.stringify(devices, null, 2));
+  } catch (error) {
+    console.error('[Notifications] Failed to save devices:', error);
+  }
+}
+
+function saveNotifications() {
+  try {
+    ensureDataDir();
+    const notifications = Array.from(sentNotifications.values());
+    fs.writeFileSync(NOTIFICATIONS_FILE, JSON.stringify(notifications, null, 2));
+  } catch (error) {
+    console.error('[Notifications] Failed to save notifications:', error);
+  }
+}
+
+// Initialize persistent storage
+loadDevices();
+loadNotifications();
 
 
 
@@ -130,8 +198,11 @@ async function sendFCMNotification(
 
         // Store notification for history
         const notificationId = `sent_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        sentNotifications.set(`${token}_${notificationId}`, {
+        const device = deviceTokens.get(token);
+        const userId = device?.userId;
+        sentNotifications.set(notificationId, {
           id: notificationId,
+          userId,
           token,
           title: notification.title,
           body: notification.body,
@@ -140,6 +211,7 @@ async function sendFCMNotification(
           delivered: true,
           read: false,
         });
+        saveNotifications();
       } else {
         failureCount++;
         console.error(`[FCM] FAILED: No messageId returned for ${token.substring(0, 20)}`);
@@ -155,7 +227,7 @@ async function sendFCMNotification(
 
       // Remove invalid tokens
       if (error.code === 'messaging/invalid-registration-token' ||
-          error.code === 'messaging/registration-token-not-registered') {
+        error.code === 'messaging/registration-token-not-registered') {
         deviceTokens.delete(token);
         console.log(`[FCM] Removed invalid token: ${token.substring(0, 20)}...`);
       }
@@ -190,6 +262,7 @@ router.post('/register', async (req: Request, res: Response) => {
     };
 
     deviceTokens.set(token, deviceInfo);
+    saveDevices();
 
     console.log(`[Notifications] Registered device: ${platform} - ${token.substring(0, 20)}...`);
     console.log(`[Notifications] Total registered devices: ${deviceTokens.size}`);
@@ -422,10 +495,15 @@ router.post('/store-received', async (req: Request, res: Response) => {
       });
     }
 
+    // Get userId from device token
+    const device = deviceTokens.get(token);
+    const userId = device?.userId;
+
     // Store notification for history
     const notificationId = `received_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    sentNotifications.set(`${token}_${notificationId}`, {
+    sentNotifications.set(notificationId, {
       id: notificationId,
+      userId,
       token,
       title,
       body,
@@ -434,6 +512,7 @@ router.post('/store-received', async (req: Request, res: Response) => {
       delivered: true,
       read: false,
     });
+    saveNotifications();
 
     console.log(`[Notifications] Stored received notification: ${title} for token ${token.substring(0, 20)}...`);
 
@@ -485,6 +564,40 @@ router.get('/history', async (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       error: error.message || 'Failed to fetch notification history',
+    });
+  }
+});
+
+/**
+ * GET /api/notifications/user-notifications
+ * Get notifications for a specific user
+ */
+router.get('/user-notifications', async (req: Request, res: Response) => {
+  try {
+    const { userId } = req.query;
+
+    if (!userId || typeof userId !== 'string') {
+      return res.status(400).json({
+        success: false,
+        error: 'userId is required',
+      });
+    }
+
+    // Get all notifications for this user
+    const userNotifications = Array.from(sentNotifications.values())
+      .filter(n => n.userId === userId)
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+    res.json({
+      success: true,
+      notifications: userNotifications,
+      count: userNotifications.length,
+    });
+  } catch (error: any) {
+    console.error('[Notifications] User notifications fetch error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to fetch user notifications',
     });
   }
 });

@@ -26,13 +26,13 @@ export interface PushNotification {
   title: string;
   body: string;
   type:
-    | "order_update"
-    | "promotion"
-    | "discount"
-    | "sale"
-    | "new_product"
-    | "delivery"
-    | "general";
+  | "order_update"
+  | "promotion"
+  | "discount"
+  | "sale"
+  | "new_product"
+  | "delivery"
+  | "general";
   timestamp: Date;
   read: boolean;
   data?: Record<string, any>;
@@ -399,12 +399,12 @@ class NotificationService {
   // Request permission
   async requestPermission(): Promise<boolean> {
     console.log("[Notifications] requestPermission called, isNative:", isNativePlatform());
-    
+
     try {
       if (isNativePlatform()) {
         const granted = await nativeNotificationService.requestPermission();
         console.log("[Notifications] Native permission result:", granted);
-        
+
         if (granted) {
           // Update FCM token after permission granted
           setTimeout(() => {

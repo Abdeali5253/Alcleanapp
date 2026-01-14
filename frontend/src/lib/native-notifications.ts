@@ -7,7 +7,7 @@ import { Capacitor } from "@capacitor/core";
 const log = (tag: string, message: string, data?: any) => {
   const timestamp = new Date().toISOString();
   const logMessage = `[${timestamp}][${tag}] ${message}`;
-  
+
   if (data) {
     console.log(logMessage, JSON.stringify(data, null, 2));
   } else {
@@ -72,6 +72,8 @@ class NativeNotificationService {
     log("NativeNotif", `Is Native: ${Capacitor.isNativePlatform()}`);
     this.loadNotifications();
     this.loadFCMToken();
+    // Setup listeners as early as possible
+    this.setupPushListeners();
   }
 
   // Check if running on native platform (Android/iOS)
@@ -82,7 +84,7 @@ class NativeNotificationService {
   // Load plugins safely
   private async ensurePluginsLoaded(): Promise<boolean> {
     if (this.pluginsLoaded) return true;
-    
+
     try {
       await loadPlugins();
       this.pluginsLoaded = true;
@@ -96,12 +98,12 @@ class NativeNotificationService {
   // Initialize push notifications for Android
   async initialize(): Promise<boolean> {
     log("NativeNotif", "Initialize called", { isInitialized: this.isInitialized });
-    
+
     if (this.isInitialized) {
       log("NativeNotif", "Already initialized, skipping");
       return true;
     }
-    
+
     if (!this.isNativePlatform()) {
       log("NativeNotif", "Not on native platform, skipping initialization");
       this.isInitialized = true;
@@ -123,10 +125,10 @@ class NativeNotificationService {
       try {
         const currentStatus = await PushNotifications.checkPermissions();
         log("NativeNotif", "Current permission status", currentStatus);
-        
+
         // Setup listeners BEFORE registering
         this.setupPushListeners();
-        
+
         if (currentStatus.receive === "granted") {
           // Already granted, register to get token
           log("NativeNotif", "Permission already granted, registering for push...");
@@ -300,9 +302,6 @@ class NativeNotificationService {
             fullNotification: notification
           });
           this.handlePushNotification(notification);
-
-          // Also show an alert for testing
-          alert(`Push received: ${notification?.title} - ${notification?.body}`);
         } catch (e) {
           logError("NativeNotif", "Error handling push notification", e);
         }
@@ -335,7 +334,7 @@ class NativeNotificationService {
     }
 
     log("LocalNotif", "Initializing local notifications...");
-    
+
     try {
       const permStatus = await LocalNotifications.requestPermissions();
       log("LocalNotif", "Permission status", permStatus);
@@ -447,7 +446,7 @@ class NativeNotificationService {
   // Handle notification data for deep linking
   private handleNotificationData(data: Record<string, any>): void {
     log("NativeNotif", "Handling notification data for deep linking", data);
-    
+
     try {
       if (data.orderId) {
         log("NativeNotif", "Navigating to tracking");
@@ -472,7 +471,7 @@ class NativeNotificationService {
     }
 
     log("NativeNotif", "Registering token with backend...");
-    
+
     try {
       const payload = {
         token,
@@ -483,7 +482,7 @@ class NativeNotificationService {
 
       // Get backend URL from env or use relative path
       const backendUrl = (import.meta as any).env?.VITE_BACKEND_URL || "";
-      
+
       const response = await fetch(`${backendUrl}/api/notifications/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -568,10 +567,10 @@ class NativeNotificationService {
   }): Promise<number> {
     const notifId = this.notificationIdCounter++;
     const scheduleTime = new Date(Date.now() + options.delayMinutes * 60 * 1000);
-    
-    log("LocalNotif", "Scheduling reminder", { 
-      id: notifId, 
-      title: options.title, 
+
+    log("LocalNotif", "Scheduling reminder", {
+      id: notifId,
+      title: options.title,
       delayMinutes: options.delayMinutes,
       scheduleTime: scheduleTime.toISOString()
     });
@@ -626,7 +625,7 @@ class NativeNotificationService {
 
     try {
       log("LocalNotif", "Creating notification channels...");
-      
+
       await LocalNotifications.createChannel({
         id: "alclean_default",
         name: "AlClean Notifications",
@@ -737,7 +736,7 @@ class NativeNotificationService {
     try {
       await this.ensurePluginsLoaded();
       if (!PushNotifications) return "denied";
-      
+
       const status = await PushNotifications.checkPermissions();
       log("NativeNotif", "Check permission result", status);
       if (status.receive === "granted") return "granted";
@@ -755,12 +754,12 @@ class NativeNotificationService {
 
     try {
       log("NativeNotif", "Requesting permission...");
-      
+
       // Make sure we're initialized first
       if (!this.isInitialized) {
         await this.initialize();
       }
-      
+
       // Then register for push
       const result = await this.registerForPush();
       log("NativeNotif", "Permission request result", { result });
@@ -797,7 +796,7 @@ class NativeNotificationService {
         log("NativeNotif", "Registration call made");
         return true;
       }
-      
+
       return false;
     } catch (e) {
       logError("NativeNotif", "tryRegisterIfPermitted failed", e);
@@ -812,7 +811,7 @@ class NativeNotificationService {
       if (stored) {
         return JSON.parse(stored);
       }
-    } catch {}
+    } catch { }
     return {
       enabled: true,
       orderUpdates: true,
@@ -915,14 +914,14 @@ class NativeNotificationService {
       if (this.fcmToken) {
         log("NativeNotif", "Loaded FCM token from storage");
       }
-    } catch {}
+    } catch { }
   }
 
   private saveFCMToken(token: string): void {
     try {
       localStorage.setItem(FCM_TOKEN_STORAGE_KEY, token);
       log("NativeNotif", "FCM token saved to storage");
-    } catch {}
+    } catch { }
   }
 
   private notifyListeners(): void {
