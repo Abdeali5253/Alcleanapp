@@ -46,7 +46,9 @@ export function ProductDetail() {
           console.log("[ProductDetail] Searching by ID");
         } else {
           // Search by handle
-          productData = allProducts.find((p: Product) => p.handle === decodedParam);
+          productData = allProducts.find(
+            (p: Product) => p.handle === decodedParam
+          );
           console.log("[ProductDetail] Searching by handle");
         }
 
@@ -87,7 +89,9 @@ export function ProductDetail() {
   };
 
   const incrementQuantity = () => {
-    setQuantity(quantity + 1);
+    if (product && quantity < product.quantityAvailable) {
+      setQuantity(quantity + 1);
+    }
   };
 
   const decrementQuantity = () => {
@@ -299,9 +303,7 @@ export function ProductDetail() {
                 }`}
               >
                 {product.inStock
-                  ? product.lowStock
-                    ? `Only ${product.quantityAvailable} left in stock!`
-                    : "In Stock"
+                  ? `${product.quantityAvailable} left in stock!`
                   : "Out of Stock"}
               </span>
             </div>

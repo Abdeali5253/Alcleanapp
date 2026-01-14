@@ -8,8 +8,8 @@ export interface CartItem {
   quantity: number;
 }
 
-const CART_STORAGE_KEY = 'alclean_cart';
-const CHECKOUT_STORAGE_KEY = 'alclean_checkout_id';
+const CART_STORAGE_KEY = "alclean_cart";
+const CHECKOUT_STORAGE_KEY = "alclean_checkout_id";
 
 class CartService {
   private items: CartItem[] = [];
@@ -27,19 +27,31 @@ class CartService {
       if (stored) {
         const parsed = JSON.parse(stored);
         // Validate and clean cart data
-        this.items = Array.isArray(parsed) ? parsed.filter(item => {
-          // Ensure item has product and valid quantity
-          if (!item || !item.product || typeof item.product.id !== 'string') {
-            return false;
-          }
-          // Ensure quantity is a number
-          item.quantity = typeof item.quantity === 'number' ? item.quantity : parseInt(item.quantity) || 1;
-          // Ensure price is a number
-          if (item.product.price && typeof item.product.price !== 'number') {
-            item.product.price = parseFloat(item.product.price) || 0;
-          }
-          return item.quantity > 0;
-        }) : [];
+        this.items = Array.isArray(parsed)
+          ? parsed.filter((item) => {
+              // Ensure item has product and valid quantity
+              if (
+                !item ||
+                !item.product ||
+                typeof item.product.id !== "string"
+              ) {
+                return false;
+              }
+              // Ensure quantity is a number
+              item.quantity =
+                typeof item.quantity === "number"
+                  ? item.quantity
+                  : parseInt(item.quantity) || 1;
+              // Ensure price is a number
+              if (
+                item.product.price &&
+                typeof item.product.price !== "number"
+              ) {
+                item.product.price = parseFloat(item.product.price) || 0;
+              }
+              return item.quantity > 0;
+            })
+          : [];
       }
     } catch (error) {
       console.error("[Cart] Failed to load:", error);
@@ -78,14 +90,14 @@ class CartService {
   }
 
   private notifyListeners(): void {
-    this.listeners.forEach(callback => callback(this.getItems()));
+    this.listeners.forEach((callback) => callback(this.getItems()));
   }
 
   subscribe(callback: (items: CartItem[]) => void): () => void {
     this.listeners.push(callback);
     callback(this.getItems());
     return () => {
-      this.listeners = this.listeners.filter(l => l !== callback);
+      this.listeners = this.listeners.filter((l) => l !== callback);
     };
   }
 
@@ -101,27 +113,39 @@ class CartService {
 
   // Get cart total
   getTotal(): number {
-    return this.items.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
+    return this.items.reduce(
+      (sum, item) => sum + item.product.price * item.quantity,
+      0
+    );
   }
 
   // Add to cart
   addToCart(product: Product, quantity: number = 1): void {
     // Ensure quantity is a valid number
-    const qty = typeof quantity === 'number' ? quantity : parseInt(String(quantity)) || 1;
-    
-    const existingIndex = this.items.findIndex(item => item.product.id === product.id);
-    
+    const qty =
+      typeof quantity === "number" ? quantity : parseInt(String(quantity)) || 1;
+    if (quantity > product.quantityAvailable) {
+      throw new Error("Cannot add more than available stock");
+    }
+    const existingIndex = this.items.findIndex(
+      (item) => item.product.id === product.id
+    );
+
     if (existingIndex >= 0) {
-      this.items[existingIndex].quantity = (this.items[existingIndex].quantity || 0) + qty;
+      this.items[existingIndex].quantity =
+        (this.items[existingIndex].quantity || 0) + qty;
     } else {
       // Ensure product price is a number
       const cleanProduct = {
         ...product,
-        price: typeof product.price === 'number' ? product.price : parseFloat(String(product.price)) || 0
+        price:
+          typeof product.price === "number"
+            ? product.price
+            : parseFloat(String(product.price)) || 0,
       };
       this.items.push({ product: cleanProduct, quantity: qty });
     }
-    
+
     // Reset checkout when cart changes
     this.saveCheckoutId(null);
     this.saveCart();
@@ -129,8 +153,10 @@ class CartService {
 
   // Update quantity
   updateQuantity(productId: string, quantity: number): void {
-    const index = this.items.findIndex(item => item.product.id === productId);
-    
+    const index = this.items.findIndex((item) => item.product.id === productId);
+    if (index >= 0 && quantity > this.items[index].product.quantityAvailable) {
+      throw new Error("Cannot add more than available stock");
+    }
     if (index >= 0) {
       if (quantity <= 0) {
         this.items.splice(index, 1);
@@ -144,7 +170,7 @@ class CartService {
 
   // Remove from cart
   removeFromCart(productId: string): void {
-    this.items = this.items.filter(item => item.product.id !== productId);
+    this.items = this.items.filter((item) => item.product.id !== productId);
     this.saveCheckoutId(null);
     this.saveCart();
   }
@@ -164,7 +190,7 @@ class CartService {
 
     // Convert cart items to checkout line items
     // Ensure quantity is always an integer
-    const lineItems = this.items.map(item => ({
+    const lineItems = this.items.map((item) => ({
       variantId: item.product.variantId,
       quantity: Math.max(1, Math.floor(Number(item.quantity) || 1)),
     }));
@@ -176,9 +202,9 @@ class CartService {
     try {
       // Create checkout via backend
       const response = await fetch(`${BACKEND_URL}/api/cart/checkout`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           lineItems,
@@ -189,7 +215,7 @@ class CartService {
       const data = await response.json();
 
       if (!data.success) {
-        throw new Error(data.error || 'Failed to create checkout');
+        throw new Error(data.error || "Failed to create checkout");
       }
 
       const checkout = data.checkout;
@@ -199,15 +225,18 @@ class CartService {
       if (user?.accessToken) {
         try {
           const encodedCheckoutId = encodeURIComponent(checkout.id);
-          await fetch(`${BACKEND_URL}/api/cart/checkout/${encodedCheckoutId}/customer`, {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              accessToken: user.accessToken,
-            }),
-          });
+          await fetch(
+            `${BACKEND_URL}/api/cart/checkout/${encodedCheckoutId}/customer`,
+            {
+              method: "PUT",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                accessToken: user.accessToken,
+              }),
+            }
+          );
         } catch (error) {
           console.warn("[Cart] Failed to associate customer:", error);
         }
@@ -241,18 +270,21 @@ class CartService {
 
     try {
       const encodedCheckoutId = encodeURIComponent(this.checkoutId);
-      const response = await fetch(`${BACKEND_URL}/api/cart/checkout/${encodedCheckoutId}/shipping-address`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ address }),
-      });
+      const response = await fetch(
+        `${BACKEND_URL}/api/cart/checkout/${encodedCheckoutId}/shipping-address`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ address }),
+        }
+      );
 
       const data = await response.json();
 
       if (!data.success) {
-        throw new Error(data.error || 'Failed to update shipping address');
+        throw new Error(data.error || "Failed to update shipping address");
       }
 
       // Modify the checkout URL to pre-fill the form with shipping address
@@ -260,18 +292,50 @@ class CartService {
         const url = new URL(data.checkout.webUrl);
 
         // Add shipping address parameters to pre-fill the form
-        if (address.firstName) url.searchParams.set('checkout[shipping_address][first_name]', address.firstName);
-        if (address.lastName) url.searchParams.set('checkout[shipping_address][last_name]', address.lastName);
-        if (address.address1) url.searchParams.set('checkout[shipping_address][address1]', address.address1);
-        if (address.city) url.searchParams.set('checkout[shipping_address][city]', address.city);
-        if (address.province) url.searchParams.set('checkout[shipping_address][province]', address.province);
-        if (address.country) url.searchParams.set('checkout[shipping_address][country]', address.country);
-        if (address.zip) url.searchParams.set('checkout[shipping_address][zip]', address.zip);
-        if (address.phone) url.searchParams.set('checkout[shipping_address][phone]', address.phone);
+        if (address.firstName)
+          url.searchParams.set(
+            "checkout[shipping_address][first_name]",
+            address.firstName
+          );
+        if (address.lastName)
+          url.searchParams.set(
+            "checkout[shipping_address][last_name]",
+            address.lastName
+          );
+        if (address.address1)
+          url.searchParams.set(
+            "checkout[shipping_address][address1]",
+            address.address1
+          );
+        if (address.city)
+          url.searchParams.set(
+            "checkout[shipping_address][city]",
+            address.city
+          );
+        if (address.province)
+          url.searchParams.set(
+            "checkout[shipping_address][province]",
+            address.province
+          );
+        if (address.country)
+          url.searchParams.set(
+            "checkout[shipping_address][country]",
+            address.country
+          );
+        if (address.zip)
+          url.searchParams.set("checkout[shipping_address][zip]", address.zip);
+        if (address.phone)
+          url.searchParams.set(
+            "checkout[shipping_address][phone]",
+            address.phone
+          );
 
         // Update the checkout URL with pre-filled parameters
         data.checkout.webUrl = url.toString();
-        console.log("[Cart] Checkout URL updated with pre-filled address:", data.checkout.webUrl);
+        console.log(
+          "[Cart] Checkout URL updated with pre-filled address:",
+          data.checkout.webUrl
+        );
       }
 
       return data.checkout;
