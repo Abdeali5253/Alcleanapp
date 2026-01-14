@@ -4,6 +4,7 @@
  */
 
 import { authService } from './auth';
+import { toast } from 'sonner';
 
 const WISHLIST_STORAGE_KEY = 'alclean_wishlist';
 
@@ -15,7 +16,7 @@ class WishlistService {
 
   constructor() {
     this.loadWishlist();
-    
+
     // Listen to auth changes
     authService.subscribe((user) => {
       if (!user) {
@@ -47,7 +48,7 @@ class WishlistService {
       console.error('[Wishlist] Failed to load:', error);
       this.wishlist = [];
     }
-    
+
     this.notifySubscribers();
   }
 
@@ -98,6 +99,10 @@ class WishlistService {
    */
   toggleWishlist(productId: string): boolean {
     if (!authService.isLoggedIn()) {
+      toast.error("Please login to manage your wishlist", {
+        duration: 3000,
+        position: "top-center",
+      });
       return false;
     }
 
@@ -146,7 +151,7 @@ class WishlistService {
   subscribe(callback: WishlistSubscriber): () => void {
     this.subscribers.push(callback);
     callback(this.wishlist);
-    
+
     return () => {
       const index = this.subscribers.indexOf(callback);
       if (index > -1) {

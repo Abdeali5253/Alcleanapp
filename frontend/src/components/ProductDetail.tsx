@@ -8,6 +8,7 @@ import { getAllProducts } from "../lib/api";
 import { Product } from "../types/shopify";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { cartService } from "../lib/cart";
+import { wishlistService } from "../lib/wishlist";
 
 export function ProductDetail() {
   const { id } = useParams<{ id: string }>();
@@ -17,6 +18,17 @@ export function ProductDetail() {
   const [isInWishlist, setIsInWishlist] = useState(false);
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Subscribe to wishlist changes
+    const unsubscribe = wishlistService.subscribe((ids) => {
+      if (product) {
+        setIsInWishlist(ids.includes(product.id));
+      }
+    });
+
+    return unsubscribe;
+  }, [product]);
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -78,14 +90,9 @@ export function ProductDetail() {
   };
 
   const handleToggleWishlist = () => {
-    setIsInWishlist(!isInWishlist);
-    toast.success(
-      isInWishlist ? "Removed from wishlist" : "Added to wishlist",
-      {
-        duration: 1500,
-        position: "top-center",
-      }
-    );
+    if (product) {
+      wishlistService.toggleWishlist(product.id);
+    }
   };
 
   const incrementQuantity = () => {
@@ -133,8 +140,8 @@ export function ProductDetail() {
 
   const discount = product.originalPrice
     ? Math.round(
-        ((product.originalPrice - product.price) / product.originalPrice) * 100
-      )
+      ((product.originalPrice - product.price) / product.originalPrice) * 100
+    )
     : 0;
 
   return (
@@ -201,11 +208,10 @@ export function ProductDetail() {
                   <button
                     key={index}
                     onClick={() => setSelectedImage(index)}
-                    className={`aspect-square rounded-xl overflow-hidden border-2 transition-all ${
-                      selectedImage === index
-                        ? "border-[#6DB33F] shadow-md"
-                        : "border-gray-200 hover:border-gray-300"
-                    }`}
+                    className={`aspect-square rounded-xl overflow-hidden border-2 transition-all ${selectedImage === index
+                      ? "border-[#6DB33F] shadow-md"
+                      : "border-gray-200 hover:border-gray-300"
+                      }`}
                   >
                     <ImageWithFallback
                       src={img}
@@ -293,14 +299,12 @@ export function ProductDetail() {
             {/* Stock Status */}
             <div className="flex items-center gap-2">
               <div
-                className={`w-3 h-3 rounded-full ${
-                  product.inStock ? "bg-green-500" : "bg-red-500"
-                }`}
+                className={`w-3 h-3 rounded-full ${product.inStock ? "bg-green-500" : "bg-red-500"
+                  }`}
               />
               <span
-                className={`font-medium ${
-                  product.inStock ? "text-green-600" : "text-red-600"
-                }`}
+                className={`font-medium ${product.inStock ? "text-green-600" : "text-red-600"
+                  }`}
               >
                 {product.inStock
                   ? `${product.quantityAvailable} left in stock!`

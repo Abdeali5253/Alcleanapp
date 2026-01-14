@@ -7,6 +7,7 @@ import { getProductsByCollection } from "../lib/shopify";
 import { ProductCardSkeleton } from "./ProductCardSkeleton";
 import { toast } from "sonner";
 import { cartService } from "../lib/cart";
+import { wishlistService } from "../lib/wishlist";
 
 export function SupremeOffers() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -14,15 +15,24 @@ export function SupremeOffers() {
   const [wishlist, setWishlist] = useState<string[]>([]);
 
   useEffect(() => {
+    // Subscribe to wishlist changes
+    const unsubscribe = wishlistService.subscribe((ids) => {
+      setWishlist(ids);
+    });
+
+    return unsubscribe;
+  }, []);
+
+  useEffect(() => {
     const fetchOffers = async () => {
       try {
         setLoading(true);
-        
+
         // Fetch from supreme-offer collection
         let offerProducts = await getProductsByCollection("supreme-offer", 250);
-        
+
         console.log(`[SupremeOffers] Loaded ${offerProducts.length} products from supreme-offer collection`);
-        
+
         // If no products in supreme-offer, show all products on sale
         if (offerProducts.length === 0) {
           const { getAllProducts } = await import("../lib/shopify");
@@ -30,10 +40,10 @@ export function SupremeOffers() {
           offerProducts = allProducts.filter(p => p.onSale);
           console.log(`[SupremeOffers] No supreme-offer collection, showing ${offerProducts.length} products on sale`);
         }
-        
+
         // Sort by discount percentage
         offerProducts.sort((a, b) => b.discountPercent - a.discountPercent);
-        
+
         setProducts(offerProducts);
       } catch (error) {
         console.error("Failed to fetch supreme offers:", error);
@@ -58,13 +68,7 @@ export function SupremeOffers() {
   };
 
   const toggleWishlist = (productId: string) => {
-    if (wishlist.includes(productId)) {
-      setWishlist(wishlist.filter(id => id !== productId));
-      toast.success("Removed from wishlist", { duration: 1500, position: "top-center" });
-    } else {
-      setWishlist([...wishlist, productId]);
-      toast.success("Added to wishlist", { duration: 1500, position: "top-center" });
-    }
+    wishlistService.toggleWishlist(productId);
   };
 
   return (
@@ -104,10 +108,10 @@ export function SupremeOffers() {
               <ProductCard
                 key={product.id}
                 product={product}
-                onAddToCart={(quantity) => handleAddToCart(product, quantity)}
-                onToggleWishlist={() => toggleWishlist(product.id)}
-                isWishlisted={wishlist.includes(product.id)}
-                showQuickView={false}
+                onAddToCart={(product, quantity) => handleAddToCart(product, quantity)}
+                onQuickView={() => { }}
+                isInWishlist={wishlist.includes(product.id)}
+                onToggleWishlist={toggleWishlist}
               />
             ))}
           </div>

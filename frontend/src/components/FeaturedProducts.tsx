@@ -6,6 +6,7 @@ import { getAllProducts, getProductsByCollection } from "../lib/shopify";
 import { ProductCard } from "./ProductCard";
 import { ProductCardSkeleton } from "./ProductCardSkeleton";
 import { cartService } from "../lib/cart";
+import { wishlistService } from "../lib/wishlist";
 import { toast } from "sonner";
 
 interface FeaturedProductsProps {
@@ -30,6 +31,15 @@ export function FeaturedProducts({
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [wishlist, setWishlist] = useState<string[]>([]);
+
+  useEffect(() => {
+    // Subscribe to wishlist changes
+    const unsubscribe = wishlistService.subscribe((ids) => {
+      setWishlist(ids);
+    });
+
+    return unsubscribe;
+  }, []);
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -101,13 +111,7 @@ export function FeaturedProducts({
   };
 
   const toggleWishlist = (productId: string) => {
-    if (wishlist.includes(productId)) {
-      setWishlist(wishlist.filter(id => id !== productId));
-      toast.success("Removed from wishlist", { duration: 1500, position: "top-center" });
-    } else {
-      setWishlist([...wishlist, productId]);
-      toast.success("Added to wishlist", { duration: 1500, position: "top-center" });
-    }
+    wishlistService.toggleWishlist(productId);
   };
 
   const getIcon = () => {
@@ -157,15 +161,15 @@ export function FeaturedProducts({
         {loading
           ? Array.from({ length: limit }, (_, i) => <ProductCardSkeleton key={i} />)
           : products.map((product) => (
-              <ProductCard
-                key={product.id}
-                product={product}
-                onAddToCart={handleAddToCart}
-                onQuickView={() => {}}
-                isInWishlist={wishlist.includes(product.id)}
-                onToggleWishlist={toggleWishlist}
-              />
-            ))}
+            <ProductCard
+              key={product.id}
+              product={product}
+              onAddToCart={handleAddToCart}
+              onQuickView={() => { }}
+              isInWishlist={wishlist.includes(product.id)}
+              onToggleWishlist={toggleWishlist}
+            />
+          ))}
       </div>
     </section>
   );
