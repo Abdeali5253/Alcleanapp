@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { UnifiedHeader } from "./UnifiedHeader";
 import { ProductCard } from "./ProductCard";
 import { ProductGrid } from "./ProductGrid";
-import { FilterDrawer } from "./FilterDrawer";
+
 import { QuickViewModal } from "./QuickViewModal";
 import { QuickFilters, FilterState, defaultFilters } from "./QuickFilters";
 import { Product } from "../types/shopify";
@@ -600,7 +600,7 @@ export function Products() {
         {(categoryFilter === "cleaning-chemicals" ||
           categoryFilter === "cleaning-equipment") && (
             <div className="mb-6">
-              <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm relative z-10">
+              <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm relative z-[80]">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Filter by Subcategory
                 </label>
@@ -640,22 +640,8 @@ export function Products() {
           productCount={sortedProducts.length}
         />
 
-        {/* View Mode Toggle & Advanced Filter */}
-        <div className="flex items-center justify-between mb-6">
-          <button
-            onClick={() => setShowFilters(true)}
-            className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl hover:shadow-md hover:border-[#6DB33F]/30 transition-all duration-200"
-          >
-            <Filter size={18} className="text-gray-600" />
-            <span className="text-gray-700 font-medium">Advanced Filters</span>
-            {selectedSubcategories.length > 0 && (
-              <span className="bg-gradient-to-r from-[#6DB33F] to-[#5da035] text-white text-xs px-2 py-0.5 rounded-full font-medium">
-                {selectedSubcategories.length}
-              </span>
-            )}
-          </button>
-
-          {/* View Mode Toggle */}
+        {/* View Mode Toggle */}
+        <div className="flex items-center justify-end mb-6">
           <div className="flex items-center gap-2 bg-gray-100 rounded-xl p-1">
             <button
               onClick={() => setViewMode("grid")}
@@ -730,11 +716,7 @@ export function Products() {
         {/* Products Grid */}
         {loading ? (
           <div
-            className={`grid ${viewMode === "compact" ? "grid-cols-3 gap-2" : "grid-cols-2 gap-3"
-              } sm:gap-4 md:gap-6 ${viewMode === "compact"
-                ? "md:grid-cols-4 lg:grid-cols-6"
-                : "md:grid-cols-3 lg:grid-cols-4"
-              }`}
+            className={`grid ${viewMode === "compact" ? "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2" : "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6"}`}
           >
             {Array.from({ length: 12 }, (_, index) => (
               <ProductCardSkeleton key={index} />
@@ -762,11 +744,7 @@ export function Products() {
           </div>
         ) : (
           <div
-            className={`grid ${viewMode === "compact" ? "grid-cols-3 gap-2" : "grid-cols-2 gap-3"
-              } sm:gap-4 md:gap-6 ${viewMode === "compact"
-                ? "md:grid-cols-4 lg:grid-cols-6"
-                : "md:grid-cols-3 lg:grid-cols-4"
-              }`}
+            className={`grid ${viewMode === "compact" ? "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2" : "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6"}`}
           >
             {sortedProducts.map((product) => (
               <ProductCard
@@ -789,27 +767,7 @@ export function Products() {
         )}
       </div>
 
-      {/* Filter Drawer */}
-      <FilterDrawer
-        isOpen={showFilters}
-        onClose={() => setShowFilters(false)}
-        selectedSubcategories={selectedSubcategories}
-        onToggleSubcategory={toggleSubcategory}
-        expandedCategories={expandedCategories}
-        onToggleCategory={toggleCategory}
-        priceRange={[0, 70000]}
-        onPriceRangeChange={() => { }}
-        stockFilter={filters.stockStatus as "all" | "instock" | "outofstock"}
-        onStockFilterChange={(val) =>
-          setFilters({ ...filters, stockStatus: val })
-        }
-        onClearFilters={clearFilters}
-        productsCount={sortedProducts.length}
-        categoryFilter={categoryFilter}
-        onCategoryFilterChange={(val) =>
-          setCategoryFilter(val as CategoryFilter)
-        }
-      />
+
 
       {/* Quick View Modal */}
       <QuickViewModal

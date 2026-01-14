@@ -79,11 +79,10 @@ export function QuickFilters({
               currentFilters.stockStatus === "instock" ? "all" : "instock"
             )
           }
-          className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-            currentFilters.stockStatus === "instock"
-              ? "bg-green-500 text-white"
-              : "bg-white border border-gray-200 text-gray-600"
-          }`}
+          className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${currentFilters.stockStatus === "instock"
+            ? "bg-green-500 text-white"
+            : "bg-white border border-gray-200 text-gray-600"
+            }`}
         >
           ✓ Stock
         </button>
@@ -95,11 +94,10 @@ export function QuickFilters({
               setShowPriceDropdown(!showPriceDropdown);
               setShowSortDropdown(false);
             }}
-            className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-              currentFilters.priceRange !== "all"
-                ? "bg-[#6DB33F] text-white"
-                : "bg-white border border-gray-200 text-gray-600"
-            }`}
+            className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${currentFilters.priceRange !== "all"
+              ? "bg-[#6DB33F] text-white"
+              : "bg-white border border-gray-200 text-gray-600"
+              }`}
           >
             Price
             <ChevronDown
@@ -111,10 +109,10 @@ export function QuickFilters({
           {showPriceDropdown && (
             <>
               <div
-                className="fixed inset-0 z-10"
+                className="fixed inset-0 z-[60]"
                 onClick={() => setShowPriceDropdown(false)}
               />
-              <div className="absolute top-full left-0 mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50 min-w-[100px]">
+              <div className="absolute top-full left-0 mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-[70] min-w-[100px]">
                 {priceOptions.map((option) => (
                   <button
                     key={option.value}
@@ -156,10 +154,10 @@ export function QuickFilters({
           {showSortDropdown && (
             <>
               <div
-                className="fixed inset-0 z-10"
+                className="fixed inset-0 z-[60]"
                 onClick={() => setShowSortDropdown(false)}
               />
-              <div className="absolute top-full right-0 mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50 min-w-[100px]">
+              <div className="absolute top-full right-0 mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-[70] min-w-[100px]">
                 {sortOptions.map((option) => (
                   <button
                     key={option.value}
