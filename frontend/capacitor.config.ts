@@ -5,7 +5,7 @@ const config: CapacitorConfig = {
   appName: "AlClean",
   webDir: "dist",
   server: {
-    androidScheme: "http",  // Changed to HTTP to allow cleartext connections
+    androidScheme: "http", // Changed to HTTP to allow cleartext connections
     iosScheme: "http",
   },
   plugins: {
@@ -13,7 +13,6 @@ const config: CapacitorConfig = {
       presentationOptions: ["badge", "sound", "alert"],
     },
     LocalNotifications: {
-      smallIcon: "ic_stat_notification",
       iconColor: "#6DB33F",
       sound: "default",
     },

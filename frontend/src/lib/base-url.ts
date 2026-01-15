@@ -23,18 +23,16 @@ const getBackendUrl = (): string => {
     return PRODUCTION_BACKEND_URL;
   }
 
-  // android
+  // android - use production URL since backend is remote
   if (platform === "android") {
-    const androidUrl = "http://10.0.2.2:3001";
-    console.log("[BaseURL] Android platform, using:", androidUrl);
-    return androidUrl;
+    console.log("[BaseURL] Android platform, using production URL:", PRODUCTION_BACKEND_URL);
+    return PRODUCTION_BACKEND_URL;
   }
 
-  // ios
+  // ios - use production URL since backend is remote
   if (platform === "ios") {
-    const iosUrl = "http://localhost:3001";
-    console.log("[BaseURL] iOS platform, using:", iosUrl);
-    return iosUrl;
+    console.log("[BaseURL] iOS platform, using production URL:", PRODUCTION_BACKEND_URL);
+    return PRODUCTION_BACKEND_URL;
   }
 
   // web

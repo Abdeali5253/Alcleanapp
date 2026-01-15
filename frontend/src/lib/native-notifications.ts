@@ -442,13 +442,17 @@ class NativeNotificationService {
     });
 
     // Show local notification for foreground push (Android popup)
-    this.showLocalNotification({
-      title: nativeNotif.title,
-      body: nativeNotif.body,
-      id: this.notificationIdCounter++,
-      extra: notification?.data,
+    this.createNotificationChannel().then(() => {
+      this.showLocalNotification({
+        title: nativeNotif.title,
+        body: nativeNotif.body,
+        id: this.notificationIdCounter++,
+        extra: notification?.data,
+      }).catch((e) =>
+        logError("NativeNotif", "Failed to show local notification", e)
+      );
     }).catch((e) =>
-      logError("NativeNotif", "Failed to show local notification", e)
+      logError("NativeNotif", "Failed to create notification channel", e)
     );
 
     // Dispatch event for UI updates
@@ -469,9 +473,10 @@ class NativeNotificationService {
 
     // For background notifications, add to inbox when user taps
     if (notification) {
+      // For tapped notifications, title/body may not be available, use defaults
       const title =
-        notification?.notification?.title || notification?.title || "AlClean";
-      const body = notification?.notification?.body || notification?.body || "";
+        notification?.notification?.title || notification?.title || "New Notification";
+      const body = notification?.notification?.body || notification?.body || "You have a new notification";
       const imageUrl =
         notification?.notification?.image || notification?.data?.imageUrl;
 
