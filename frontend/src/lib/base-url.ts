@@ -10,32 +10,26 @@ const USE_PRODUCTION =
 const getBackendUrl = (): string => {
   const platform = Capacitor.getPlatform();
 
-  // explicit env override
+  // Force production URL for mobile apps (Android/iOS) since backend is remote
+  if (platform === "android" || platform === "ios") {
+    console.log("[BaseURL] Mobile platform, forcing production URL:", PRODUCTION_BACKEND_URL);
+    return PRODUCTION_BACKEND_URL;
+  }
+
+  // explicit env override for web
   const envUrl = import.meta.env.VITE_BACKEND_URL as string | undefined;
   if (envUrl) {
     console.log("[BaseURL] Using env VITE_BACKEND_URL:", envUrl);
     return envUrl;
   }
 
-  // production mode
+  // production mode for web
   if (USE_PRODUCTION) {
     console.log("[BaseURL] Using PRODUCTION URL:", PRODUCTION_BACKEND_URL);
     return PRODUCTION_BACKEND_URL;
   }
 
-  // android - use production URL since backend is remote
-  if (platform === "android") {
-    console.log("[BaseURL] Android platform, using production URL:", PRODUCTION_BACKEND_URL);
-    return PRODUCTION_BACKEND_URL;
-  }
-
-  // ios - use production URL since backend is remote
-  if (platform === "ios") {
-    console.log("[BaseURL] iOS platform, using production URL:", PRODUCTION_BACKEND_URL);
-    return PRODUCTION_BACKEND_URL;
-  }
-
-  // web
+  // web development
   console.log("[BaseURL] Web platform, using: http://localhost:3001");
   return "http://localhost:3001";
 };
