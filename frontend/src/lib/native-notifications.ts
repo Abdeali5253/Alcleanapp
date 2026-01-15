@@ -2,6 +2,8 @@
 // With defensive error handling to prevent crashes
 
 import { Capacitor } from "@capacitor/core";
+import { BACKEND_URL } from "./base-url";
+import { toast } from "sonner";
 
 // Enhanced logging function
 const log = (tag: string, message: string, data?: any) => {
@@ -17,7 +19,7 @@ const log = (tag: string, message: string, data?: any) => {
 
 const logError = (tag: string, message: string, error?: any) => {
   const timestamp = new Date().toISOString();
-  console.error(`[${timestamp}][${tag}][ERROR] ${message}`, error || '');
+  console.error(`[${timestamp}][${tag}][ERROR] ${message}`, error || "");
 };
 
 // Safe dynamic imports to prevent crashes if plugins are not available
@@ -97,7 +99,9 @@ class NativeNotificationService {
 
   // Initialize push notifications for Android
   async initialize(): Promise<boolean> {
-    log("NativeNotif", "Initialize called", { isInitialized: this.isInitialized });
+    log("NativeNotif", "Initialize called", {
+      isInitialized: this.isInitialized,
+    });
 
     if (this.isInitialized) {
       log("NativeNotif", "Already initialized, skipping");
@@ -131,7 +135,10 @@ class NativeNotificationService {
 
         if (currentStatus.receive === "granted") {
           // Already granted, register to get token
-          log("NativeNotif", "Permission already granted, registering for push...");
+          log(
+            "NativeNotif",
+            "Permission already granted, registering for push..."
+          );
           try {
             await PushNotifications.register();
             log("NativeNotif", "Registration requested");
@@ -148,8 +155,12 @@ class NativeNotificationService {
       }
 
       // Initialize local notifications (non-blocking)
-      this.initLocalNotifications().catch(e => {
-        logError("NativeNotif", "Local notifications init failed (non-blocking)", e);
+      this.initLocalNotifications().catch((e) => {
+        logError(
+          "NativeNotif",
+          "Local notifications init failed (non-blocking)",
+          e
+        );
       });
 
       this.isInitialized = true;
@@ -199,13 +210,20 @@ class NativeNotificationService {
         // Create a promise that times out after 30 seconds
         const permPromise = PushNotifications.requestPermissions();
         const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error("Permission request timeout")), 30000);
+          setTimeout(
+            () => reject(new Error("Permission request timeout")),
+            30000
+          );
         });
 
         permStatus = await Promise.race([permPromise, timeoutPromise]);
         log("NativeNotif", "Permission result", permStatus);
       } catch (permError: any) {
-        logError("NativeNotif", "Permission request failed", permError?.message || permError);
+        logError(
+          "NativeNotif",
+          "Permission request failed",
+          permError?.message || permError
+        );
         return false;
       }
 
@@ -216,7 +234,7 @@ class NativeNotificationService {
 
       // Step 2: Small delay to let the system settle
       log("NativeNotif", "Step 2: Waiting before registration...");
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 1000));
 
       // Step 3: Register for push notifications
       log("NativeNotif", "Step 3: Registering for push...");
@@ -227,28 +245,45 @@ class NativeNotificationService {
         }
 
         await PushNotifications.register();
-        log("NativeNotif", "Registration call completed - waiting for token...");
+        log(
+          "NativeNotif",
+          "Registration call completed - waiting for token..."
+        );
 
         // Wait for token to arrive via listener (up to 10 seconds)
         const tokenWaitStart = Date.now();
-        while (!this.fcmToken && (Date.now() - tokenWaitStart) < 10000) {
-          await new Promise(resolve => setTimeout(resolve, 500));
-          log("NativeNotif", "Waiting for FCM token...", { hasToken: !!this.fcmToken, elapsed: Date.now() - tokenWaitStart });
+        while (!this.fcmToken && Date.now() - tokenWaitStart < 10000) {
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          log("NativeNotif", "Waiting for FCM token...", {
+            hasToken: !!this.fcmToken,
+            elapsed: Date.now() - tokenWaitStart,
+          });
         }
 
         if (this.fcmToken) {
           log("NativeNotif", "FCM Token received successfully!");
           return true;
         } else {
-          logError("NativeNotif", "FCM Token not received within timeout. Check google-services.json and Firebase configuration.");
+          logError(
+            "NativeNotif",
+            "FCM Token not received within timeout. Check google-services.json and Firebase configuration."
+          );
           return false;
         }
       } catch (regError: any) {
-        logError("NativeNotif", "Registration call failed", regError?.message || regError);
+        logError(
+          "NativeNotif",
+          "Registration call failed",
+          regError?.message || regError
+        );
         return false;
       }
     } catch (error: any) {
-      logError("NativeNotif", "registerForPush failed", error?.message || error);
+      logError(
+        "NativeNotif",
+        "registerForPush failed",
+        error?.message || error
+      );
       return false;
     }
   }
@@ -268,14 +303,14 @@ class NativeNotificationService {
         try {
           log("NativeNotif", "FCM Token received", {
             token: token.value ? token.value.substring(0, 50) + "..." : "null",
-            fullLength: token.value?.length || 0
+            fullLength: token.value?.length || 0,
           });
           this.fcmToken = token.value;
           this.saveFCMToken(token.value);
           await this.registerTokenWithBackend(token.value);
 
           // Notify token listeners
-          this.tokenListeners.forEach(listener => {
+          this.tokenListeners.forEach((listener) => {
             try {
               listener(token.value);
             } catch (e) {
@@ -293,32 +328,38 @@ class NativeNotificationService {
       });
 
       // On push notification received (foreground)
-      PushNotifications.addListener("pushNotificationReceived", (notification: any) => {
-        try {
-          log("NativeNotif", "🔔 PUSH NOTIFICATION RECEIVED (foreground)", {
-            title: notification?.title,
-            body: notification?.body,
-            data: notification?.data,
-            fullNotification: notification
-          });
-          this.handlePushNotification(notification);
-        } catch (e) {
-          logError("NativeNotif", "Error handling push notification", e);
+      PushNotifications.addListener(
+        "pushNotificationReceived",
+        (notification: any) => {
+          try {
+            log("NativeNotif", "🔔 PUSH NOTIFICATION RECEIVED (foreground)", {
+              title: notification?.title,
+              body: notification?.body,
+              data: notification?.data,
+              fullNotification: notification,
+            });
+            this.handlePushNotification(notification);
+          } catch (e) {
+            logError("NativeNotif", "Error handling push notification", e);
+          }
         }
-      });
+      );
 
       // On push notification action performed (user tapped)
-      PushNotifications.addListener("pushNotificationActionPerformed", (action: any) => {
-        try {
-          log("NativeNotif", "👆 NOTIFICATION ACTION PERFORMED (tapped)", {
-            action: action,
-            notification: action?.notification
-          });
-          this.handleNotificationAction(action.notification);
-        } catch (e) {
-          logError("NativeNotif", "Error handling notification action", e);
+      PushNotifications.addListener(
+        "pushNotificationActionPerformed",
+        (action: any) => {
+          try {
+            log("NativeNotif", "👆 NOTIFICATION ACTION PERFORMED (tapped)", {
+              action: action,
+              notification: action?.notification,
+            });
+            this.handleNotificationAction(action.notification);
+          } catch (e) {
+            logError("NativeNotif", "Error handling notification action", e);
+          }
         }
-      });
+      );
 
       log("NativeNotif", "Push listeners setup complete");
     } catch (e) {
@@ -340,21 +381,27 @@ class NativeNotificationService {
       log("LocalNotif", "Permission status", permStatus);
 
       // Listen for local notification actions
-      LocalNotifications.addListener("localNotificationActionPerformed", (action: any) => {
-        try {
-          log("LocalNotif", "Action performed", action);
-          if (action.notification?.extra) {
-            this.handleNotificationData(action.notification.extra);
+      LocalNotifications.addListener(
+        "localNotificationActionPerformed",
+        (action: any) => {
+          try {
+            log("LocalNotif", "Action performed", action);
+            if (action.notification?.extra) {
+              this.handleNotificationData(action.notification.extra);
+            }
+          } catch (e) {
+            logError("LocalNotif", "Error in action listener", e);
           }
-        } catch (e) {
-          logError("LocalNotif", "Error in action listener", e);
         }
-      });
+      );
 
       // Listen for local notifications received
-      LocalNotifications.addListener("localNotificationReceived", (notification: any) => {
-        log("LocalNotif", "Notification received", notification);
-      });
+      LocalNotifications.addListener(
+        "localNotificationReceived",
+        (notification: any) => {
+          log("LocalNotif", "Notification received", notification);
+        }
+      );
 
       log("LocalNotif", "Local notifications initialized");
     } catch (error) {
@@ -367,9 +414,11 @@ class NativeNotificationService {
     log("NativeNotif", "Handling push notification", notification);
 
     // Handle FCM structure where title/body might be in notification.notification
-    const title = notification?.title || notification?.notification?.title || "AlClean";
+    const title =
+      notification?.title || notification?.notification?.title || "AlClean";
     const body = notification?.body || notification?.notification?.body || "";
-    const imageUrl = notification?.data?.imageUrl || notification?.notification?.image;
+    const imageUrl =
+      notification?.data?.imageUrl || notification?.notification?.image;
 
     const nativeNotif: NativeNotification = {
       id: `push_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -385,21 +434,36 @@ class NativeNotificationService {
     this.addNotification(nativeNotif);
 
     // Store in backend for history
-    this.storeReceivedNotificationInBackend(nativeNotif).catch(e => {
-      logError("NativeNotif", "Failed to store received notification in backend", e);
+    this.storeReceivedNotificationInBackend(nativeNotif).catch((e) => {
+      logError(
+        "NativeNotif",
+        "Failed to store received notification in backend",
+        e
+      );
     });
 
-    // Show local notification for foreground push (non-blocking)
-    this.showLocalNotification({
-      title: nativeNotif.title,
-      body: nativeNotif.body,
-      id: this.notificationIdCounter++,
-      extra: notification?.data,
-    }).catch(e => logError("NativeNotif", "Failed to show local notification", e));
+    // Show toast notification for foreground push
+    try {
+      toast.success(`${nativeNotif.title}: ${nativeNotif.body}`, {
+        duration: 5000,
+        action: {
+          label: "View",
+          onClick: () => {
+            // Navigate to notifications inbox
+            window.location.hash = "#/notifications";
+          },
+        },
+      });
+      log("NativeNotif", "Toast notification shown for foreground push");
+    } catch (e) {
+      logError("NativeNotif", "Failed to show toast notification", e);
+    }
 
     // Dispatch event for UI updates
     try {
-      window.dispatchEvent(new CustomEvent("alclean-notification", { detail: nativeNotif }));
+      window.dispatchEvent(
+        new CustomEvent("alclean-notification", { detail: nativeNotif })
+      );
     } catch (e) {
       logError("NativeNotif", "Failed to dispatch event", e);
     }
@@ -413,9 +477,11 @@ class NativeNotificationService {
 
     // For background notifications, add to inbox when user taps
     if (notification) {
-      const title = notification?.title || notification?.notification?.title || "AlClean";
+      const title =
+        notification?.title || notification?.notification?.title || "AlClean";
       const body = notification?.body || notification?.notification?.body || "";
-      const imageUrl = notification?.data?.imageUrl || notification?.notification?.image;
+      const imageUrl =
+        notification?.data?.imageUrl || notification?.notification?.image;
 
       const nativeNotif: NativeNotification = {
         id: `tapped_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -431,8 +497,12 @@ class NativeNotificationService {
       this.addNotification(nativeNotif);
 
       // Store in backend for history
-      this.storeReceivedNotificationInBackend(nativeNotif).catch(e => {
-        logError("NativeNotif", "Failed to store tapped notification in backend", e);
+      this.storeReceivedNotificationInBackend(nativeNotif).catch((e) => {
+        logError(
+          "NativeNotif",
+          "Failed to store tapped notification in backend",
+          e
+        );
       });
 
       log("NativeNotif", "Added tapped notification to inbox", { title, body });
@@ -478,10 +548,12 @@ class NativeNotificationService {
         platform: Capacitor.getPlatform(),
         timestamp: new Date().toISOString(),
       };
-      log("NativeNotif", "Registration payload", { ...payload, token: token.substring(0, 30) + "..." });
+      log("NativeNotif", "Registration payload", {
+        ...payload,
+        token: token.substring(0, 30) + "...",
+      });
 
-      // Get backend URL from env or use relative path
-      const backendUrl = (import.meta as any).env?.VITE_BACKEND_URL || "";
+      const backendUrl = BACKEND_URL;
 
       const response = await fetch(`${backendUrl}/api/notifications/register`, {
         method: "POST",
@@ -494,10 +566,17 @@ class NativeNotificationService {
         log("NativeNotif", "Backend registration response", result);
         log("NativeNotif", "Token registered successfully with backend");
       } else {
-        logError("NativeNotif", `Backend registration failed: ${response.status}`);
+        logError(
+          "NativeNotif",
+          `Backend registration failed: ${response.status}`
+        );
       }
     } catch (error) {
-      logError("NativeNotif", "Backend registration error (backend may be offline)", error);
+      logError(
+        "NativeNotif",
+        "Backend registration error (backend may be offline)",
+        error
+      );
     }
   }
 
@@ -521,7 +600,10 @@ class NativeNotificationService {
 
     try {
       const notifId = options.id || this.notificationIdCounter++;
-      log("LocalNotif", "Showing notification", { id: notifId, title: options.title });
+      log("LocalNotif", "Showing notification", {
+        id: notifId,
+        title: options.title,
+      });
 
       const notification: any = {
         id: notifId,
@@ -566,13 +648,15 @@ class NativeNotificationService {
     extra?: Record<string, any>;
   }): Promise<number> {
     const notifId = this.notificationIdCounter++;
-    const scheduleTime = new Date(Date.now() + options.delayMinutes * 60 * 1000);
+    const scheduleTime = new Date(
+      Date.now() + options.delayMinutes * 60 * 1000
+    );
 
     log("LocalNotif", "Scheduling reminder", {
       id: notifId,
       title: options.title,
       delayMinutes: options.delayMinutes,
-      scheduleTime: scheduleTime.toISOString()
+      scheduleTime: scheduleTime.toISOString(),
     });
 
     await this.showLocalNotification({
@@ -663,7 +747,10 @@ class NativeNotificationService {
 
   // Add notification to local storage
   addNotification(notification: NativeNotification): void {
-    log("NativeNotif", "Adding notification to storage", { id: notification.id, title: notification.title });
+    log("NativeNotif", "Adding notification to storage", {
+      id: notification.id,
+      title: notification.title,
+    });
     this.notifications.unshift(notification);
     if (this.notifications.length > 100) {
       this.notifications = this.notifications.slice(0, 100);
@@ -714,7 +801,9 @@ class NativeNotificationService {
   }
 
   // Subscribe to changes
-  subscribe(callback: (notifications: NativeNotification[]) => void): () => void {
+  subscribe(
+    callback: (notifications: NativeNotification[]) => void
+  ): () => void {
     this.listeners.push(callback);
     return () => {
       this.listeners = this.listeners.filter((l) => l !== callback);
@@ -811,7 +900,7 @@ class NativeNotificationService {
       if (stored) {
         return JSON.parse(stored);
       }
-    } catch { }
+    } catch {}
     return {
       enabled: true,
       orderUpdates: true,
@@ -857,33 +946,45 @@ class NativeNotificationService {
   }
 
   // Store received notification in backend for history
-  private async storeReceivedNotificationInBackend(notification: NativeNotification): Promise<void> {
+  private async storeReceivedNotificationInBackend(
+    notification: NativeNotification
+  ): Promise<void> {
     if (!this.fcmToken) {
       log("NativeNotif", "No FCM token available, skipping backend storage");
       return;
     }
 
     try {
-      const backendUrl = (import.meta as any).env?.VITE_BACKEND_URL || "";
-      const response = await fetch(`${backendUrl}/api/notifications/store-received`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          token: this.fcmToken,
-          title: notification.title,
-          body: notification.body,
-          data: notification.data,
-          timestamp: new Date(notification.timestamp).toISOString(),
-        }),
-      });
+      const backendUrl = BACKEND_URL;
+      const response = await fetch(
+        `${backendUrl}/api/notifications/store-received`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            token: this.fcmToken,
+            title: notification.title,
+            body: notification.body,
+            data: notification.data,
+            timestamp: new Date(notification.timestamp).toISOString(),
+          }),
+        }
+      );
 
       if (response.ok) {
         log("NativeNotif", "Notification stored in backend successfully");
       } else {
-        logError("NativeNotif", `Failed to store notification in backend: ${response.status}`);
+        logError(
+          "NativeNotif",
+          `Failed to store notification in backend: ${response.status}`
+        );
       }
     } catch (error: any) {
-      logError("NativeNotif", "Error storing notification in backend", error?.message || error);
+      logError(
+        "NativeNotif",
+        "Error storing notification in backend",
+        error?.message || error
+      );
     }
   }
 
@@ -893,7 +994,10 @@ class NativeNotificationService {
       const stored = localStorage.getItem(NOTIFICATIONS_STORAGE_KEY);
       if (stored) {
         this.notifications = JSON.parse(stored);
-        log("NativeNotif", `Loaded ${this.notifications.length} notifications from storage`);
+        log(
+          "NativeNotif",
+          `Loaded ${this.notifications.length} notifications from storage`
+        );
       }
     } catch (error) {
       logError("NativeNotif", "Failed to load notifications", error);
@@ -902,7 +1006,10 @@ class NativeNotificationService {
 
   private saveNotifications(): void {
     try {
-      localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, JSON.stringify(this.notifications));
+      localStorage.setItem(
+        NOTIFICATIONS_STORAGE_KEY,
+        JSON.stringify(this.notifications)
+      );
     } catch (error) {
       logError("NativeNotif", "Failed to save notifications", error);
     }
@@ -914,14 +1021,14 @@ class NativeNotificationService {
       if (this.fcmToken) {
         log("NativeNotif", "Loaded FCM token from storage");
       }
-    } catch { }
+    } catch {}
   }
 
   private saveFCMToken(token: string): void {
     try {
       localStorage.setItem(FCM_TOKEN_STORAGE_KEY, token);
       log("NativeNotif", "FCM token saved to storage");
-    } catch { }
+    } catch {}
   }
 
   private notifyListeners(): void {
