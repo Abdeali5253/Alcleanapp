@@ -3,7 +3,6 @@
 
 import { Capacitor } from "@capacitor/core";
 import { BACKEND_URL } from "./base-url";
-import { toast } from "sonner";
 
 // Enhanced logging function
 const log = (tag: string, message: string, data?: any) => {
@@ -415,10 +414,10 @@ class NativeNotificationService {
 
     // Handle FCM structure where title/body might be in notification.notification
     const title =
-      notification?.title || notification?.notification?.title || "AlClean";
-    const body = notification?.body || notification?.notification?.body || "";
+      notification?.notification?.title || notification?.title || "AlClean";
+    const body = notification?.notification?.body || notification?.body || "";
     const imageUrl =
-      notification?.data?.imageUrl || notification?.notification?.image;
+      notification?.notification?.image || notification?.data?.imageUrl;
 
     const nativeNotif: NativeNotification = {
       id: `push_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -442,22 +441,15 @@ class NativeNotificationService {
       );
     });
 
-    // Show toast notification for foreground push
-    try {
-      toast.success(`${nativeNotif.title}: ${nativeNotif.body}`, {
-        duration: 5000,
-        action: {
-          label: "View",
-          onClick: () => {
-            // Navigate to notifications inbox
-            window.location.hash = "#/notifications";
-          },
-        },
-      });
-      log("NativeNotif", "Toast notification shown for foreground push");
-    } catch (e) {
-      logError("NativeNotif", "Failed to show toast notification", e);
-    }
+    // Show local notification for foreground push (Android popup)
+    this.showLocalNotification({
+      title: nativeNotif.title,
+      body: nativeNotif.body,
+      id: this.notificationIdCounter++,
+      extra: notification?.data,
+    }).catch((e) =>
+      logError("NativeNotif", "Failed to show local notification", e)
+    );
 
     // Dispatch event for UI updates
     try {
@@ -478,10 +470,10 @@ class NativeNotificationService {
     // For background notifications, add to inbox when user taps
     if (notification) {
       const title =
-        notification?.title || notification?.notification?.title || "AlClean";
-      const body = notification?.body || notification?.notification?.body || "";
+        notification?.notification?.title || notification?.title || "AlClean";
+      const body = notification?.notification?.body || notification?.body || "";
       const imageUrl =
-        notification?.data?.imageUrl || notification?.notification?.image;
+        notification?.notification?.image || notification?.data?.imageUrl;
 
       const nativeNotif: NativeNotification = {
         id: `tapped_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -612,7 +604,6 @@ class NativeNotificationService {
         largeBody: options.body,
         summaryText: "AlClean",
         extra: options.extra,
-        smallIcon: "ic_stat_notification",
         iconColor: "#6DB33F",
         sound: "default",
         channelId: "alclean_default",
