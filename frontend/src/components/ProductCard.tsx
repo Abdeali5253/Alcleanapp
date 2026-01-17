@@ -32,7 +32,7 @@ export function ProductCard({
   };
 
   return (
-    <div className="bg-white rounded-2xl overflow-hidden border border-gray-100 hover:shadow-xl hover:border-[#6DB33F]/20 transition-all duration-300 relative group">
+    <div className="w-full max-w-sm flex-shrink-0 bg-white rounded-2xl overflow-hidden border border-gray-100 hover:shadow-xl hover:border-[#6DB33F]/20 transition-all duration-300 relative group">
       {/* Wishlist Button */}
       <button
         onClick={(e) => {
