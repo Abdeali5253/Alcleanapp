@@ -1,5 +1,14 @@
-import { useState, useEffect } from "react";
-import { Filter, X, Search, Grid3X3, LayoutGrid, Sparkles } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import {
+  Filter,
+  X,
+  Search,
+  Grid3X3,
+  LayoutGrid,
+  Sparkles,
+  ChevronDown,
+  Check,
+} from "lucide-react";
 import { Button } from "./ui/button";
 import { toast } from "sonner";
 import { UnifiedHeader } from "./UnifiedHeader";
@@ -188,9 +197,11 @@ export function Products() {
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState<FilterState>(defaultFilters);
   const [viewMode, setViewMode] = useState<"3cols" | "2cols">("2cols");
+  const [showSubcategoryDropdown, setShowSubcategoryDropdown] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const subcategoryButtonRef = useRef<HTMLDivElement>(null);
 
   // Parse URL parameters and set filters
   useEffect(() => {
@@ -231,6 +242,26 @@ export function Products() {
       setSearchQuery(search);
     }
   }, [location.search]);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        subcategoryButtonRef.current &&
+        !subcategoryButtonRef.current.contains(event.target as Node)
+      ) {
+        setShowSubcategoryDropdown(false);
+      }
+    };
+
+    if (showSubcategoryDropdown) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showSubcategoryDropdown]);
 
   // Fetch products based on category
   useEffect(() => {
@@ -546,7 +577,7 @@ export function Products() {
           })}
         </div>
 
-        {/* Subcategory Buttons for categories with subcategories */}
+        {/* Subcategory Dropdown for categories with subcategories */}
         {(() => {
           const currentCategory = categories.find(
             (cat) => cat.id === categoryFilter
@@ -559,28 +590,65 @@ export function Products() {
             return null;
           return (
             <div className="mb-6">
-              <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
-                <label className="block text-sm font-medium text-gray-700 mb-3">
+              <div
+                ref={subcategoryButtonRef}
+                className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm relative"
+              >
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Filter by Subcategory
                 </label>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-                  {currentCategory.subcategories.map((sub) => {
-                    const isSelected = selectedSubcategories.includes(sub.id);
-                    return (
-                      <button
-                        key={sub.id}
-                        onClick={() => toggleSubcategory(sub.id)}
-                        className={`px-4 py-3 rounded-xl font-medium transition-all text-center ${
-                          isSelected
-                            ? "bg-gradient-to-r from-[#6DB33F] to-[#5da035] text-white shadow-lg shadow-[#6DB33F]/30"
-                            : "bg-white text-gray-700 border border-gray-200 hover:border-[#6DB33F]/50 hover:shadow-md"
-                        }`}
-                      >
-                        {sub.name}
-                      </button>
-                    );
-                  })}
-                </div>
+                <button
+                  onClick={() =>
+                    setShowSubcategoryDropdown(!showSubcategoryDropdown)
+                  }
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white text-sm font-medium text-gray-700 hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#6DB33F]/20 transition-all flex items-center justify-between"
+                >
+                  <span>
+                    {selectedSubcategories.length === 0
+                      ? "All Subcategories"
+                      : `${selectedSubcategories.length} selected`}
+                  </span>
+                  <ChevronDown
+                    size={16}
+                    className={`transition-transform ${showSubcategoryDropdown ? "rotate-180" : ""}`}
+                  />
+                </button>
+                {showSubcategoryDropdown && (
+                  <div
+                    className="absolute top-full left-0 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg z-50 max-h-60 overflow-y-auto"
+                    onMouseDown={(e) => e.stopPropagation()}
+                  >
+                    {currentCategory.subcategories.map((sub) => {
+                      const isSelected = selectedSubcategories.includes(sub.id);
+                      return (
+                        <button
+                          key={sub.id}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleSubcategory(sub.id);
+                          }}
+                          onMouseDown={(e) => e.stopPropagation()}
+                          className="w-full px-4 py-3 text-left hover:bg-gray-50 flex items-center gap-3 transition-colors"
+                        >
+                          <div
+                            className={`w-4 h-4 border-2 rounded flex items-center justify-center ${
+                              isSelected
+                                ? "bg-[#6DB33F] border-[#6DB33F]"
+                                : "border-gray-300"
+                            }`}
+                          >
+                            {isSelected && (
+                              <Check size={12} className="text-white" />
+                            )}
+                          </div>
+                          <span className="text-sm font-medium text-gray-700">
+                            {sub.name}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
           );
