@@ -90,19 +90,19 @@ export const categories: Category[] = [
       },
       {
         id: "plastic-dustbin",
-        name: "Plastic Dustbin",
+        name: "Plastic Dustbin Industrial / Home Use",
       },
       {
         id: "floor-cleaning-vipers",
-        name: "Floor Cleaning - Vipers / Brushes / Wet Mops / Dry Mops",
+        name: "Floor Cleaning : Vipers / Brushes / Wet Mops / Dry Mops",
       },
       {
         id: "safety-equipments",
         name: "Safety Equipments",
       },
       {
-        id: "cleaning-robot",
-        name: "Cleaning Robot",
+        id: "cleaning-robots",
+        name: "Cleaning Robots",
       },
       {
         id: "cleaning-machines",
