@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Check, ChevronDown, SlidersHorizontal, X } from "lucide-react";
+import { createPortal } from "react-dom";
 
 interface QuickFiltersProps {
   onFilterChange: (filters: FilterState) => void;
@@ -26,6 +27,8 @@ export function QuickFilters({
 }: QuickFiltersProps) {
   const [showPriceDropdown, setShowPriceDropdown] = useState(false);
   const [showSortDropdown, setShowSortDropdown] = useState(false);
+  const priceButtonRef = useRef<HTMLButtonElement>(null);
+  const sortButtonRef = useRef<HTMLButtonElement>(null);
 
   const handleFilterChange = (key: keyof FilterState, value: any) => {
     onFilterChange({ ...currentFilters, [key]: value });
@@ -46,7 +49,7 @@ export function QuickFilters({
   ].filter(Boolean).length;
 
   const priceOptions = [
-    { value: "all", label: "All" },
+    { value: "all", label: "Price" },
     { value: "under500", label: "<Rs.500" },
     { value: "500to1000", label: "500-1K" },
     { value: "1000to5000", label: "1K-5K" },
@@ -79,10 +82,11 @@ export function QuickFilters({
               currentFilters.stockStatus === "instock" ? "all" : "instock"
             )
           }
-          className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${currentFilters.stockStatus === "instock"
-            ? "bg-green-500 text-white"
-            : "bg-white border border-gray-200 text-gray-600"
-            }`}
+          className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+            currentFilters.stockStatus === "instock"
+              ? "bg-green-500 text-white"
+              : "bg-white border border-gray-200 text-gray-600"
+          }`}
         >
           ✓ Stock
         </button>
@@ -90,54 +94,74 @@ export function QuickFilters({
         {/* Price Dropdown */}
         <div className="relative flex-shrink-0">
           <button
+            ref={priceButtonRef}
             onClick={() => {
               setShowPriceDropdown(!showPriceDropdown);
               setShowSortDropdown(false);
             }}
-            className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${currentFilters.priceRange !== "all"
-              ? "bg-[#6DB33F] text-white"
-              : "bg-white border border-gray-200 text-gray-600"
-              }`}
+            className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              currentFilters.priceRange !== "all"
+                ? "bg-[#6DB33F] text-white"
+                : "bg-white border border-gray-200 text-gray-600"
+            }`}
           >
-            Price
+            {
+              priceOptions.find((o) => o.value === currentFilters.priceRange)
+                ?.label
+            }
             <ChevronDown
               size={12}
               className={showPriceDropdown ? "rotate-180" : ""}
             />
           </button>
 
-          {showPriceDropdown && (
-            <>
-              <div
-                className="fixed inset-0 z-[60]"
-                onClick={() => setShowPriceDropdown(false)}
-              />
-              <div className="absolute top-full left-0 mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-[70] min-w-[100px]">
-                {priceOptions.map((option) => (
-                  <button
-                    key={option.value}
-                    onClick={() =>
-                      handleFilterChange(
-                        "priceRange",
-                        option.value as FilterState["priceRange"]
-                      )
-                    }
-                    className="flex items-center justify-between w-full px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
+          {showPriceDropdown &&
+            priceButtonRef.current &&
+            (() => {
+              const rect = priceButtonRef.current!.getBoundingClientRect();
+              return createPortal(
+                <>
+                  <div
+                    className="fixed inset-0 z-[999]"
+                    onClick={() => setShowPriceDropdown(false)}
+                  />
+                  <div
+                    className="bg-white rounded-lg shadow-lg border border-gray-200 py-1 min-w-[100px]"
+                    style={{
+                      position: "fixed",
+                      top: 200,
+                      left: 200,
+                      zIndex: 9999,
+                    }}
                   >
-                    {option.label}
-                    {currentFilters.priceRange === option.value && (
-                      <Check size={12} className="text-[#6DB33F]" />
-                    )}
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
+                    {priceOptions.map((option) => (
+                      <button
+                        key={option.value}
+                        onClick={() =>
+                          handleFilterChange(
+                            "priceRange",
+                            option.value as FilterState["priceRange"]
+                          )
+                        }
+                        className="flex items-center justify-between w-full px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
+                      >
+                        {option.label}
+                        {currentFilters.priceRange === option.value && (
+                          <Check size={12} className="text-[#6DB33F]" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </>,
+                document.body
+              );
+            })()}
         </div>
 
         {/* Sort Dropdown */}
         <div className="relative flex-shrink-0 ml-auto">
           <button
+            ref={sortButtonRef}
             onClick={() => {
               setShowSortDropdown(!showSortDropdown);
               setShowPriceDropdown(false);
@@ -151,33 +175,47 @@ export function QuickFilters({
             />
           </button>
 
-          {showSortDropdown && (
-            <>
-              <div
-                className="fixed inset-0 z-[60]"
-                onClick={() => setShowSortDropdown(false)}
-              />
-              <div className="absolute top-full right-0 mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-[70] min-w-[100px]">
-                {sortOptions.map((option) => (
-                  <button
-                    key={option.value}
-                    onClick={() =>
-                      handleFilterChange(
-                        "sortBy",
-                        option.value as FilterState["sortBy"]
-                      )
-                    }
-                    className="flex items-center justify-between w-full px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
+          {showSortDropdown &&
+            sortButtonRef.current &&
+            (() => {
+              const rect = sortButtonRef.current!.getBoundingClientRect();
+              return createPortal(
+                <>
+                  <div
+                    className="fixed inset-0 z-[999]"
+                    onClick={() => setShowSortDropdown(false)}
+                  />
+                  <div
+                    className="bg-white rounded-lg shadow-lg border border-gray-200 py-1 min-w-[100px]"
+                    style={{
+                      position: "fixed",
+                      top: rect.bottom + 4,
+                      left: rect.left + rect.width - 100,
+                      zIndex: 1000,
+                    }}
                   >
-                    {option.label}
-                    {currentFilters.sortBy === option.value && (
-                      <Check size={12} className="text-[#6DB33F]" />
-                    )}
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
+                    {sortOptions.map((option) => (
+                      <button
+                        key={option.value}
+                        onClick={() =>
+                          handleFilterChange(
+                            "sortBy",
+                            option.value as FilterState["sortBy"]
+                          )
+                        }
+                        className="flex items-center justify-between w-full px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
+                      >
+                        {option.label}
+                        {currentFilters.sortBy === option.value && (
+                          <Check size={12} className="text-[#6DB33F]" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </>,
+                document.body
+              );
+            })()}
         </div>
 
         {/* Clear Button */}

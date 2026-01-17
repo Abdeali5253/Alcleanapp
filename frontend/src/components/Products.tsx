@@ -233,7 +233,7 @@ export function Products() {
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState<FilterState>(defaultFilters);
-  const [viewMode, setViewMode] = useState<"3cols" | "2cols">("3cols");
+  const [viewMode, setViewMode] = useState<"3cols" | "2cols">("2cols");
   const location = useLocation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -599,7 +599,12 @@ export function Products() {
           const currentCategory = categories.find(
             (cat) => cat.id === categoryFilter
           );
-          if (!currentCategory || !currentCategory.subcategories || currentCategory.subcategories.length === 0) return null;
+          if (
+            !currentCategory ||
+            !currentCategory.subcategories ||
+            currentCategory.subcategories.length === 0
+          )
+            return null;
           return (
             <div className="mb-6">
               <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm relative z-[80]">
@@ -716,7 +721,7 @@ export function Products() {
         {/* Products Grid */}
         {loading ? (
           <div
-            className={`grid ${viewMode === "2cols" ? "grid-cols-2 gap-3 sm:gap-4 md:gap-6" : "grid-cols-3 gap-3 sm:gap-4 md:gap-6"}`}
+            className={`grid ${viewMode === "2cols" ? "grid-cols-3 gap-4 sm:gap-4 md:gap-6" : "grid-cols-3 gap-3 sm:gap-4 md:gap-6"}`}
           >
             {Array.from({ length: 12 }, (_, index) => (
               <ProductCardSkeleton key={index} />
