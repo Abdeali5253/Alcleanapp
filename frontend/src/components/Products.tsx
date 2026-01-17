@@ -26,48 +26,7 @@ type CategoryFilter =
   | "dishwashing";
 
 const collectionToSubcategory: Record<string, string> = {
-  // Cleaning Chemicals mappings
-  "cleaning-chemicals": "industrial-cleaning-chemicals",
-  "multi-purpose-chemicals": "multi-purpose-chemicals",
-  "floor-cleaning-chemical": "floor-cleaning-chemical",
-  "top-cleaning-chemicals": "top-cleaning-chemicals",
-  "kitchen-cleaning-solution": "kitchen-cleaning-solution",
-  "bathroom-cleaning-solution": "bathroom-cleaning-chemical",
-  "fabric-washing": "fabric-cleaning-chemical",
-  "fabric-detergent": "fabric-cleaning-chemical",
-  "fabric-color-bleach": "fabric-cleaning-chemical",
-  "fabric-cleaner": "fabric-cleaning-chemical",
-  "fabric-softener-enhancer": "fabric-cleaning-chemical",
-  "white-cloth-bleach": "fabric-cleaning-chemical",
-  "solar-panel-cleaner-solution": "solar-panel-cleaner-solution",
-  "industrial-floor-degreaser": "industrial-floor-degreaser",
-  "degreaser-multi-clean": "degreaser-multi-clean",
-  "kitchen-degreaser": "kitchen-cleaning-solution",
-  "food-grade-cleaning-solution": "food-grade-cleaning-solution",
-  "industrial-cleaning-solutions": "industrial-cleaning-chemicals",
-  // Cleaning Equipment mappings
-  "cleaning-equipment": "cleaning-equipment",
-  "home-page-cleaning-tools": "home-page-cleaning-tools",
-  "top-cleaning-equipments": "top-cleaning-equipments",
-  "cleaning-tools": "cleaning-tools",
-  "floor-cleaning-vipers": "floor-cleaning-vipers",
-  "mop-buckets": "mop-buckets",
-  "home-page-mop-buckets": "home-page-mop-buckets",
-  "soap-dispenser": "soap-dispenser",
-  "home-page-soap-dispenser": "home-page-soap-dispenser",
-  "tissue-rolls-dispensers": "tissue-rolls-dispensers",
-  "plastic-dustbin": "plastic-dustbin",
-  "safety-equipments": "safety-equipments",
-  "cleaning-robot": "cleaning-robot",
-  "cleaning-machines": "cleaning-machines",
-  "floor-cleaning-equipments": "floor-cleaning-equipments",
-  // Other categories
-  "dish-wash-powder": "dish-wash",
-  "dish-wash": "dish-wash",
-  "car-cleaning-solution": "car-cleaning-solution",
-  "toilet-bowl-cleaner": "toilet-bowl-cleaner",
-  "bathroom-cleaner": "bathroom-cleaner",
-  "bathroom-cleaning-chemical": "bathroom-cleaning-chemical",
+  // No mappings needed since collections are now subcategory ids
 };
 
 const categoryInfo: Record<
@@ -86,19 +45,14 @@ const categoryInfo: Record<
     emoji: "🧪",
     color: "#9B59B6",
     collections: [
-      "cleaning-chemicals",
       "industrial-cleaning-chemicals",
       "multi-purpose-chemicals",
       "floor-cleaning-chemical",
       "top-cleaning-chemicals",
+      "fabric-cleaning-chemical",
+      "bathroom-cleaning-chemical",
+      "hand-washing-cleaning",
       "kitchen-cleaning-solution",
-      "bathroom-cleaning-solution",
-      "solar-panel-cleaner-solution",
-      "industrial-floor-degreaser",
-      "degreaser-multi-clean",
-      "kitchen-degreaser",
-      "food-grade-cleaning-solution",
-      "industrial-cleaning-solutions",
     ],
     tags: [
       "cleaning chemicals",
@@ -324,8 +278,7 @@ export function Products() {
             allProducts = [];
             results.forEach(({ collection, products }) => {
               products.forEach((p) => {
-                p.subcategory =
-                  collectionToSubcategory[collection] || collection; // Assign subcategory based on collection
+                p.subcategory = collection; // Collection is now the subcategory id
                 p.category = categoryFilter; // Ensure correct category
                 allProducts.push(p);
               });
@@ -377,8 +330,7 @@ export function Products() {
                   let refreshedProducts: Product[] = [];
                   results.forEach(({ collection, products }) => {
                     products.forEach((p) => {
-                      p.subcategory =
-                        collectionToSubcategory[collection] || collection; // Assign subcategory based on collection
+                      p.subcategory = collection; // Collection is now the subcategory id
                       p.category = categoryFilter; // Ensure correct category
                       refreshedProducts.push(p);
                     });
@@ -594,7 +546,7 @@ export function Products() {
           })}
         </div>
 
-        {/* Subcategory Dropdown for categories with subcategories */}
+        {/* Subcategory Buttons for categories with subcategories */}
         {(() => {
           const currentCategory = categories.find(
             (cat) => cat.id === categoryFilter
@@ -607,28 +559,28 @@ export function Products() {
             return null;
           return (
             <div className="mb-6">
-              <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm relative z-[80]">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+              <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
+                <label className="block text-sm font-medium text-gray-700 mb-3">
                   Filter by Subcategory
                 </label>
-                <select
-                  value={selectedSubcategories[0] || ""}
-                  onChange={(e) => {
-                    if (e.target.value) {
-                      setSelectedSubcategories([e.target.value]);
-                    } else {
-                      setSelectedSubcategories([]);
-                    }
-                  }}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white text-sm font-medium text-gray-700 hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#6DB33F]/20 transition-all"
-                >
-                  <option value="">All {currentCategoryInfo.name}</option>
-                  {currentCategory.subcategories.map((sub) => (
-                    <option key={sub.id} value={sub.id}>
-                      {sub.name}
-                    </option>
-                  ))}
-                </select>
+                <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4">
+                  {currentCategory.subcategories.map((sub) => {
+                    const isSelected = selectedSubcategories.includes(sub.id);
+                    return (
+                      <button
+                        key={sub.id}
+                        onClick={() => toggleSubcategory(sub.id)}
+                        className={`flex-shrink-0 px-5 py-3 rounded-xl font-medium transition-all whitespace-nowrap ${
+                          isSelected
+                            ? "bg-gradient-to-r from-[#6DB33F] to-[#5da035] text-white shadow-lg shadow-[#6DB33F]/30"
+                            : "bg-white text-gray-700 border border-gray-200 hover:border-[#6DB33F]/50 hover:shadow-md"
+                        }`}
+                      >
+                        {sub.name}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           );

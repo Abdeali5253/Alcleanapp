@@ -53,24 +53,12 @@ export const categories: Category[] = [
     name: "Cleaning Equipment",
     subcategories: [
       {
-        id: "home-page-cleaning-tools",
-        name: "Home Page Cleaning Tools",
-      },
-      {
         id: "mop-buckets",
         name: "Mop Buckets / Wringers / Cleaning Janitorial Trolleys",
       },
       {
-        id: "home-page-mop-buckets",
-        name: "Home Page Mop Buckets",
-      },
-      {
         id: "soap-dispenser",
         name: "Soap Dispenser",
-      },
-      {
-        id: "home-page-soap-dispenser",
-        name: "Home Page Soap Dispenser",
       },
       {
         id: "tissue-rolls-dispensers",
