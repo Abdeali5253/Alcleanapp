@@ -233,7 +233,7 @@ export function Products() {
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState<FilterState>(defaultFilters);
-  const [viewMode, setViewMode] = useState<"grid" | "compact">("grid");
+  const [viewMode, setViewMode] = useState<"3cols" | "2cols">("3cols");
   const location = useLocation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -595,36 +595,39 @@ export function Products() {
         </div>
 
         {/* Subcategory Dropdown for categories with subcategories */}
-        {categories.find((cat) => cat.id === categoryFilter)?.subcategories
-          ?.length > 0 && (
-          <div className="mb-6">
-            <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm relative z-[80]">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Filter by Subcategory
-              </label>
-              <select
-                value={selectedSubcategories[0] || ""}
-                onChange={(e) => {
-                  if (e.target.value) {
-                    setSelectedSubcategories([e.target.value]);
-                  } else {
-                    setSelectedSubcategories([]);
-                  }
-                }}
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white text-sm font-medium text-gray-700 hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#6DB33F]/20 transition-all"
-              >
-                <option value="">All {currentCategoryInfo.name}</option>
-                {categories
-                  .find((cat) => cat.id === categoryFilter)
-                  ?.subcategories?.map((sub) => (
+        {(() => {
+          const currentCategory = categories.find(
+            (cat) => cat.id === categoryFilter
+          );
+          if (!currentCategory || !currentCategory.subcategories || currentCategory.subcategories.length === 0) return null;
+          return (
+            <div className="mb-6">
+              <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm relative z-[80]">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Filter by Subcategory
+                </label>
+                <select
+                  value={selectedSubcategories[0] || ""}
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      setSelectedSubcategories([e.target.value]);
+                    } else {
+                      setSelectedSubcategories([]);
+                    }
+                  }}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white text-sm font-medium text-gray-700 hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#6DB33F]/20 transition-all"
+                >
+                  <option value="">All {currentCategoryInfo.name}</option>
+                  {currentCategory.subcategories.map((sub) => (
                     <option key={sub.id} value={sub.id}>
                       {sub.name}
                     </option>
-                  )) || []}
-              </select>
+                  ))}
+                </select>
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Quick Filters */}
         <QuickFilters
@@ -635,24 +638,26 @@ export function Products() {
 
         {/* View Mode Toggle */}
         <div className="flex items-center justify-end mb-6">
-          <div className="flex items-center gap-2 bg-gray-100 rounded-xl p-1">
+          <div className="flex items-center gap-3 bg-gray-100 rounded-xl p-1">
             <button
-              onClick={() => setViewMode("grid")}
+              onClick={() => setViewMode("3cols")}
               className={`p-2 rounded-lg transition-all ${
-                viewMode === "grid" ? "bg-white shadow-sm" : "hover:bg-gray-200"
+                viewMode === "3cols"
+                  ? "bg-white shadow-sm"
+                  : "hover:bg-gray-200"
               }`}
             >
               <Grid3X3
-                size={18}
+                size={21}
                 className={
-                  viewMode === "grid" ? "text-[#6DB33F]" : "text-gray-500"
+                  viewMode === "3cols" ? "text-[#6DB33F]" : "text-gray-500"
                 }
               />
             </button>
             <button
-              onClick={() => setViewMode("compact")}
+              onClick={() => setViewMode("2cols")}
               className={`p-2 rounded-lg transition-all ${
-                viewMode === "compact"
+                viewMode === "2cols"
                   ? "bg-white shadow-sm"
                   : "hover:bg-gray-200"
               }`}
@@ -660,7 +665,7 @@ export function Products() {
               <LayoutGrid
                 size={18}
                 className={
-                  viewMode === "compact" ? "text-[#6DB33F]" : "text-gray-500"
+                  viewMode === "2cols" ? "text-[#6DB33F]" : "text-gray-500"
                 }
               />
             </button>
@@ -711,7 +716,7 @@ export function Products() {
         {/* Products Grid */}
         {loading ? (
           <div
-            className={`grid ${viewMode === "compact" ? "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2" : "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6"}`}
+            className={`grid ${viewMode === "2cols" ? "grid-cols-2 gap-3 sm:gap-4 md:gap-6" : "grid-cols-3 gap-3 sm:gap-4 md:gap-6"}`}
           >
             {Array.from({ length: 12 }, (_, index) => (
               <ProductCardSkeleton key={index} />
@@ -739,7 +744,7 @@ export function Products() {
           </div>
         ) : (
           <div
-            className={`grid ${viewMode === "compact" ? "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2" : "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6"}`}
+            className={`grid ${viewMode === "2cols" ? "grid-cols-2 gap-3 sm:gap-4 md:gap-6" : "grid-cols-3 gap-3 sm:gap-4 md:gap-6"}`}
           >
             {sortedProducts.map((product) => (
               <ProductCard
