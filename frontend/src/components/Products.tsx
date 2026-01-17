@@ -35,7 +35,19 @@ type CategoryFilter =
   | "dishwashing";
 
 const collectionToSubcategory: Record<string, string> = {
-  // No mappings needed since collections are now subcategory ids
+  // Cleaning Equipment mappings from collection name to subcategory id
+  "Mop Buckets / Wringers / Cleaning Janitorial Trolleys": "mop-buckets",
+  "Soap Dispenser": "soap-dispenser",
+  "Tissue Rolls & Dispensers": "tissue-rolls-dispensers",
+  "Top Cleaning Equipments": "top-cleaning-equipments",
+  "Cleaning Tools": "cleaning-tools",
+  "Cleaning Equipment": "cleaning-equipment",
+  "Plastic Dustbin Industrial / Home Use": "plastic-dustbin",
+  "Floor Cleaning : Vipers / Brushes / Wet Mops / Dry Mops": "floor-cleaning-vipers",
+  "Safety Equipments": "safety-equipments",
+  "Cleaning Robots": "cleaning-robots",
+  "Vacuum / Floor / Carpet Cleaning Machines": "cleaning-machines",
+  "Home Use Floor Cleaning Equipments": "floor-cleaning-equipments",
 };
 
 const categoryInfo: Record<
@@ -90,18 +102,20 @@ const categoryInfo: Record<
     emoji: "🧹",
     color: "#E74C3C",
     collections: [
-      "cleaning-equipment",
-      "top-cleaning-equipments",
-      "cleaning-tools",
-      "floor-cleaning-vipers",
-      "mop-buckets",
-      "soap-dispenser",
-      "tissue-rolls-dispensers",
-      "plastic-dustbin",
-      "safety-equipments",
-      "cleaning-robots",
-      "cleaning-machines",
-      "floor-cleaning-equipments",
+      "Home Page Cleaning Tools",
+      "Mop Buckets / Wringers / Cleaning Janitorial Trolleys",
+      "Home Page Mop Buckets",
+      "Soap Dispenser",
+      "Tissue Rolls & Dispensers",
+      "Top Cleaning Equipments",
+      "Cleaning Tools",
+      "Cleaning Equipment",
+      "Plastic Dustbin Industrial / Home Use",
+      "Floor Cleaning : Vipers / Brushes / Wet Mops / Dry Mops",
+      "Safety Equipments",
+      "Cleaning Robots",
+      "Vacuum / Floor / Carpet Cleaning Machines",
+      "Home Use Floor Cleaning Equipments",
     ],
     tags: [
       "cleaning equipment",
@@ -309,7 +323,7 @@ export function Products() {
             allProducts = [];
             results.forEach(({ collection, products }) => {
               products.forEach((p) => {
-                p.subcategory = collection; // Collection is now the subcategory id
+                p.subcategory = collectionToSubcategory[collection] || collection; // Map collection name to subcategory id
                 p.category = categoryFilter; // Ensure correct category
                 allProducts.push(p);
               });
@@ -361,7 +375,7 @@ export function Products() {
                   let refreshedProducts: Product[] = [];
                   results.forEach(({ collection, products }) => {
                     products.forEach((p) => {
-                      p.subcategory = collection; // Collection is now the subcategory id
+                      p.subcategory = collectionToSubcategory[collection] || collection; // Map collection name to subcategory id
                       p.category = categoryFilter; // Ensure correct category
                       refreshedProducts.push(p);
                     });
