@@ -129,9 +129,9 @@ export function QuickFilters({
                     className="bg-white rounded-lg shadow-lg border border-gray-200 py-1 min-w-[100px]"
                     style={{
                       position: "fixed",
-                      top: 200,
-                      left: 200,
-                      zIndex: 9999,
+                      top: rect.bottom + 4,
+                      left: rect.left,
+                      zIndex: 1000,
                     }}
                   >
                     {priceOptions.map((option) => (

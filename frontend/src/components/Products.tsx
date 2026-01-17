@@ -563,14 +563,14 @@ export function Products() {
                 <label className="block text-sm font-medium text-gray-700 mb-3">
                   Filter by Subcategory
                 </label>
-                <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4">
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
                   {currentCategory.subcategories.map((sub) => {
                     const isSelected = selectedSubcategories.includes(sub.id);
                     return (
                       <button
                         key={sub.id}
                         onClick={() => toggleSubcategory(sub.id)}
-                        className={`flex-shrink-0 px-5 py-3 rounded-xl font-medium transition-all whitespace-nowrap ${
+                        className={`px-4 py-3 rounded-xl font-medium transition-all text-center ${
                           isSelected
                             ? "bg-gradient-to-r from-[#6DB33F] to-[#5da035] text-white shadow-lg shadow-[#6DB33F]/30"
                             : "bg-white text-gray-700 border border-gray-200 hover:border-[#6DB33F]/50 hover:shadow-md"
