@@ -114,6 +114,86 @@ export const categories: Category[] = [
       },
     ],
   },
+  {
+    id: "bathroom-cleaning",
+    name: "Bathroom Cleaning",
+    subcategories: [
+      {
+        id: "bathroom-cleaning-solution",
+        name: "Bathroom Cleaning Solution",
+      },
+      {
+        id: "toilet-bowl-cleaner",
+        name: "Toilet Bowl Cleaner",
+      },
+      {
+        id: "bathroom-cleaner",
+        name: "Bathroom Cleaner",
+      },
+      {
+        id: "bathroom-cleaning-chemical",
+        name: "Bathroom Cleaning Chemical",
+      },
+    ],
+  },
+  {
+    id: "car-washing",
+    name: "Car Washing",
+    subcategories: [
+      {
+        id: "car-cleaning-solution",
+        name: "Car Cleaning Solution",
+      },
+    ],
+  },
+  {
+    id: "fabric-cleaning",
+    name: "Fabric Cleaning",
+    subcategories: [
+      {
+        id: "fabric-washing",
+        name: "Fabric Washing",
+      },
+      {
+        id: "fabric-detergent",
+        name: "Fabric Detergent",
+      },
+      {
+        id: "fabric-color-bleach",
+        name: "Fabric Color Bleach",
+      },
+      {
+        id: "fabric-cleaner",
+        name: "Fabric Cleaner",
+      },
+      {
+        id: "fabric-cleaning-chemical",
+        name: "Fabric Cleaning Chemical",
+      },
+      {
+        id: "fabric-softener-enhancer",
+        name: "Fabric Softener Enhancer",
+      },
+      {
+        id: "white-cloth-bleach",
+        name: "White Cloth Bleach",
+      },
+    ],
+  },
+  {
+    id: "dishwashing",
+    name: "Dishwashing",
+    subcategories: [
+      {
+        id: "dish-wash-powder",
+        name: "Dish Wash Powder",
+      },
+      {
+        id: "dish-wash",
+        name: "Dish Wash",
+      },
+    ],
+  },
 ];
 
 export interface ProductItem {
@@ -125,24 +205,40 @@ export interface ProductItem {
 export const fabricWashingProducts: ProductItem[] = [
   { id: "fd-1", name: "Fabric Detergent", subcategoryId: "fabric-washing" },
   { id: "fc-1", name: "Fabric Cleaner", subcategoryId: "fabric-washing" },
-  { id: "fs-1", name: "Fabric Softener and Enhancer", subcategoryId: "fabric-washing" },
+  {
+    id: "fs-1",
+    name: "Fabric Softener and Enhancer",
+    subcategoryId: "fabric-washing",
+  },
   { id: "fcb-1", name: "Fabric Color Bleach", subcategoryId: "fabric-washing" },
   { id: "wb-1", name: "White Cloth Bleach", subcategoryId: "fabric-washing" },
   { id: "fst-1", name: "Fabric Starch", subcategoryId: "fabric-washing" },
 ];
 
 export const multiPurposeProducts: ProductItem[] = [
-  { id: "ap-1", name: "Activated Phenyl", subcategoryId: "multi-purpose-cleaner" },
+  {
+    id: "ap-1",
+    name: "Activated Phenyl",
+    subcategoryId: "multi-purpose-cleaner",
+  },
   { id: "sp-1", name: "Super Phenyl", subcategoryId: "multi-purpose-cleaner" },
   { id: "ml-1", name: "Mop Lotion", subcategoryId: "multi-purpose-cleaner" },
-  { id: "sc-1", name: "Surface Cleaner", subcategoryId: "multi-purpose-cleaner" },
+  {
+    id: "sc-1",
+    name: "Surface Cleaner",
+    subcategoryId: "multi-purpose-cleaner",
+  },
   { id: "fs-2", name: "Floor Shiner", subcategoryId: "multi-purpose-cleaner" },
 ];
 
 export const kitchenProducts: ProductItem[] = [
   { id: "dw-1", name: "Dish Wash", subcategoryId: "kitchen-cleaning" },
   { id: "kd-1", name: "Kitchen De-Greaser", subcategoryId: "kitchen-cleaning" },
-  { id: "fv-1", name: "Fruit & Veggie Cleaner", subcategoryId: "kitchen-cleaning" },
+  {
+    id: "fv-1",
+    name: "Fruit & Veggie Cleaner",
+    subcategoryId: "kitchen-cleaning",
+  },
 ];
 
 export const handWashingProducts: ProductItem[] = [
@@ -151,7 +247,11 @@ export const handWashingProducts: ProductItem[] = [
 ];
 
 export const bathroomProducts: ProductItem[] = [
-  { id: "tbc-1", name: "Toilet Bowl Cleaner", subcategoryId: "bathroom-cleaning" },
+  {
+    id: "tbc-1",
+    name: "Toilet Bowl Cleaner",
+    subcategoryId: "bathroom-cleaning",
+  },
   { id: "bc-1", name: "Bathroom Cleaner", subcategoryId: "bathroom-cleaning" },
 ];
 
@@ -160,11 +260,19 @@ export const carCleaningProducts: ProductItem[] = [
 ];
 
 export const solarPanelProducts: ProductItem[] = [
-  { id: "spc-1", name: "Solar Panel Cleaner", subcategoryId: "solar-panel-cleaning" },
+  {
+    id: "spc-1",
+    name: "Solar Panel Cleaner",
+    subcategoryId: "solar-panel-cleaning",
+  },
 ];
 
 export const industrialFloorProducts: ProductItem[] = [
-  { id: "dmc-1", name: "Degreaser Multi Clean", subcategoryId: "industrial-floor-degreaser" },
+  {
+    id: "dmc-1",
+    name: "Degreaser Multi Clean",
+    subcategoryId: "industrial-floor-degreaser",
+  },
 ];
 
 export const foodGradeProducts: ProductItem[] = [

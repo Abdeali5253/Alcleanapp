@@ -64,10 +64,10 @@ const collectionToSubcategory: Record<string, string> = {
   // Other categories
   "dish-wash-powder": "dish-wash",
   "dish-wash": "dish-wash",
-  "car-cleaning-solution": "car-shampoo",
-  "toilet-bowl-cleaner": "bathroom-cleaner",
+  "car-cleaning-solution": "car-cleaning-solution",
+  "toilet-bowl-cleaner": "toilet-bowl-cleaner",
   "bathroom-cleaner": "bathroom-cleaner",
-  "bathroom-cleaning-chemical": "bathroom-cleaner",
+  "bathroom-cleaning-chemical": "bathroom-cleaning-chemical",
 };
 
 const categoryInfo: Record<
@@ -128,14 +128,11 @@ const categoryInfo: Record<
     color: "#E74C3C",
     collections: [
       "cleaning-equipment",
-      "home-page-cleaning-tools",
       "top-cleaning-equipments",
       "cleaning-tools",
       "floor-cleaning-vipers",
       "mop-buckets",
-      "home-page-mop-buckets",
       "soap-dispenser",
-      "home-page-soap-dispenser",
       "tissue-rolls-dispensers",
       "plastic-dustbin",
       "safety-equipments",
@@ -597,9 +594,9 @@ export function Products() {
           })}
         </div>
 
-        {/* Subcategory Dropdown for specific categories */}
-        {(categoryFilter === "cleaning-chemicals" ||
-          categoryFilter === "cleaning-equipment") && (
+        {/* Subcategory Dropdown for categories with subcategories */}
+        {categories.find((cat) => cat.id === categoryFilter)?.subcategories
+          ?.length > 0 && (
           <div className="mb-6">
             <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm relative z-[80]">
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -616,12 +613,7 @@ export function Products() {
                 }}
                 className="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white text-sm font-medium text-gray-700 hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#6DB33F]/20 transition-all"
               >
-                <option value="">
-                  All{" "}
-                  {categoryFilter === "cleaning-chemicals"
-                    ? "Chemicals"
-                    : "Equipment"}
-                </option>
+                <option value="">All {currentCategoryInfo.name}</option>
                 {categories
                   .find((cat) => cat.id === categoryFilter)
                   ?.subcategories?.map((sub) => (
