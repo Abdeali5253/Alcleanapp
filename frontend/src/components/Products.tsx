@@ -43,7 +43,8 @@ const collectionToSubcategory: Record<string, string> = {
   "Cleaning Tools": "cleaning-tools",
   "Cleaning Equipment": "cleaning-equipment",
   "Plastic Dustbin Industrial / Home Use": "plastic-dustbin",
-  "Floor Cleaning : Vipers / Brushes / Wet Mops / Dry Mops": "floor-cleaning-vipers",
+  "Floor Cleaning : Vipers / Brushes / Wet Mops / Dry Mops":
+    "floor-cleaning-vipers",
   "Safety Equipments": "safety-equipments",
   "Cleaning Robots": "cleaning-robots",
   "Vacuum / Floor / Carpet Cleaning Machines": "cleaning-machines",
@@ -102,20 +103,18 @@ const categoryInfo: Record<
     emoji: "🧹",
     color: "#E74C3C",
     collections: [
-      "Home Page Cleaning Tools",
-      "Mop Buckets / Wringers / Cleaning Janitorial Trolleys",
-      "Home Page Mop Buckets",
-      "Soap Dispenser",
-      "Tissue Rolls & Dispensers",
-      "Top Cleaning Equipments",
-      "Cleaning Tools",
-      "Cleaning Equipment",
-      "Plastic Dustbin Industrial / Home Use",
-      "Floor Cleaning : Vipers / Brushes / Wet Mops / Dry Mops",
-      "Safety Equipments",
-      "Cleaning Robots",
-      "Vacuum / Floor / Carpet Cleaning Machines",
-      "Home Use Floor Cleaning Equipments",
+      "mop-buckets",
+      "soap-dispenser",
+      "tissue-rolls-dispensers",
+      "top-cleaning-equipments",
+      "cleaning-tools",
+      "cleaning-equipment",
+      "plastic-dustbin",
+      "floor-cleaning-vipers",
+      "safety-equipments",
+      "cleaning-robots",
+      "cleaning-machines",
+      "floor-cleaning-equipments",
     ],
     tags: [
       "cleaning equipment",
@@ -196,14 +195,14 @@ const categoryInfo: Record<
 
 export function Products() {
   const [selectedSubcategories, setSelectedSubcategories] = useState<string[]>(
-    []
+    [],
   );
   const [showFilters, setShowFilters] = useState(false);
   const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [wishlist, setWishlist] = useState<string[]>([]);
   const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(
-    null
+    null,
   );
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
@@ -245,7 +244,7 @@ export function Products() {
     if (subcategory) {
       setSelectedSubcategories([subcategory]);
       const parentCategory = categories.find((cat) =>
-        cat.subcategories.some((sub) => sub.id === subcategory)
+        cat.subcategories.some((sub) => sub.id === subcategory),
       );
       if (parentCategory && !expandedCategories.includes(parentCategory.id)) {
         setExpandedCategories([...expandedCategories, parentCategory.id]);
@@ -283,8 +282,9 @@ export function Products() {
       try {
         setLoading(true);
 
-        const { getAllProducts, getProductsByCollection } =
-          await import("../lib/shopify");
+        const { getAllProducts, getProductsByCollection } = await import(
+          "../lib/shopify"
+        );
 
         let allProducts: Product[] = [];
 
@@ -297,46 +297,7 @@ export function Products() {
         if (allProducts.length === 0) {
           console.log(`[Products] No cache found for ${cacheKey}, fetching...`);
 
-          if (categoryFilter === "all") {
-            allProducts = await getAllProducts(2000);
-          } else {
-            // Fetch from specific collections in parallel
-            const collections = categoryInfo[categoryFilter].collections || [];
-            console.log(
-              `[Products] Fetching products for category ${categoryFilter} from collections:`,
-              collections
-            );
-
-            const fetchPromises = collections.map((collection) =>
-              getProductsByCollection(collection, 250)
-                .then((products) => ({ collection, products }))
-                .catch((e) => {
-                  console.error(
-                    `Failed to fetch from collection ${collection}`,
-                    e
-                  );
-                  return { collection, products: [] };
-                })
-            );
-
-            const results = await Promise.all(fetchPromises);
-            allProducts = [];
-            results.forEach(({ collection, products }) => {
-              products.forEach((p) => {
-                p.subcategory = collectionToSubcategory[collection] || collection; // Map collection name to subcategory id
-                p.category = categoryFilter; // Ensure correct category
-                allProducts.push(p);
-              });
-            });
-
-            // Remove duplicates
-            const seen = new Set<string>();
-            allProducts = allProducts.filter((p) => {
-              if (seen.has(p.id)) return false;
-              seen.add(p.id);
-              return true;
-            });
-          }
+          allProducts = await getAllProducts(2000, categoryFilter === "all" ? undefined : categoryFilter);
 
           // Cache the results
           productCacheService.setCachedProducts(allProducts, cacheKey);
@@ -344,7 +305,7 @@ export function Products() {
           // Background refresh if needed
           if (productCacheService.shouldRefresh(cacheKey)) {
             console.log(
-              `[Products] Cache is stale for ${cacheKey}, refreshing in background...`
+              `[Products] Cache is stale for ${cacheKey}, refreshing in background...`,
             );
             if (categoryFilter === "all") {
               getAllProducts(2000)
@@ -353,58 +314,27 @@ export function Products() {
                   console.log("[Products] Background refresh complete");
                 })
                 .catch((err) =>
-                  console.error("[Products] Background refresh failed:", err)
+                  console.error("[Products] Background refresh failed:", err),
                 );
             } else {
-              // For category, refetch from collections
-              const collections =
-                categoryInfo[categoryFilter].collections || [];
-              const fetchPromises = collections.map((collection) =>
-                getProductsByCollection(collection, 250)
-                  .then((products) => ({ collection, products }))
-                  .catch((e) => {
-                    console.error(
-                      `Failed to fetch from collection ${collection}`,
-                      e
-                    );
-                    return { collection, products: [] };
-                  })
-              );
-              Promise.all(fetchPromises)
-                .then((results) => {
-                  let refreshedProducts: Product[] = [];
-                  results.forEach(({ collection, products }) => {
-                    products.forEach((p) => {
-                      p.subcategory = collectionToSubcategory[collection] || collection; // Map collection name to subcategory id
-                      p.category = categoryFilter; // Ensure correct category
-                      refreshedProducts.push(p);
-                    });
-                  });
-                  const seen = new Set<string>();
-                  refreshedProducts = refreshedProducts.filter((p) => {
-                    if (seen.has(p.id)) return false;
-                    seen.add(p.id);
-                    return true;
-                  });
-                  productCacheService.setCachedProducts(
-                    refreshedProducts,
-                    cacheKey
-                  );
+              getAllProducts(2000, categoryFilter)
+                .then((products) => {
+                  productCacheService.setCachedProducts(products, cacheKey);
                   console.log("[Products] Background refresh complete");
                 })
                 .catch((err) =>
-                  console.error("[Products] Background refresh failed:", err)
+                  console.error("[Products] Background refresh failed:", err),
                 );
             }
           }
 
           console.log(
-            `[Products] Loaded and cached ${allProducts.length} products for ${cacheKey}`
+            `[Products] Loaded and cached ${allProducts.length} products for ${cacheKey}`,
           );
         } else {
           console.log(
             `[Products] Using cached products for ${cacheKey}:`,
-            allProducts.length
+            allProducts.length,
           );
         }
 
@@ -449,7 +379,7 @@ export function Products() {
   const toggleCategory = (categoryId: string) => {
     if (expandedCategories.includes(categoryId)) {
       setExpandedCategories(
-        expandedCategories.filter((id) => id !== categoryId)
+        expandedCategories.filter((id) => id !== categoryId),
       );
     } else {
       setExpandedCategories([...expandedCategories, categoryId]);
@@ -459,7 +389,7 @@ export function Products() {
   const toggleSubcategory = (subcategoryId: string) => {
     if (selectedSubcategories.includes(subcategoryId)) {
       setSelectedSubcategories(
-        selectedSubcategories.filter((id) => id !== subcategoryId)
+        selectedSubcategories.filter((id) => id !== subcategoryId),
       );
     } else {
       setSelectedSubcategories([...selectedSubcategories, subcategoryId]);
@@ -484,21 +414,21 @@ export function Products() {
       (p) =>
         p.title.toLowerCase().includes(query) ||
         p.description?.toLowerCase().includes(query) ||
-        p.tags.some((t) => t.toLowerCase().includes(query))
+        p.tags.some((t) => t.toLowerCase().includes(query)),
     );
   }
 
   // Additional category filter to ensure correctness
   if (categoryFilter !== "all") {
     filteredProducts = filteredProducts.filter(
-      (p) => p.category === categoryFilter
+      (p) => p.category === categoryFilter,
     );
   }
 
   // Subcategory filter
   if (selectedSubcategories.length > 0) {
     filteredProducts = filteredProducts.filter((p) =>
-      selectedSubcategories.includes(p.subcategory)
+      selectedSubcategories.includes(p.subcategory),
     );
   }
 
@@ -594,7 +524,7 @@ export function Products() {
         {/* Subcategory Dropdown for categories with subcategories */}
         {(() => {
           const currentCategory = categories.find(
-            (cat) => cat.id === categoryFilter
+            (cat) => cat.id === categoryFilter,
           );
           if (
             !currentCategory ||
@@ -624,7 +554,9 @@ export function Products() {
                   </span>
                   <ChevronDown
                     size={16}
-                    className={`transition-transform ${showSubcategoryDropdown ? "rotate-180" : ""}`}
+                    className={`transition-transform ${
+                      showSubcategoryDropdown ? "rotate-180" : ""
+                    }`}
                   />
                 </button>
                 {showSubcategoryDropdown && (
@@ -755,7 +687,11 @@ export function Products() {
         {/* Products Grid */}
         {loading ? (
           <div
-            className={`grid ${viewMode === "2cols" ? "grid-cols-3 gap-4 sm:gap-4 md:gap-6" : "grid-cols-3 gap-3 sm:gap-4 md:gap-6"}`}
+            className={`grid ${
+              viewMode === "2cols"
+                ? "grid-cols-3 gap-4 sm:gap-4 md:gap-6"
+                : "grid-cols-3 gap-3 sm:gap-4 md:gap-6"
+            }`}
           >
             {Array.from({ length: 12 }, (_, index) => (
               <ProductCardSkeleton key={index} />
@@ -783,7 +719,11 @@ export function Products() {
           </div>
         ) : (
           <div
-            className={`grid ${viewMode === "2cols" ? "grid-cols-2 gap-3 sm:gap-4 md:gap-6" : "grid-cols-3 gap-3 sm:gap-4 md:gap-6"}`}
+            className={`grid ${
+              viewMode === "2cols"
+                ? "grid-cols-2 gap-3 sm:gap-4 md:gap-6"
+                : "grid-cols-3 gap-3 sm:gap-4 md:gap-6"
+            }`}
           >
             {sortedProducts.map((product) => (
               <ProductCard
