@@ -15,7 +15,7 @@ export const categories: Category[] = [
     name: "Cleaning Chemicals",
     subcategories: [
       {
-        id: "floor-cleaning-chemical",
+        id: "Floor Cleaning Chemical",
         name: "Floor Cleaning Chemical",
       },
       {

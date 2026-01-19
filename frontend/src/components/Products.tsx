@@ -276,7 +276,7 @@ export function Products() {
     };
   }, [showSubcategoryDropdown]);
 
-  // Fetch products based on category
+  // Fetch products based on category and selected subcategories
   useEffect(() => {
     const fetchProducts = async () => {
       try {
@@ -289,7 +289,20 @@ export function Products() {
         let allProducts: Product[] = [];
 
         const { productCacheService } = await import("../lib/product-cache");
-        const cacheKey = categoryFilter === "all" ? "all" : categoryFilter;
+
+        let cacheKey: string;
+        let collectionHandles: string[] = [];
+
+        if (categoryFilter === "all") {
+          cacheKey = "all";
+        } else {
+          const catInfo = categoryInfo[categoryFilter];
+          collectionHandles = catInfo.collections || [];
+          if (selectedSubcategories.length > 0) {
+            collectionHandles = collectionHandles.filter(h => selectedSubcategories.includes(h));
+          }
+          cacheKey = `${categoryFilter}-${collectionHandles.sort().join(',')}`;
+        }
 
         // Try to get cached products first
         allProducts = productCacheService.getCachedProducts(cacheKey);
@@ -297,7 +310,21 @@ export function Products() {
         if (allProducts.length === 0) {
           console.log(`[Products] No cache found for ${cacheKey}, fetching...`);
 
-          allProducts = await getAllProducts(2000, categoryFilter === "all" ? undefined : categoryFilter);
+          if (categoryFilter === "all") {
+            allProducts = await getAllProducts(2000);
+          } else {
+            // Fetch from collections
+            const promises = collectionHandles.map(handle => getProductsByCollection(handle, 250));
+            const results = await Promise.all(promises);
+            allProducts = results.flat();
+            // Remove duplicates if any
+            const seen = new Set();
+            allProducts = allProducts.filter(p => {
+              if (seen.has(p.id)) return false;
+              seen.add(p.id);
+              return true;
+            });
+          }
 
           // Cache the results
           productCacheService.setCachedProducts(allProducts, cacheKey);
@@ -307,25 +334,28 @@ export function Products() {
             console.log(
               `[Products] Cache is stale for ${cacheKey}, refreshing in background...`,
             );
-            if (categoryFilter === "all") {
-              getAllProducts(2000)
-                .then((products) => {
-                  productCacheService.setCachedProducts(products, cacheKey);
-                  console.log("[Products] Background refresh complete");
-                })
-                .catch((err) =>
-                  console.error("[Products] Background refresh failed:", err),
-                );
-            } else {
-              getAllProducts(2000, categoryFilter)
-                .then((products) => {
-                  productCacheService.setCachedProducts(products, cacheKey);
-                  console.log("[Products] Background refresh complete");
-                })
-                .catch((err) =>
-                  console.error("[Products] Background refresh failed:", err),
-                );
-            }
+            (async () => {
+              try {
+                let freshProducts: Product[];
+                if (categoryFilter === "all") {
+                  freshProducts = await getAllProducts(2000);
+                } else {
+                  const promises = collectionHandles.map(handle => getProductsByCollection(handle, 250));
+                  const results = await Promise.all(promises);
+                  freshProducts = results.flat();
+                  const seen = new Set();
+                  freshProducts = freshProducts.filter(p => {
+                    if (seen.has(p.id)) return false;
+                    seen.add(p.id);
+                    return true;
+                  });
+                }
+                productCacheService.setCachedProducts(freshProducts, cacheKey);
+                console.log("[Products] Background refresh complete");
+              } catch (err) {
+                console.error("[Products] Background refresh failed:", err);
+              }
+            })();
           }
 
           console.log(
@@ -351,7 +381,7 @@ export function Products() {
     };
 
     fetchProducts();
-  }, [categoryFilter]);
+  }, [categoryFilter, selectedSubcategories]);
 
   const handleAddToCart = (product: Product, quantity: number = 1) => {
     cartService.addToCart(product, quantity);
@@ -415,20 +445,6 @@ export function Products() {
         p.title.toLowerCase().includes(query) ||
         p.description?.toLowerCase().includes(query) ||
         p.tags.some((t) => t.toLowerCase().includes(query)),
-    );
-  }
-
-  // Additional category filter to ensure correctness
-  if (categoryFilter !== "all") {
-    filteredProducts = filteredProducts.filter(
-      (p) => p.category === categoryFilter,
-    );
-  }
-
-  // Subcategory filter
-  if (selectedSubcategories.length > 0) {
-    filteredProducts = filteredProducts.filter((p) =>
-      selectedSubcategories.includes(p.subcategory),
     );
   }
 
