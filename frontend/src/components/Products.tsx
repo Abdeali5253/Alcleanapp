@@ -67,12 +67,12 @@ const categoryInfo: Record<
     emoji: "🧪",
     color: "#9B59B6",
     collections: [
-      "industrial-cleaning-chemicals",
-      "multi-purpose-chemicals",
       "floor-cleaning-chemical",
+      "multi-purpose-chemicals",
+      "industrial-cleaning-chemicals",
       "top-cleaning-chemicals",
       "fabric-cleaning-chemical",
-      "bathroom-cleaning-chemical",
+      "bathroom-cleaning-solution",
       "hand-washing-cleaning",
       "kitchen-cleaning-solution",
     ],
@@ -109,12 +109,12 @@ const categoryInfo: Record<
       "top-cleaning-equipments",
       "cleaning-tools",
       "cleaning-equipment",
-      "plastic-dustbin",
-      "floor-cleaning-vipers",
+      "plastic-dustbin-industrial-home-use",
+      "floor-cleaning-vipers-brushes-wet-mops-dry-mops",
       "safety-equipments",
       "cleaning-robots",
-      "cleaning-machines",
-      "floor-cleaning-equipments",
+      "vacuum-floor-carpet-cleaning-machines",
+      "home-use-floor-cleaning-equipments",
     ],
     tags: [
       "cleaning equipment",
@@ -143,7 +143,7 @@ const categoryInfo: Record<
     name: "Dishwashing",
     emoji: "🍽️",
     color: "#FF6B6B",
-    collections: ["dish-wash-powder", "dish-wash"],
+    collections: ["dish-wash", "dish-wash-powder"],
     tags: ["dish washer", "dish wash powder"],
   },
   "car-washing": {
@@ -161,7 +161,6 @@ const categoryInfo: Record<
       "bathroom-cleaning-solution",
       "toilet-bowl-cleaner",
       "bathroom-cleaner",
-      "bathroom-cleaning-chemical",
     ],
     tags: [
       "toilet bowl cleaner",
@@ -178,9 +177,9 @@ const categoryInfo: Record<
       "fabric-detergent",
       "fabric-color-bleach",
       "fabric-cleaner",
-      "fabric-cleaning-chemical",
       "fabric-softener-enhancer",
       "white-cloth-bleach",
+      "fabric-starch",
     ],
     tags: [
       "fabric detergent",
@@ -299,9 +298,11 @@ export function Products() {
           const catInfo = categoryInfo[categoryFilter];
           collectionHandles = catInfo.collections || [];
           if (selectedSubcategories.length > 0) {
-            collectionHandles = collectionHandles.filter(h => selectedSubcategories.includes(h));
+            collectionHandles = collectionHandles.filter((h) =>
+              selectedSubcategories.includes(h),
+            );
           }
-          cacheKey = `${categoryFilter}-${collectionHandles.sort().join(',')}`;
+          cacheKey = `${categoryFilter}-${collectionHandles.sort().join(",")}`;
         }
 
         // Try to get cached products first
@@ -314,12 +315,14 @@ export function Products() {
             allProducts = await getAllProducts(2000);
           } else {
             // Fetch from collections
-            const promises = collectionHandles.map(handle => getProductsByCollection(handle, 250));
+            const promises = collectionHandles.map((handle) =>
+              getProductsByCollection(handle, 250),
+            );
             const results = await Promise.all(promises);
             allProducts = results.flat();
             // Remove duplicates if any
             const seen = new Set();
-            allProducts = allProducts.filter(p => {
+            allProducts = allProducts.filter((p) => {
               if (seen.has(p.id)) return false;
               seen.add(p.id);
               return true;
@@ -340,11 +343,13 @@ export function Products() {
                 if (categoryFilter === "all") {
                   freshProducts = await getAllProducts(2000);
                 } else {
-                  const promises = collectionHandles.map(handle => getProductsByCollection(handle, 250));
+                  const promises = collectionHandles.map((handle) =>
+                    getProductsByCollection(handle, 250),
+                  );
                   const results = await Promise.all(promises);
                   freshProducts = results.flat();
                   const seen = new Set();
-                  freshProducts = freshProducts.filter(p => {
+                  freshProducts = freshProducts.filter((p) => {
                     if (seen.has(p.id)) return false;
                     seen.add(p.id);
                     return true;

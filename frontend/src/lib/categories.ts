@@ -15,7 +15,7 @@ export const categories: Category[] = [
     name: "Cleaning Chemicals",
     subcategories: [
       {
-        id: "Floor Cleaning Chemical",
+        id: " floor-cleaning-chemical",
         name: "Floor Cleaning Chemical",
       },
       {
@@ -35,7 +35,7 @@ export const categories: Category[] = [
         name: "Fabric Cleaning Chemical",
       },
       {
-        id: "bathroom-cleaning-chemical",
+        id: "bathroom-cleaning-solution",
         name: "Bathroom Cleaning Solution",
       },
       {
@@ -46,6 +46,11 @@ export const categories: Category[] = [
         id: "kitchen-cleaning-solution",
         name: "Kitchen Cleaning Solution",
       },
+      {
+        id: "solar-panel-cleaning",
+        name: "Solar Panel Cleaning",
+      },
+      {id: "dish-wash", name: "Dish Wash"},
     ],
   },
   {
@@ -77,11 +82,11 @@ export const categories: Category[] = [
         name: "Cleaning Equipment",
       },
       {
-        id: "plastic-dustbin",
+        id: "plastic-dustbin-industrial-home-use",
         name: "Plastic Dustbin Industrial / Home Use",
       },
       {
-        id: "floor-cleaning-vipers",
+        id: "floor-cleaning-vipers-brushes-wet-mops-dry-mops",
         name: "Floor Cleaning : Vipers / Brushes / Wet Mops / Dry Mops",
       },
       {
@@ -93,23 +98,19 @@ export const categories: Category[] = [
         name: "Cleaning Robots",
       },
       {
-        id: "cleaning-machines",
+        id: "vacuum-floor-carpet-cleaning-machines",
         name: "Vacuum / Floor / Carpet Cleaning Machines",
       },
       {
-        id: "floor-cleaning-equipments",
+        id: "home-use-floor-cleaning-equipments",
         name: "Home Use Floor Cleaning Equipments",
       },
     ],
   },
   {
-    id: "bathroom-cleaning",
+    id: "bathroom-cleaning-solution",
     name: "Bathroom Cleaning",
     subcategories: [
-      {
-        id: "bathroom-cleaning-solution",
-        name: "Bathroom Cleaning Solution",
-      },
       {
         id: "toilet-bowl-cleaner",
         name: "Toilet Bowl Cleaner",
@@ -118,14 +119,10 @@ export const categories: Category[] = [
         id: "bathroom-cleaner",
         name: "Bathroom Cleaner",
       },
-      {
-        id: "bathroom-cleaning-chemical",
-        name: "Bathroom Cleaning Chemical",
-      },
     ],
   },
   {
-    id: "car-washing",
+    id: "car-cleaning-solution",
     name: "Car Washing",
     subcategories: [
       {
@@ -135,7 +132,7 @@ export const categories: Category[] = [
     ],
   },
   {
-    id: "fabric-cleaning",
+    id: "fabric-cleaning-chemical",
     name: "Fabric Cleaning",
     subcategories: [
       {
@@ -155,16 +152,16 @@ export const categories: Category[] = [
         name: "Fabric Cleaner",
       },
       {
-        id: "fabric-cleaning-chemical",
-        name: "Fabric Cleaning Chemical",
-      },
-      {
         id: "fabric-softener-enhancer",
         name: "Fabric Softener Enhancer",
       },
       {
         id: "white-cloth-bleach",
         name: "White Cloth Bleach",
+      },
+      {
+        id: "fabric-starch",
+        name: "Fabric Starch",
       },
     ],
   },
