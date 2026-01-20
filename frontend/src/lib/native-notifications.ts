@@ -73,8 +73,6 @@ class NativeNotificationService {
     log("NativeNotif", `Is Native: ${Capacitor.isNativePlatform()}`);
     this.loadNotifications();
     this.loadFCMToken();
-    // Setup listeners as early as possible
-    this.setupPushListeners();
   }
 
   // Check if running on native platform (Android/iOS)
@@ -288,15 +286,25 @@ class NativeNotificationService {
   }
 
   // Setup push notification listeners
-  private setupPushListeners(): void {
+  private listenersAttached = false;
+
+  private async setupPushListeners(): Promise<void> {
     if (!PushNotifications) {
       log("NativeNotif", "Cannot setup listeners - plugin not loaded");
+      return;
+    }
+
+    if (this.listenersAttached) {
+      log("NativeNotif", "Listeners already attached, skipping");
       return;
     }
 
     log("NativeNotif", "Setting up push listeners...");
 
     try {
+      // Remove all existing listeners first to be safe
+      await PushNotifications.removeAllListeners();
+
       // On registration success - get FCM token
       PushNotifications.addListener("registration", async (token: any) => {
         try {
@@ -360,6 +368,7 @@ class NativeNotificationService {
         }
       );
 
+      this.listenersAttached = true;
       log("NativeNotif", "Push listeners setup complete");
     } catch (e) {
       logError("NativeNotif", "Failed to setup push listeners", e);
@@ -442,17 +451,13 @@ class NativeNotificationService {
     });
 
     // Show local notification for foreground push (Android popup)
-    this.createNotificationChannel().then(() => {
-      this.showLocalNotification({
-        title: nativeNotif.title,
-        body: nativeNotif.body,
-        id: this.notificationIdCounter++,
-        extra: notification?.data,
-      }).catch((e) =>
-        logError("NativeNotif", "Failed to show local notification", e)
-      );
+    this.showLocalNotification({
+      title: nativeNotif.title,
+      body: nativeNotif.body,
+      id: Math.floor(Math.random() * 100000), // Random ID to prevent overwriting
+      extra: notification?.data,
     }).catch((e) =>
-      logError("NativeNotif", "Failed to create notification channel", e)
+      logError("NativeNotif", "Failed to show local notification", e)
     );
 
     // Dispatch event for UI updates
@@ -612,6 +617,8 @@ class NativeNotificationService {
         iconColor: "#6DB33F",
         sound: "default",
         channelId: "alclean_default",
+        allowHtml: true,
+        smallIcon: "ic_stat_notification", // Ensure this exists in drawable
       };
 
       if (options.schedule) {
@@ -710,7 +717,7 @@ class NativeNotificationService {
         id: "alclean_default",
         name: "AlClean Notifications",
         description: "Order updates, promotions, and alerts",
-        importance: 4,
+        importance: 5, // 5 = Maximum importance (shows as heads-up)
         visibility: 1,
         sound: "default",
         vibration: true,
@@ -896,7 +903,7 @@ class NativeNotificationService {
       if (stored) {
         return JSON.parse(stored);
       }
-    } catch {}
+    } catch { }
     return {
       enabled: true,
       orderUpdates: true,
@@ -1017,14 +1024,14 @@ class NativeNotificationService {
       if (this.fcmToken) {
         log("NativeNotif", "Loaded FCM token from storage");
       }
-    } catch {}
+    } catch { }
   }
 
   private saveFCMToken(token: string): void {
     try {
       localStorage.setItem(FCM_TOKEN_STORAGE_KEY, token);
       log("NativeNotif", "FCM token saved to storage");
-    } catch {}
+    } catch { }
   }
 
   private notifyListeners(): void {

@@ -116,6 +116,7 @@ import { Capacitor } from "@capacitor/core";
 import { App as CapApp } from "@capacitor/app";
 import { Browser } from "@capacitor/browser";
 import { StatusBar, Style } from "@capacitor/status-bar";
+import { toast } from "sonner";
 
 export default function App() {
   const [showSplash, setShowSplash] = useState(true);
@@ -125,11 +126,11 @@ export default function App() {
     const initApp = async () => {
       // Initialize notification service
       await notificationService.initialize();
-      
+
       if (Capacitor.isNativePlatform()) {
         StatusBar.setOverlaysWebView({ overlay: false });
         StatusBar.setStyle({ style: Style.Light });
-        
+
         // Request push notification permission (shows Android system dialog)
         // This will get FCM token if user allows
         setTimeout(async () => {
@@ -137,7 +138,7 @@ export default function App() {
           try {
             const granted = await notificationService.requestPermission();
             console.log("[App] Push permission result:", granted);
-            
+
             if (granted) {
               // Wait for FCM token
               setTimeout(() => {
@@ -151,9 +152,9 @@ export default function App() {
         }, 2000);
       }
     };
-    
+
     initApp();
-    
+
     const timer = setTimeout(() => setShowBackendStatus(false), 10000);
     return () => clearTimeout(timer);
   }, []);
@@ -167,21 +168,15 @@ export default function App() {
         if (!url) return;
 
         // Normalize: handle both custom scheme and https links
-        // Examples:
-        // alclean://checkout/success?order_id=123
-        // https://alclean.pk/checkout/success?order_id=123
         const u = new URL(url);
         const path = u.pathname || "/";
         const query = u.search || "";
 
-        // If you also want to catch Shopify thank-you/order-status pages later, you can add more checks here.
         if (path.startsWith("/checkout/success")) {
-          // Close in-app browser if it's still open
           try {
             await Browser.close();
-          } catch {}
+          } catch { }
 
-          // HashRouter navigation
           window.location.hash = `#${path}${query}`;
           return;
         }
@@ -194,6 +189,31 @@ export default function App() {
       // @ts-ignore
       sub?.remove?.();
     };
+  }, []);
+
+  // Native & Global Notification Toast Handler
+  useEffect(() => {
+    const handleNotification = (event: any) => {
+      const data = event.detail;
+      if (data && data.title) {
+        // Skip toast if we are already on the notification inbox page to avoid redundancy
+        if (window.location.hash.includes("/notifications")) return;
+
+        toast(data.title, {
+          description: data.body,
+          duration: 5000,
+          action: {
+            label: "View",
+            onClick: () => {
+              window.location.hash = "#/notifications";
+            },
+          },
+        });
+      }
+    };
+
+    window.addEventListener("alclean-notification", handleNotification);
+    return () => window.removeEventListener("alclean-notification", handleNotification);
   }, []);
 
   if (showSplash) return <SplashScreen onFinish={() => setShowSplash(false)} />;
