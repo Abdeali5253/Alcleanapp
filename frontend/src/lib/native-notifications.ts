@@ -460,11 +460,15 @@ class NativeNotificationService {
       logError("NativeNotif", "Failed to show local notification", e)
     );
 
-    // Dispatch event for UI updates
+    // Dispatch event for UI updates - SPECIFIC TO TOAST
     try {
+      console.log("[NativeNotif] Dispatching alclean-notification-toast for:", nativeNotif.title);
       window.dispatchEvent(
-        new CustomEvent("alclean-notification", { detail: nativeNotif })
+        new CustomEvent("alclean-notification-toast", { detail: nativeNotif })
       );
+
+      // Also dispatch generic event for inbox refresh
+      window.dispatchEvent(new CustomEvent("alclean-notification"));
     } catch (e) {
       logError("NativeNotif", "Failed to dispatch event", e);
     }
@@ -616,9 +620,9 @@ class NativeNotificationService {
         extra: options.extra,
         iconColor: "#6DB33F",
         sound: "default",
-        channelId: "alclean_default",
+        channelId: "alclean_high_priority_v1", // Using a fresh channel ID
         allowHtml: true,
-        smallIcon: "ic_stat_notification", // Ensure this exists in drawable
+        smallIcon: "ic_stat_notification",
       };
 
       if (options.schedule) {
@@ -714,15 +718,25 @@ class NativeNotificationService {
       log("LocalNotif", "Creating notification channels...");
 
       await LocalNotifications.createChannel({
-        id: "alclean_default",
-        name: "AlClean Notifications",
-        description: "Order updates, promotions, and alerts",
-        importance: 5, // 5 = Maximum importance (shows as heads-up)
+        id: "alclean_high_priority_v1",
+        name: "Urgent Updates",
+        description: "Important AlClean notifications that pop up even if app is open",
+        importance: 5,
         visibility: 1,
         sound: "default",
         vibration: true,
         lights: true,
         lightColor: "#6DB33F",
+      });
+
+      await LocalNotifications.createChannel({
+        id: "alclean_default",
+        name: "Standard Notifications",
+        description: "General AlClean notifications",
+        importance: 3,
+        visibility: 1,
+        sound: "default",
+        vibration: true,
       });
 
       await LocalNotifications.createChannel({

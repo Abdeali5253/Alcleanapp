@@ -162,11 +162,6 @@ async function sendFCMNotification(
     console.log('[FCM] Firebase Admin initialized successfully');
   } catch (error: any) {
     console.error('[FCM] Failed to initialize Firebase:', error);
-    console.error('[FCM] Error details:', {
-      message: error?.message,
-      stack: error?.stack,
-      code: error?.code
-    });
     return { success: 0, failure: tokens.length };
   }
 
@@ -186,17 +181,22 @@ async function sendFCMNotification(
         },
         data: data || {},
         token: token,
+        android: {
+          priority: 'high',
+          notification: {
+            priority: 'max',
+            channelId: 'alclean_high_priority_v1'
+          }
+        },
       };
 
       console.log(`[FCM] Message payload:`, JSON.stringify(message, null, 2));
 
-      // messaging.send() returns a string (message ID) on success
       const messageId = await messaging.send(message);
       if (messageId) {
         successCount++;
         console.log(`[FCM] SUCCESS: Sent to ${token.substring(0, 20)}... (messageId: ${messageId})`);
 
-        // Store notification for history
         const notificationId = `sent_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         const device = deviceTokens.get(token);
         const userId = device?.userId;
@@ -214,22 +214,14 @@ async function sendFCMNotification(
         saveNotifications();
       } else {
         failureCount++;
-        console.error(`[FCM] FAILED: No messageId returned for ${token.substring(0, 20)}`);
       }
     } catch (error: any) {
       failureCount++;
-      console.error(`[FCM] ERROR sending to ${token.substring(0, 20)}...`, {
-        message: error.message,
-        code: error.code,
-        details: error.details,
-        stack: error.stack
-      });
+      console.error(`[FCM] ERROR sending to ${token.substring(0, 20)}...`, error.message);
 
-      // Remove invalid tokens
       if (error.code === 'messaging/invalid-registration-token' ||
         error.code === 'messaging/registration-token-not-registered') {
         deviceTokens.delete(token);
-        console.log(`[FCM] Removed invalid token: ${token.substring(0, 20)}...`);
       }
     }
   }
@@ -265,7 +257,6 @@ router.post('/register', async (req: Request, res: Response) => {
     saveDevices();
 
     console.log(`[Notifications] Registered device: ${platform} - ${token.substring(0, 20)}...`);
-    console.log(`[Notifications] Total registered devices: ${deviceTokens.size}`);
 
     res.json({
       success: true,
@@ -296,7 +287,6 @@ router.post('/send', async (req: Request, res: Response) => {
       });
     }
 
-    // Get target tokens (filter by userId if specified)
     let tokens: string[];
     if (userId) {
       tokens = Array.from(deviceTokens.entries())
@@ -314,16 +304,11 @@ router.post('/send', async (req: Request, res: Response) => {
       });
     }
 
-    console.log(`[Notifications] Sending "${title}" to ${tokens.length} devices...`);
-
-    // Send via FCM
     const result = await sendFCMNotification(
       tokens,
       { title, body, image: imageUrl },
       { type: type || 'general', ...data }
     );
-
-    console.log(`[Notifications] Sent: ${result.success}, Failed: ${result.failure}`);
 
     res.json({
       success: true,
@@ -356,7 +341,6 @@ router.post('/send-to-user', async (req: Request, res: Response) => {
       });
     }
 
-    // Get tokens for this user
     const tokens = Array.from(deviceTokens.entries())
       .filter(([_, device]) => device.userId === userId)
       .map(([token, _]) => token);
@@ -369,7 +353,6 @@ router.post('/send-to-user', async (req: Request, res: Response) => {
       });
     }
 
-    // Send via FCM
     const result = await sendFCMNotification(
       tokens,
       { title, body, image: imageUrl },
@@ -406,9 +389,6 @@ router.post('/send-to-token', async (req: Request, res: Response) => {
       });
     }
 
-    console.log(`[Notifications] Sending to specific token: ${token.substring(0, 30)}...`);
-
-    // Send via FCM
     const result = await sendFCMNotification(
       [token],
       { title, body, image: imageUrl },
@@ -428,12 +408,9 @@ router.post('/send-to-token', async (req: Request, res: Response) => {
     });
   }
 });
+
 const FCM_SERVER_KEY = process.env.FCM_SERVER_KEY || '';
 
-/**
- * GET /api/notifications/devices
- * Get list of registered devices (admin only)
- */
 router.get('/devices', async (req: Request, res: Response) => {
   const devices = Array.from(deviceTokens.values()).map(d => ({
     platform: d.platform,
@@ -447,59 +424,28 @@ router.get('/devices', async (req: Request, res: Response) => {
     success: true,
     count: devices.length,
     devices,
-    fcmConfigured: !!FCM_SERVER_KEY,
   });
 });
 
-/**
- * DELETE /api/notifications/unregister
- * Unregister a device token
- */
 router.delete('/unregister', async (req: Request, res: Response) => {
   try {
     const { token } = req.body;
-
-    if (!token) {
-      return res.status(400).json({
-        success: false,
-        error: 'Token is required',
-      });
-    }
-
+    if (!token) return res.status(400).json({ success: false, error: 'Token is required' });
     const deleted = deviceTokens.delete(token);
-
-    res.json({
-      success: true,
-      message: deleted ? 'Device unregistered' : 'Device not found',
-    });
+    res.json({ success: true, message: deleted ? 'Device unregistered' : 'Device not found' });
   } catch (error: any) {
-    res.status(500).json({
-      success: false,
-      error: error.message || 'Failed to unregister device',
-    });
+    res.status(500).json({ success: false, error: error.message || 'Failed to unregister device' });
   }
 });
 
-/**
- * POST /api/notifications/store-received
- * Store a received notification for history (for notifications sent via Firebase Console)
- */
 router.post('/store-received', async (req: Request, res: Response) => {
   try {
     const { token, title, body, data, timestamp } = req.body;
+    if (!token || !title || !body) return res.status(400).json({ success: false, error: 'Required fields missing' });
 
-    if (!token || !title || !body) {
-      return res.status(400).json({
-        success: false,
-        error: 'token, title, and body are required',
-      });
-    }
-
-    // Get userId from device token
     const device = deviceTokens.get(token);
     const userId = device?.userId;
 
-    // Store notification for history
     const notificationId = `received_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     sentNotifications.set(notificationId, {
       id: notificationId,
@@ -514,110 +460,49 @@ router.post('/store-received', async (req: Request, res: Response) => {
     });
     saveNotifications();
 
-    console.log(`[Notifications] Stored received notification: ${title} for token ${token.substring(0, 20)}...`);
-
-    res.json({
-      success: true,
-      message: 'Notification stored successfully',
-    });
+    res.json({ success: true, message: 'Notification stored successfully' });
   } catch (error: any) {
-    console.error('[Notifications] Store received error:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message || 'Failed to store notification',
-    });
+    res.status(500).json({ success: false, error: error.message || 'Failed to store notification' });
   }
 });
 
-/**
- * GET /api/notifications/history
- * Get notification history for a device token
- */
 router.get('/history', async (req: Request, res: Response) => {
   try {
     const { token } = req.query;
+    if (!token || typeof token !== 'string') return res.status(400).json({ success: false, error: 'Token is required' });
 
-    if (!token || typeof token !== 'string') {
-      return res.status(400).json({
-        success: false,
-        error: 'Token is required',
-      });
-    }
-
-    // Get notifications for this token (last 24 hours)
     const userNotifications = Array.from(sentNotifications.values())
       .filter(n => n.token === token)
-      .filter(n => {
-        const notificationTime = new Date(n.timestamp);
-        const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-        return notificationTime > oneDayAgo;
-      })
       .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
-    res.json({
-      success: true,
-      notifications: userNotifications,
-      count: userNotifications.length,
-    });
+    res.json({ success: true, notifications: userNotifications, count: userNotifications.length });
   } catch (error: any) {
-    console.error('[Notifications] History fetch error:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message || 'Failed to fetch notification history',
-    });
+    res.status(500).json({ success: false, error: error.message || 'Failed to fetch history' });
   }
 });
 
-/**
- * GET /api/notifications/user-notifications
- * Get notifications for a specific user
- */
 router.get('/user-notifications', async (req: Request, res: Response) => {
   try {
     const { userId } = req.query;
+    if (!userId || typeof userId !== 'string') return res.status(400).json({ success: false, error: 'userId is required' });
 
-    if (!userId || typeof userId !== 'string') {
-      return res.status(400).json({
-        success: false,
-        error: 'userId is required',
-      });
-    }
-
-    // Get all notifications for this user
     const userNotifications = Array.from(sentNotifications.values())
       .filter(n => n.userId === userId)
       .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
-    res.json({
-      success: true,
-      notifications: userNotifications,
-      count: userNotifications.length,
-    });
+    res.json({ success: true, notifications: userNotifications, count: userNotifications.length });
   } catch (error: any) {
-    console.error('[Notifications] User notifications fetch error:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message || 'Failed to fetch user notifications',
-    });
+    res.status(500).json({ success: false, error: error.message || 'Failed to fetch user notifications' });
   }
 });
 
-/**
- * GET /api/notifications/status
- * Get notification service status
- */
 router.get('/status', async (req: Request, res: Response) => {
   res.json({
     success: true,
     status: {
-      fcmConfigured: !!FCM_SERVER_KEY,
+      fcmConfigured: !!process.env.FIREBASE_PROJECT_ID,
       registeredDevices: deviceTokens.size,
       storedNotifications: sentNotifications.size,
-      platforms: {
-        android: Array.from(deviceTokens.values()).filter(d => d.platform === 'android').length,
-        ios: Array.from(deviceTokens.values()).filter(d => d.platform === 'ios').length,
-        web: Array.from(deviceTokens.values()).filter(d => d.platform === 'web').length,
-      },
     },
   });
 });

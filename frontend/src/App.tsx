@@ -195,13 +195,19 @@ export default function App() {
   useEffect(() => {
     const handleNotification = (event: any) => {
       const data = event.detail;
-      if (data && data.title) {
-        // Skip toast if we are already on the notification inbox page to avoid redundancy
-        if (window.location.hash.includes("/notifications")) return;
+      console.log("[App] 🔔 New Notification for Toast:", data);
 
+      if (data && data.title) {
+        // Skip toast if we are already on the notification inbox page
+        if (window.location.hash.includes("/notifications")) {
+          console.log("[App] On notifications page, skipping toast visual");
+          return;
+        }
+
+        console.log("[App] Triggering Sonner Toast for:", data.title);
         toast(data.title, {
           description: data.body,
-          duration: 5000,
+          duration: 6000,
           action: {
             label: "View",
             onClick: () => {
@@ -212,8 +218,8 @@ export default function App() {
       }
     };
 
-    window.addEventListener("alclean-notification", handleNotification);
-    return () => window.removeEventListener("alclean-notification", handleNotification);
+    window.addEventListener("alclean-notification-toast", handleNotification);
+    return () => window.removeEventListener("alclean-notification-toast", handleNotification);
   }, []);
 
   if (showSplash) return <SplashScreen onFinish={() => setShowSplash(false)} />;
