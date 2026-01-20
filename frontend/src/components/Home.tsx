@@ -91,7 +91,9 @@ const trustFeatures = [
 
 export function Home() {
   const [wishlist, setWishlist] = useState<string[]>([]);
-  const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
+  const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(
+    null,
+  );
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [supremeOffers, setSupremeOffers] = useState<Product[]>([]);
   const [fabricProducts, setFabricProducts] = useState<Product[]>([]);
@@ -103,86 +105,138 @@ export function Home() {
     const fetchProducts = async () => {
       try {
         setLoading(true);
-        
+
         // Import caching service
         const { productCacheService } = await import("../lib/product-cache");
-        
+
         // Try to get cached products first
         let allProducts = productCacheService.getCachedProducts();
-        
+
         if (allProducts.length === 0) {
           // No cache, fetch from Shopify
-          console.log('[Home] No cache found, fetching from Shopify...');
+          console.log("[Home] No cache found, fetching from Shopify...");
           const { getAllProducts } = await import("../lib/shopify");
           allProducts = await getAllProducts(700);
-          
+
           // Save to cache
           productCacheService.setCachedProducts(allProducts);
         } else {
-          console.log('[Home] Using cached products:', allProducts.length);
-          
+          console.log("[Home] Using cached products:", allProducts.length);
+
           // Check if cache needs background refresh
           if (productCacheService.shouldRefresh()) {
-            console.log('[Home] Cache is stale, refreshing in background...');
+            console.log("[Home] Cache is stale, refreshing in background...");
             // Refresh in background
-            import("../lib/shopify").then(async ({ getAllProducts }) => {
-              const freshProducts = await getAllProducts(700);
-              productCacheService.setCachedProducts(freshProducts);
-              console.log('[Home] Background refresh complete');
-            }).catch(err => console.error('[Home] Background refresh failed:', err));
+            import("../lib/shopify")
+              .then(async ({ getAllProducts }) => {
+                const freshProducts = await getAllProducts(700);
+                productCacheService.setCachedProducts(freshProducts);
+                console.log("[Home] Background refresh complete");
+              })
+              .catch((err) =>
+                console.error("[Home] Background refresh failed:", err),
+              );
           }
         }
-        
+
         // EQUIPMENT KEYWORDS - Products with these in title are NOT chemicals
         const EQUIPMENT_KEYWORDS = [
-          'bucket', 'mop', 'wringer', 'trolley', 'cart', 'dustbin', 'bin',
-          'brush', 'broom', 'scrubber', 'sponge', 'cloth', 'towel', 'wiper',
-          'glove', 'dispenser', 'tissue', 'machine', 'vacuum', 'polish',
-          'squeegee', 'duster', 'holder', 'stand', 'rack', 'caddy',
-          'tool', 'equipment', 'robot', 'viper', 'vipers', 'dryer', 'rods',
-          'cleaning pad', 'hand dryer', 'aluminum rod', 'aluminium rod',
-          'aluminum', 'aluminium', 'telescopic pole', 'cleaning pole', 'pole',
-          'pad', 'floor pad', 'cleaning pads'
+          "bucket",
+          "mop",
+          "wringer",
+          "trolley",
+          "cart",
+          "dustbin",
+          "bin",
+          "brush",
+          "broom",
+          "scrubber",
+          "sponge",
+          "cloth",
+          "towel",
+          "wiper",
+          "glove",
+          "dispenser",
+          "tissue",
+          "machine",
+          "vacuum",
+          "polish",
+          "squeegee",
+          "duster",
+          "holder",
+          "stand",
+          "rack",
+          "caddy",
+          "tool",
+          "equipment",
+          "robot",
+          "viper",
+          "vipers",
+          "dryer",
+          "rods",
+          "cleaning pad",
+          "hand dryer",
+          "aluminum rod",
+          "aluminium rod",
+          "aluminum",
+          "aluminium",
+          "telescopic pole",
+          "cleaning pole",
+          "pole",
+          "pad",
+          "floor pad",
+          "cleaning pads",
         ];
-        
+
         // Helper function to check if product is equipment
         const isEquipment = (product: Product) => {
           const title = product.title.toLowerCase();
-          return EQUIPMENT_KEYWORDS.some(keyword => title.includes(keyword.toLowerCase()));
+          return EQUIPMENT_KEYWORDS.some((keyword) =>
+            title.includes(keyword.toLowerCase()),
+          );
         };
-        
+
         // Helper to get products from collections
         const getProductsInCollections = (collectionHandles: string[]) => {
-          return allProducts.filter(product => {
+          return allProducts.filter((product) => {
             const productCollections = (product as any).collections || [];
-            return productCollections.some((col: any) => 
-              collectionHandles.some(handle => 
-                col.handle.toLowerCase().includes(handle.toLowerCase())
-              )
+            return productCollections.some((col: any) =>
+              collectionHandles.some((handle) =>
+                col.handle.toLowerCase().includes(handle.toLowerCase()),
+              ),
             );
           });
         };
 
         // Get products for each section
-        const offers = getProductsInCollections(['supreme-offer']);
-        const fabric = getProductsInCollections(['fabric-washing']);
-        const mopBuckets = getProductsInCollections(['home-page-mop-buckets', 'mop-buckets']);
-        
+        const offers = getProductsInCollections(["supreme-offer"]);
+        const fabric = getProductsInCollections(["fabric-washing"]);
+        const mopBuckets = getProductsInCollections([
+          "home-page-mop-buckets",
+          "mop-buckets",
+        ]);
+
         // Get cleaning chemicals but EXCLUDE equipment products
-        const chemicalsRaw = getProductsInCollections(['top-cleaning-chemicals', 'industrial-cleaning-chemicals', 'cleaning-chemicals']);
-        const chemicals = chemicalsRaw.filter(product => !isEquipment(product));
-        
-        console.log('[Home] Loaded from collections:', {
+        const chemicalsRaw = getProductsInCollections([
+          "top-cleaning-chemicals",
+          "industrial-cleaning-chemicals",
+          "cleaning-chemicals",
+        ]);
+        const chemicals = chemicalsRaw.filter(
+          (product) => !isEquipment(product),
+        );
+
+        console.log("[Home] Loaded from collections:", {
           supremeOffers: offers.length,
           fabricWashing: fabric.length,
           mopBuckets: mopBuckets.length,
           cleaningChemicals: chemicals.length,
           filteredOutEquipment: chemicalsRaw.length - chemicals.length,
         });
-        
+
         // Sort supreme offers by discount
         offers.sort((a, b) => b.discountPercent - a.discountPercent);
-        
+
         setSupremeOffers(offers);
         setFabricProducts(fabric);
         setMopBucketProducts(mopBuckets);
@@ -217,17 +271,18 @@ export function Home() {
 
   const toggleWishlist = (productId: string) => {
     const newState = wishlistService.toggleWishlist(productId);
-    if (newState) {
+    if (newState === true) {
       toast.success("Added to wishlist!", {
         duration: 1500,
         position: "top-center",
       });
-    } else {
+    } else if (newState === false) {
       toast.success("Removed from wishlist", {
         duration: 1500,
         position: "top-center",
       });
     }
+    // If undefined, do nothing (service handles the toast)
   };
 
   return (
@@ -270,8 +325,6 @@ export function Home() {
           </div>
         </section>
 
-
-
         {/* Trust Features */}
         <section>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -286,9 +339,7 @@ export function Home() {
                 <h3 className="text-gray-900 font-semibold mb-1 text-sm md:text-base">
                   {feature.title}
                 </h3>
-                <p className="text-gray-500 text-xs">
-                  {feature.description}
-                </p>
+                <p className="text-gray-500 text-xs">{feature.description}</p>
               </div>
             ))}
           </div>
@@ -300,9 +351,9 @@ export function Home() {
             Welcome to AlClean
           </h1>
           <p className="text-gray-600 text-base md:text-lg max-w-3xl mx-auto leading-relaxed">
-            Your trusted partner for premium cleaning chemicals and
-            professional janitorial equipment. We bring effective solutions
-            to make your cleaning tasks easy and efficient.
+            Your trusted partner for premium cleaning chemicals and professional
+            janitorial equipment. We bring effective solutions to make your
+            cleaning tasks easy and efficient.
           </p>
           <div className="mt-6 flex justify-center gap-4">
             <Link to="/products">
@@ -334,41 +385,44 @@ export function Home() {
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-            {loading
-              ? Array.from({ length: 4 }, (_, index) => (
-                  <ProductCardSkeleton key={index} />
-                ))
-              : supremeOffers.length === 0
-              ? (
-                  <div className="col-span-2 md:col-span-4 text-center py-12">
-                    <div className="bg-gradient-to-br from-orange-50 to-red-50 rounded-2xl p-8 md:p-12 border-2 border-dashed border-orange-200">
-                      <div className="text-6xl md:text-8xl mb-4 animate-pulse">👀</div>
-                      <h3 className="text-2xl md:text-3xl font-bold text-gray-800 mb-3">
-                        Watch Out!
-                      </h3>
-                      <p className="text-gray-600 text-lg mb-6 max-w-md mx-auto">
-                        Supreme offers are currently taking a break, but they'll be back soon with even better deals!
-                      </p>
-                      <div className="inline-flex items-center gap-2 text-orange-600 font-semibold text-sm">
-                        <span className="animate-pulse">⚡</span>
-                        <span>Stay tuned for amazing discounts</span>
-                        <span className="animate-pulse">⚡</span>
-                      </div>
-                    </div>
+            {loading ? (
+              Array.from({ length: 4 }, (_, index) => (
+                <ProductCardSkeleton key={index} />
+              ))
+            ) : supremeOffers.length === 0 ? (
+              <div className="col-span-2 md:col-span-4 text-center py-12">
+                <div className="bg-gradient-to-br from-orange-50 to-red-50 rounded-2xl p-8 md:p-12 border-2 border-dashed border-orange-200">
+                  <div className="text-6xl md:text-8xl mb-4 animate-pulse">
+                    👀
                   </div>
-                )
-              : supremeOffers
-                  .slice(0, 4)
-                  .map((product) => (
-                    <ProductCard
-                      key={product.id}
-                      product={product}
-                      onAddToCart={handleAddToCart}
-                      onQuickView={setQuickViewProduct}
-                      isInWishlist={wishlist.includes(product.id)}
-                      onToggleWishlist={toggleWishlist}
-                    />
-                  ))}
+                  <h3 className="text-2xl md:text-3xl font-bold text-gray-800 mb-3">
+                    Watch Out!
+                  </h3>
+                  <p className="text-gray-600 text-lg mb-6 max-w-md mx-auto">
+                    Supreme offers are currently taking a break, but they'll be
+                    back soon with even better deals!
+                  </p>
+                  <div className="inline-flex items-center gap-2 text-orange-600 font-semibold text-sm">
+                    <span className="animate-pulse">⚡</span>
+                    <span>Stay tuned for amazing discounts</span>
+                    <span className="animate-pulse">⚡</span>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              supremeOffers
+                .slice(0, 4)
+                .map((product) => (
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    onAddToCart={handleAddToCart}
+                    onQuickView={setQuickViewProduct}
+                    isInWishlist={wishlist.includes(product.id)}
+                    onToggleWishlist={toggleWishlist}
+                  />
+                ))
+            )}
           </div>
 
           {supremeOffers.length > 0 && (
@@ -392,9 +446,7 @@ export function Home() {
               <h2 className="text-gray-900 text-2xl md:text-3xl font-bold mb-2">
                 Fabric Washing
               </h2>
-              <p className="text-gray-600">
-                Professional fabric care products
-              </p>
+              <p className="text-gray-600">Professional fabric care products</p>
             </div>
             <Link
               to="/products?category=fabric-cleaning"
@@ -405,28 +457,30 @@ export function Home() {
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-            {loading
-              ? Array.from({ length: 4 }, (_, index) => (
-                  <ProductCardSkeleton key={index} />
+            {loading ? (
+              Array.from({ length: 4 }, (_, index) => (
+                <ProductCardSkeleton key={index} />
+              ))
+            ) : fabricProducts.length === 0 ? (
+              <div className="col-span-2 md:col-span-4 text-center py-8">
+                <p className="text-gray-500">
+                  No products available in this category
+                </p>
+              </div>
+            ) : (
+              fabricProducts
+                .slice(0, 4)
+                .map((product) => (
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    onAddToCart={handleAddToCart}
+                    onQuickView={setQuickViewProduct}
+                    isInWishlist={wishlist.includes(product.id)}
+                    onToggleWishlist={toggleWishlist}
+                  />
                 ))
-              : fabricProducts.length === 0
-              ? (
-                  <div className="col-span-2 md:col-span-4 text-center py-8">
-                    <p className="text-gray-500">No products available in this category</p>
-                  </div>
-                )
-              : fabricProducts
-                  .slice(0, 4)
-                  .map((product) => (
-                    <ProductCard
-                      key={product.id}
-                      product={product}
-                      onAddToCart={handleAddToCart}
-                      onQuickView={setQuickViewProduct}
-                      isInWishlist={wishlist.includes(product.id)}
-                      onToggleWishlist={toggleWishlist}
-                    />
-                  ))}
+            )}
           </div>
         </section>
 
@@ -454,28 +508,30 @@ export function Home() {
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-            {loading
-              ? Array.from({ length: 4 }, (_, index) => (
-                  <ProductCardSkeleton key={index} />
+            {loading ? (
+              Array.from({ length: 4 }, (_, index) => (
+                <ProductCardSkeleton key={index} />
+              ))
+            ) : cleaningChemicals.length === 0 ? (
+              <div className="col-span-2 md:col-span-4 text-center py-8">
+                <p className="text-gray-500">
+                  No products available in this category
+                </p>
+              </div>
+            ) : (
+              cleaningChemicals
+                .slice(0, 4)
+                .map((product) => (
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    onAddToCart={handleAddToCart}
+                    onQuickView={setQuickViewProduct}
+                    isInWishlist={wishlist.includes(product.id)}
+                    onToggleWishlist={toggleWishlist}
+                  />
                 ))
-              : cleaningChemicals.length === 0
-              ? (
-                  <div className="col-span-2 md:col-span-4 text-center py-8">
-                    <p className="text-gray-500">No products available in this category</p>
-                  </div>
-                )
-              : cleaningChemicals
-                  .slice(0, 4)
-                  .map((product) => (
-                    <ProductCard
-                      key={product.id}
-                      product={product}
-                      onAddToCart={handleAddToCart}
-                      onQuickView={setQuickViewProduct}
-                      isInWishlist={wishlist.includes(product.id)}
-                      onToggleWishlist={toggleWishlist}
-                    />
-                  ))}
+            )}
           </div>
         </section>
 
@@ -499,28 +555,30 @@ export function Home() {
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-            {loading
-              ? Array.from({ length: 4 }, (_, index) => (
-                  <ProductCardSkeleton key={index} />
+            {loading ? (
+              Array.from({ length: 4 }, (_, index) => (
+                <ProductCardSkeleton key={index} />
+              ))
+            ) : mopBucketProducts.length === 0 ? (
+              <div className="col-span-2 md:col-span-4 text-center py-8">
+                <p className="text-gray-500">
+                  No products available in this category
+                </p>
+              </div>
+            ) : (
+              mopBucketProducts
+                .slice(0, 4)
+                .map((product) => (
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    onAddToCart={handleAddToCart}
+                    onQuickView={setQuickViewProduct}
+                    isInWishlist={wishlist.includes(product.id)}
+                    onToggleWishlist={toggleWishlist}
+                  />
                 ))
-              : mopBucketProducts.length === 0
-              ? (
-                  <div className="col-span-2 md:col-span-4 text-center py-8">
-                    <p className="text-gray-500">No products available in this category</p>
-                  </div>
-                )
-              : mopBucketProducts
-                  .slice(0, 4)
-                  .map((product) => (
-                    <ProductCard
-                      key={product.id}
-                      product={product}
-                      onAddToCart={handleAddToCart}
-                      onQuickView={setQuickViewProduct}
-                      isInWishlist={wishlist.includes(product.id)}
-                      onToggleWishlist={toggleWishlist}
-                    />
-                  ))}
+            )}
           </div>
 
           {mopBucketProducts.length > 0 && (

@@ -3,10 +3,10 @@
  * Manages user's favorite products with localStorage persistence
  */
 
-import { authService } from './auth';
-import { toast } from 'sonner';
+import { authService } from "./auth";
+import { toast } from "sonner";
 
-const WISHLIST_STORAGE_KEY = 'alclean_wishlist';
+const WISHLIST_STORAGE_KEY = "alclean_wishlist";
 
 type WishlistSubscriber = (productIds: string[]) => void;
 
@@ -45,7 +45,7 @@ class WishlistService {
       const stored = localStorage.getItem(key);
       this.wishlist = stored ? JSON.parse(stored) : [];
     } catch (error) {
-      console.error('[Wishlist] Failed to load:', error);
+      console.error("[Wishlist] Failed to load:", error);
       this.wishlist = [];
     }
 
@@ -63,7 +63,7 @@ class WishlistService {
       const key = `${WISHLIST_STORAGE_KEY}_${user.email}`;
       localStorage.setItem(key, JSON.stringify(this.wishlist));
     } catch (error) {
-      console.error('[Wishlist] Failed to save:', error);
+      console.error("[Wishlist] Failed to save:", error);
     }
   }
 
@@ -97,13 +97,13 @@ class WishlistService {
   /**
    * Toggle product in wishlist
    */
-  toggleWishlist(productId: string): boolean {
+  toggleWishlist(productId: string): boolean | undefined {
     if (!authService.isLoggedIn()) {
       toast.error("Please login to manage your wishlist", {
         duration: 3000,
         position: "top-center",
       });
-      return false;
+      return undefined;
     }
 
     const isInWishlist = this.isInWishlist(productId);
@@ -150,7 +150,7 @@ class WishlistService {
    */
   subscribe(callback: WishlistSubscriber): () => void {
     this.subscribers.push(callback);
-    callback(this.wishlist);
+    callback([...this.wishlist]);
 
     return () => {
       const index = this.subscribers.indexOf(callback);
@@ -164,7 +164,7 @@ class WishlistService {
    * Notify all subscribers
    */
   private notifySubscribers(): void {
-    this.subscribers.forEach(callback => callback(this.wishlist));
+    this.subscribers.forEach((callback) => callback([...this.wishlist]));
   }
 }
 

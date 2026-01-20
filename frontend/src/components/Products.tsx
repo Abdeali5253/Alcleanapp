@@ -218,6 +218,15 @@ export function Products() {
   const [searchParams] = useSearchParams();
   const subcategoryButtonRef = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    // Subscribe to wishlist changes
+    const unsubscribe = wishlistService.subscribe((ids) => {
+      setWishlist(ids);
+    });
+
+    return unsubscribe;
+  }, []);
+
   // Parse URL parameters and set filters
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -401,17 +410,18 @@ export function Products() {
 
   const toggleWishlist = (productId: string) => {
     const newState = wishlistService.toggleWishlist(productId);
-    if (newState) {
+    if (newState === true) {
       toast.success("Added to wishlist!", {
         duration: 1500,
         position: "top-center",
       });
-    } else {
+    } else if (newState === false) {
       toast.success("Removed from wishlist", {
         duration: 1500,
         position: "top-center",
       });
     }
+    // If undefined, do nothing (service handles the toast)
   };
 
   const toggleCategory = (categoryId: string) => {

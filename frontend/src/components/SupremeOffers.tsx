@@ -31,14 +31,18 @@ export function SupremeOffers() {
         // Fetch from supreme-offer collection
         let offerProducts = await getProductsByCollection("supreme-offer", 250);
 
-        console.log(`[SupremeOffers] Loaded ${offerProducts.length} products from supreme-offer collection`);
+        console.log(
+          `[SupremeOffers] Loaded ${offerProducts.length} products from supreme-offer collection`,
+        );
 
         // If no products in supreme-offer, show all products on sale
         if (offerProducts.length === 0) {
           const { getAllProducts } = await import("../lib/shopify");
           const allProducts = await getAllProducts(250);
-          offerProducts = allProducts.filter(p => p.onSale);
-          console.log(`[SupremeOffers] No supreme-offer collection, showing ${offerProducts.length} products on sale`);
+          offerProducts = allProducts.filter((p) => p.onSale);
+          console.log(
+            `[SupremeOffers] No supreme-offer collection, showing ${offerProducts.length} products on sale`,
+          );
         }
 
         // Sort by discount percentage
@@ -68,7 +72,19 @@ export function SupremeOffers() {
   };
 
   const toggleWishlist = (productId: string) => {
-    wishlistService.toggleWishlist(productId);
+    const newState = wishlistService.toggleWishlist(productId);
+    if (newState === true) {
+      toast.success("Added to wishlist!", {
+        duration: 1500,
+        position: "top-center",
+      });
+    } else if (newState === false) {
+      toast.success("Removed from wishlist", {
+        duration: 1500,
+        position: "top-center",
+      });
+    }
+    // If undefined, do nothing (service handles the toast)
   };
 
   return (
@@ -84,7 +100,8 @@ export function SupremeOffers() {
             <TrendingDown className="text-white animate-pulse" size={32} />
           </div>
           <p className="text-white text-center opacity-90 max-w-2xl mx-auto">
-            Incredible deals and massive discounts on premium cleaning products! Limited time offers you don't want to miss.
+            Incredible deals and massive discounts on premium cleaning products!
+            Limited time offers you don't want to miss.
           </p>
           {products.length > 0 && (
             <div className="mt-4 text-center">
@@ -104,12 +121,14 @@ export function SupremeOffers() {
           </div>
         ) : products.length > 0 ? (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-            {products.map(product => (
+            {products.map((product) => (
               <ProductCard
                 key={product.id}
                 product={product}
-                onAddToCart={(product, quantity) => handleAddToCart(product, quantity)}
-                onQuickView={() => { }}
+                onAddToCart={(product, quantity) =>
+                  handleAddToCart(product, quantity)
+                }
+                onQuickView={() => {}}
                 isInWishlist={wishlist.includes(product.id)}
                 onToggleWishlist={toggleWishlist}
               />
@@ -118,7 +137,9 @@ export function SupremeOffers() {
         ) : (
           <div className="text-center py-20">
             <Tag size={64} className="mx-auto text-gray-300 mb-4" />
-            <h3 className="text-gray-600 mb-2">No offers available right now</h3>
+            <h3 className="text-gray-600 mb-2">
+              No offers available right now
+            </h3>
             <p className="text-gray-500">Check back soon for amazing deals!</p>
           </div>
         )}

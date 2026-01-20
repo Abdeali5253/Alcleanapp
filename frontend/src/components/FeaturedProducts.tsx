@@ -12,7 +12,7 @@ import { toast } from "sonner";
 interface FeaturedProductsProps {
   title: string;
   subtitle?: string;
-  type: 'deals' | 'bestsellers' | 'new' | 'trending';
+  type: "deals" | "bestsellers" | "new" | "trending";
   category?: string;
   limit?: number;
   showViewAll?: boolean;
@@ -26,7 +26,7 @@ export function FeaturedProducts({
   category,
   limit = 4,
   showViewAll = true,
-  viewAllLink = '/products'
+  viewAllLink = "/products",
 }: FeaturedProductsProps) {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,7 +50,7 @@ export function FeaturedProducts({
         if (category) {
           // Fetch products from specific category
           const allProducts = await getAllProducts(250);
-          fetchedProducts = allProducts.filter(p => p.category === category);
+          fetchedProducts = allProducts.filter((p) => p.category === category);
         } else {
           // Fetch all products
           fetchedProducts = await getAllProducts(250);
@@ -58,35 +58,37 @@ export function FeaturedProducts({
 
         // Sort based on type
         switch (type) {
-          case 'deals':
+          case "deals":
             // Products with highest discounts
             fetchedProducts = fetchedProducts
-              .filter(p => p.onSale && p.discountPercent > 0)
+              .filter((p) => p.onSale && p.discountPercent > 0)
               .sort((a, b) => b.discountPercent - a.discountPercent);
             break;
-          case 'bestsellers':
+          case "bestsellers":
             // Most in stock (simulating bestsellers)
             fetchedProducts = fetchedProducts
-              .filter(p => p.inStock)
+              .filter((p) => p.inStock)
               .sort((a, b) => b.quantityAvailable - a.quantityAvailable);
             break;
-          case 'new':
+          case "new":
             // Products tagged as new
-            fetchedProducts = fetchedProducts.filter(p => p.isNew);
+            fetchedProducts = fetchedProducts.filter((p) => p.isNew);
             // If no new products, show newest by ID
             if (fetchedProducts.length === 0) {
               fetchedProducts = (await getAllProducts(250)).slice(0, limit * 2);
             }
             break;
-          case 'trending':
+          case "trending":
             // Low stock = high demand (simulating trending)
             fetchedProducts = fetchedProducts
-              .filter(p => p.inStock && p.lowStock)
+              .filter((p) => p.inStock && p.lowStock)
               .sort((a, b) => a.quantityAvailable - b.quantityAvailable);
             // If no low stock items, show random selection
             if (fetchedProducts.length < limit) {
               const all = await getAllProducts(250);
-              fetchedProducts = all.filter(p => p.inStock).sort(() => Math.random() - 0.5);
+              fetchedProducts = all
+                .filter((p) => p.inStock)
+                .sort(() => Math.random() - 0.5);
             }
             break;
         }
@@ -111,24 +113,44 @@ export function FeaturedProducts({
   };
 
   const toggleWishlist = (productId: string) => {
-    wishlistService.toggleWishlist(productId);
+    const newState = wishlistService.toggleWishlist(productId);
+    if (newState === true) {
+      toast.success("Added to wishlist!", {
+        duration: 1500,
+        position: "top-center",
+      });
+    } else if (newState === false) {
+      toast.success("Removed from wishlist", {
+        duration: 1500,
+        position: "top-center",
+      });
+    }
+    // If undefined, do nothing (service handles the toast)
   };
 
   const getIcon = () => {
     switch (type) {
-      case 'deals': return <Flame className="text-orange-500" size={24} />;
-      case 'bestsellers': return <Star className="text-yellow-500" size={24} />;
-      case 'new': return <Sparkles className="text-purple-500" size={24} />;
-      case 'trending': return <TrendingUp className="text-blue-500" size={24} />;
+      case "deals":
+        return <Flame className="text-orange-500" size={24} />;
+      case "bestsellers":
+        return <Star className="text-yellow-500" size={24} />;
+      case "new":
+        return <Sparkles className="text-purple-500" size={24} />;
+      case "trending":
+        return <TrendingUp className="text-blue-500" size={24} />;
     }
   };
 
   const getBgGradient = () => {
     switch (type) {
-      case 'deals': return 'from-orange-50 to-red-50';
-      case 'bestsellers': return 'from-yellow-50 to-amber-50';
-      case 'new': return 'from-purple-50 to-pink-50';
-      case 'trending': return 'from-blue-50 to-cyan-50';
+      case "deals":
+        return "from-orange-50 to-red-50";
+      case "bestsellers":
+        return "from-yellow-50 to-amber-50";
+      case "new":
+        return "from-purple-50 to-pink-50";
+      case "trending":
+        return "from-blue-50 to-cyan-50";
     }
   };
 
@@ -137,11 +159,15 @@ export function FeaturedProducts({
   return (
     <section className="relative">
       {/* Section Header */}
-      <div className={`flex items-center justify-between mb-6 p-4 -mx-4 bg-gradient-to-r ${getBgGradient()} rounded-2xl`}>
+      <div
+        className={`flex items-center justify-between mb-6 p-4 -mx-4 bg-gradient-to-r ${getBgGradient()} rounded-2xl`}
+      >
         <div className="flex items-center gap-3">
           {getIcon()}
           <div>
-            <h2 className="text-gray-900 text-xl md:text-2xl font-bold">{title}</h2>
+            <h2 className="text-gray-900 text-xl md:text-2xl font-bold">
+              {title}
+            </h2>
             {subtitle && <p className="text-gray-600 text-sm">{subtitle}</p>}
           </div>
         </div>
@@ -159,17 +185,19 @@ export function FeaturedProducts({
       {/* Products Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
         {loading
-          ? Array.from({ length: limit }, (_, i) => <ProductCardSkeleton key={i} />)
+          ? Array.from({ length: limit }, (_, i) => (
+              <ProductCardSkeleton key={i} />
+            ))
           : products.map((product) => (
-            <ProductCard
-              key={product.id}
-              product={product}
-              onAddToCart={handleAddToCart}
-              onQuickView={() => { }}
-              isInWishlist={wishlist.includes(product.id)}
-              onToggleWishlist={toggleWishlist}
-            />
-          ))}
+              <ProductCard
+                key={product.id}
+                product={product}
+                onAddToCart={handleAddToCart}
+                onQuickView={() => {}}
+                isInWishlist={wishlist.includes(product.id)}
+                onToggleWishlist={toggleWishlist}
+              />
+            ))}
       </div>
     </section>
   );
