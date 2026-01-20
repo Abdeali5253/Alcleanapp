@@ -75,6 +75,9 @@ const categoryInfo: Record<
       "bathroom-cleaning-solution",
       "hand-washing-cleaning",
       "kitchen-cleaning-solution",
+      "solar-panel-cleaner-solution",
+      "dish-wash",
+      "car-cleaning-solution",
     ],
     tags: [
       "cleaning chemicals",

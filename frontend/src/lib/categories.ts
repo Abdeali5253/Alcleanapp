@@ -15,7 +15,7 @@ export const categories: Category[] = [
     name: "Cleaning Chemicals",
     subcategories: [
       {
-        id: " floor-cleaning-chemical",
+        id: "floor-cleaning-chemical",
         name: "Floor Cleaning Chemical",
       },
       {
@@ -47,10 +47,17 @@ export const categories: Category[] = [
         name: "Kitchen Cleaning Solution",
       },
       {
-        id: "solar-panel-cleaning",
+        id: "solar-panel-cleaner-solution",
         name: "Solar Panel Cleaning",
       },
-      {id: "dish-wash", name: "Dish Wash"},
+      {
+        id: "dish-wash",
+        name: "Dish Wash",
+      },
+      {
+        id: "car-cleaning-solution",
+        name: "Car Washing",
+      },
     ],
   },
   {
