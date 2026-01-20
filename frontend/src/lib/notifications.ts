@@ -1,5 +1,8 @@
 import { Capacitor } from "@capacitor/core";
-import { nativeNotificationService, NativeNotification } from "./native-notifications";
+import {
+  nativeNotificationService,
+  NativeNotification,
+} from "./native-notifications";
 import { BACKEND_URL } from "./base-url";
 
 // Firebase modules will be lazy loaded
@@ -26,13 +29,13 @@ export interface PushNotification {
   title: string;
   body: string;
   type:
-  | "order_update"
-  | "promotion"
-  | "discount"
-  | "sale"
-  | "new_product"
-  | "delivery"
-  | "general";
+    | "order_update"
+    | "promotion"
+    | "discount"
+    | "sale"
+    | "new_product"
+    | "delivery"
+    | "general";
   timestamp: Date;
   read: boolean;
   data?: Record<string, any>;
@@ -108,7 +111,7 @@ class NotificationService {
 
           if (success) {
             // Create notification channels on Android (non-blocking)
-            nativeNotificationService.createNotificationChannel().catch(e => {
+            nativeNotificationService.createNotificationChannel().catch((e) => {
               console.error("[Notifications] Channel creation failed:", e);
             });
 
@@ -127,7 +130,9 @@ class NotificationService {
 
             // Subscribe to token changes to fetch notification history
             nativeNotificationService.subscribeToToken(async (token) => {
-              console.log("[Notifications] Token received, fetching notification history");
+              console.log(
+                "[Notifications] Token received, fetching notification history",
+              );
               await this.fetchNotificationHistory(token);
             });
           }
@@ -158,6 +163,20 @@ class NotificationService {
               this.handleIncomingNotification(payload);
             });
           }
+
+          // Try to get existing token and fetch history
+          if (requestNotificationPermission) {
+            try {
+              const token = await requestNotificationPermission();
+              if (token) {
+                this.fcmToken = token;
+                this.saveFCMToken(token);
+                // For web, we don't have backend history, but could implement if needed
+              }
+            } catch (e) {
+              console.log("[Notifications] Could not get existing token:", e);
+            }
+          }
         } catch (e) {
           console.error("[Notifications] Firebase init error:", e);
         }
@@ -174,7 +193,9 @@ class NotificationService {
   }
 
   // Sync notifications from native service
-  private syncFromNativeNotifications(nativeNotifs: NativeNotification[]): void {
+  private syncFromNativeNotifications(
+    nativeNotifs: NativeNotification[],
+  ): void {
     try {
       this.notifications = nativeNotifs.map((n) => ({
         id: n.id,
@@ -195,15 +216,18 @@ class NotificationService {
   // Register FCM token with backend
   private async registerTokenWithBackend(token: string): Promise<void> {
     try {
-      const response = await fetch(`${BACKEND_URL}/api/notifications/register`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          token,
-          platform: Capacitor.getPlatform(),
-          timestamp: new Date().toISOString(),
-        }),
-      });
+      const response = await fetch(
+        `${BACKEND_URL}/api/notifications/register`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            token,
+            platform: Capacitor.getPlatform(),
+            timestamp: new Date().toISOString(),
+          }),
+        },
+      );
 
       if (response.ok) {
         console.log("[Notifications] Token registered with backend");
@@ -220,7 +244,10 @@ class NotificationService {
     try {
       const notification: PushNotification = {
         id: this.generateId(),
-        title: payload.notification?.title || payload.data?.title || "New Notification",
+        title:
+          payload.notification?.title ||
+          payload.data?.title ||
+          "New Notification",
         body: payload.notification?.body || payload.data?.body || "",
         type: payload.data?.type || "general",
         timestamp: new Date(),
@@ -232,7 +259,11 @@ class NotificationService {
       this.addNotification(notification);
 
       // Show browser notification if in foreground
-      if (!isNativePlatform() && hasWebNotificationApi() && Notification.permission === "granted") {
+      if (
+        !isNativePlatform() &&
+        hasWebNotificationApi() &&
+        Notification.permission === "granted"
+      ) {
         new Notification(notification.title, {
           body: notification.body,
           icon: "/logo.png",
@@ -398,7 +429,10 @@ class NotificationService {
 
   // Request permission
   async requestPermission(): Promise<boolean> {
-    console.log("[Notifications] requestPermission called, isNative:", isNativePlatform());
+    console.log(
+      "[Notifications] requestPermission called, isNative:",
+      isNativePlatform(),
+    );
 
     try {
       if (isNativePlatform()) {
@@ -451,10 +485,11 @@ class NotificationService {
   // Try to register if permission already granted
   async tryRegisterIfPermitted(): Promise<boolean> {
     if (isNativePlatform()) {
-      const registered = await nativeNotificationService.tryRegisterIfPermitted();
+      const registered =
+        await nativeNotificationService.tryRegisterIfPermitted();
       if (registered) {
         // Wait a bit for token to arrive via listener
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        await new Promise((resolve) => setTimeout(resolve, 2000));
         this.fcmToken = nativeNotificationService.getFCMToken();
         if (this.fcmToken) {
           this.saveFCMToken(this.fcmToken);
@@ -518,7 +553,9 @@ class NotificationService {
   }): Promise<number | null> {
     try {
       if (!isNativePlatform()) {
-        console.warn("[Notifications] Local notifications only available on native platforms");
+        console.warn(
+          "[Notifications] Local notifications only available on native platforms",
+        );
         return null;
       }
 
@@ -546,7 +583,11 @@ class NotificationService {
   }
 
   // Show immediate local notification (native only)
-  async showLocalNotification(title: string, body: string, data?: Record<string, any>): Promise<void> {
+  async showLocalNotification(
+    title: string,
+    body: string,
+    data?: Record<string, any>,
+  ): Promise<void> {
     try {
       if (isNativePlatform()) {
         await nativeNotificationService.showLocalNotification({
@@ -586,9 +627,14 @@ class NotificationService {
 
   // Fetch notification history from backend
   private async fetchNotificationHistory(token: string): Promise<void> {
-    console.log("[Notifications] Fetching notification history for token:", token.substring(0, 20) + "...");
+    console.log(
+      "[Notifications] Fetching notification history for token:",
+      token.substring(0, 20) + "...",
+    );
     try {
-      const url = `${BACKEND_URL}/api/notifications/history?token=${encodeURIComponent(token)}`;
+      const url = `${BACKEND_URL}/api/notifications/history?token=${encodeURIComponent(
+        token,
+      )}`;
       console.log("[Notifications] History URL:", url);
       const response = await fetch(url);
       console.log("[Notifications] History response status:", response.status);
@@ -596,32 +642,48 @@ class NotificationService {
         const data = await response.json();
         console.log("[Notifications] History data:", data);
         if (data.success && data.notifications) {
-          console.log(`[Notifications] Found ${data.notifications.length} notifications in history`);
+          console.log(
+            `[Notifications] Found ${data.notifications.length} notifications in history`,
+          );
           // Add any missing notifications to inbox
           data.notifications.forEach((notif: any) => {
-            const existing = this.notifications.find(n => n.id === notif.id);
+            const existing = this.notifications.find((n) => n.id === notif.id);
             if (!existing) {
-              console.log("[Notifications] Adding notification from history:", notif.title);
+              console.log(
+                "[Notifications] Adding notification from history:",
+                notif.title,
+              );
               this.addNotification({
                 id: notif.id,
                 title: notif.title,
                 body: notif.body,
-                type: notif.data?.type || 'general',
+                type: notif.data?.type || "general",
                 timestamp: new Date(notif.timestamp),
                 read: notif.read || false,
                 data: notif.data,
-                imageUrl: notif.data?.imageUrl
+                imageUrl: notif.data?.imageUrl,
               });
             } else {
-              console.log("[Notifications] Notification already exists:", notif.title);
+              console.log(
+                "[Notifications] Notification already exists:",
+                notif.title,
+              );
             }
           });
-          console.log(`[Notifications] Fetched ${data.notifications.length} notifications from history`);
+          console.log(
+            `[Notifications] Fetched ${data.notifications.length} notifications from history`,
+          );
         } else {
-          console.log("[Notifications] No notifications in history or invalid response");
+          console.log(
+            "[Notifications] No notifications in history or invalid response",
+          );
         }
       } else {
-        console.log("[Notifications] History fetch failed:", response.status, await response.text());
+        console.log(
+          "[Notifications] History fetch failed:",
+          response.status,
+          await response.text(),
+        );
       }
     } catch (e) {
       console.error("[Notifications] History fetch error:", e);
@@ -650,7 +712,10 @@ class NotificationService {
     if (isNativePlatform()) return;
 
     try {
-      localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, JSON.stringify(this.notifications));
+      localStorage.setItem(
+        NOTIFICATIONS_STORAGE_KEY,
+        JSON.stringify(this.notifications),
+      );
     } catch (error) {
       console.error("[Notifications] Failed to save:", error);
     }
@@ -685,7 +750,10 @@ class NotificationService {
 
   private saveSettings(): void {
     try {
-      localStorage.setItem(NOTIFICATION_SETTINGS_KEY, JSON.stringify(this.settings));
+      localStorage.setItem(
+        NOTIFICATION_SETTINGS_KEY,
+        JSON.stringify(this.settings),
+      );
     } catch (error) {
       console.error("[Notifications] Failed to save settings:", error);
     }
