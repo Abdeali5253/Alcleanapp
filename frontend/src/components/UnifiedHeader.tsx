@@ -1,6 +1,18 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { Search, Menu, X, ShoppingCart, Phone, MessageCircle, Home, Package, User, MapPin, Bell } from "lucide-react";
+import {
+  Search,
+  Menu,
+  X,
+  ShoppingCart,
+  Phone,
+  MessageCircle,
+  Home,
+  Package,
+  User,
+  MapPin,
+  Bell,
+} from "lucide-react";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
 import { notificationService } from "../lib/notifications";
@@ -48,8 +60,6 @@ export function UnifiedHeader({ cartCount }: UnifiedHeaderProps) {
     return unsubscribe;
   }, []);
 
-
-
   const isActive = (path: string) => {
     return location.pathname === path;
   };
@@ -57,22 +67,30 @@ export function UnifiedHeader({ cartCount }: UnifiedHeaderProps) {
   return (
     <>
       {/* Header */}
-      <header className="bg-white shadow-md sticky top-0 z-50 md:sticky fixed md:relative">
+      <header className="bg-white shadow-md sticky top-0 z-50">
         {/* Top Bar - Contact Info (Desktop Only) */}
         <div className="bg-[#6DB33F] text-white py-2 hidden md:block">
           <div className="max-w-7xl mx-auto px-4 flex items-center justify-between text-sm">
             <div className="flex items-center gap-6">
-              <a href="tel:+923343353327" className="flex items-center gap-2 hover:text-gray-200">
+              <a
+                href="tel:+923343353327"
+                className="flex items-center gap-2 hover:text-gray-200"
+              >
                 <Phone size={14} />
                 <span>+92 334 3553327</span>
               </a>
-              <a href="https://wa.me/923343353327" className="flex items-center gap-2 hover:text-gray-200">
+              <a
+                href="https://wa.me/923343353327"
+                className="flex items-center gap-2 hover:text-gray-200"
+              >
                 <MessageCircle size={14} />
                 <span>WhatsApp Us</span>
               </a>
             </div>
             <div className="flex items-center gap-4">
-              <span className="text-xs">Free Delivery on Orders over Rs.5000</span>
+              <span className="text-xs">
+                Free Delivery on Orders over Rs.5000
+              </span>
             </div>
           </div>
         </div>
@@ -97,31 +115,43 @@ export function UnifiedHeader({ cartCount }: UnifiedHeaderProps) {
             <nav className="hidden md:flex items-center gap-6">
               <Link
                 to="/"
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${isActive('/') ? 'text-[#6DB33F] bg-[#6DB33F]/10' : 'text-gray-700 hover:text-[#6DB33F]'
-                  }`}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
+                  isActive("/")
+                    ? "text-[#6DB33F] bg-[#6DB33F]/10"
+                    : "text-gray-700 hover:text-[#6DB33F]"
+                }`}
               >
                 <Home size={18} />
                 <span>Home</span>
               </Link>
               <Link
                 to="/products"
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${isActive('/products') ? 'text-[#6DB33F] bg-[#6DB33F]/10' : 'text-gray-700 hover:text-[#6DB33F]'
-                  }`}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
+                  isActive("/products")
+                    ? "text-[#6DB33F] bg-[#6DB33F]/10"
+                    : "text-gray-700 hover:text-[#6DB33F]"
+                }`}
               >
                 <Package size={18} />
                 <span>Products</span>
               </Link>
               <Link
                 to="/about"
-                className={`px-3 py-2 rounded-lg transition-colors ${isActive('/about') ? 'text-[#6DB33F] bg-[#6DB33F]/10' : 'text-gray-700 hover:text-[#6DB33F]'
-                  }`}
+                className={`px-3 py-2 rounded-lg transition-colors ${
+                  isActive("/about")
+                    ? "text-[#6DB33F] bg-[#6DB33F]/10"
+                    : "text-gray-700 hover:text-[#6DB33F]"
+                }`}
               >
                 About
               </Link>
               <Link
                 to="/contact"
-                className={`px-3 py-2 rounded-lg transition-colors ${isActive('/contact') ? 'text-[#6DB33F] bg-[#6DB33F]/10' : 'text-gray-700 hover:text-[#6DB33F]'
-                  }`}
+                className={`px-3 py-2 rounded-lg transition-colors ${
+                  isActive("/contact")
+                    ? "text-[#6DB33F] bg-[#6DB33F]/10"
+                    : "text-gray-700 hover:text-[#6DB33F]"
+                }`}
               >
                 Contact
               </Link>
@@ -172,8 +202,6 @@ export function UnifiedHeader({ cartCount }: UnifiedHeaderProps) {
               </Link>
             </div>
           </div>
-
-
         </div>
       </header>
 
@@ -192,8 +220,11 @@ export function UnifiedHeader({ cartCount }: UnifiedHeaderProps) {
               <Link
                 to="/"
                 onClick={() => setShowMobileMenu(false)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg ${isActive('/') ? 'bg-[#6DB33F] text-white' : 'hover:bg-gray-100'
-                  }`}
+                className={`flex items-center gap-3 px-4 py-3 rounded-lg ${
+                  isActive("/")
+                    ? "bg-[#6DB33F] text-white"
+                    : "hover:bg-gray-100"
+                }`}
               >
                 <Home size={20} />
                 <span>Home</span>
@@ -201,8 +232,11 @@ export function UnifiedHeader({ cartCount }: UnifiedHeaderProps) {
               <Link
                 to="/products"
                 onClick={() => setShowMobileMenu(false)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg ${isActive('/products') ? 'bg-[#6DB33F] text-white' : 'hover:bg-gray-100'
-                  }`}
+                className={`flex items-center gap-3 px-4 py-3 rounded-lg ${
+                  isActive("/products")
+                    ? "bg-[#6DB33F] text-white"
+                    : "hover:bg-gray-100"
+                }`}
               >
                 <Package size={20} />
                 <span>Products</span>
@@ -210,17 +244,25 @@ export function UnifiedHeader({ cartCount }: UnifiedHeaderProps) {
               <Link
                 to="/cart"
                 onClick={() => setShowMobileMenu(false)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg ${isActive('/cart') ? 'bg-[#6DB33F] text-white' : 'hover:bg-gray-100'
-                  }`}
+                className={`flex items-center gap-3 px-4 py-3 rounded-lg ${
+                  isActive("/cart")
+                    ? "bg-[#6DB33F] text-white"
+                    : "hover:bg-gray-100"
+                }`}
               >
                 <ShoppingCart size={20} />
-                <span>Cart {actualCartCount > 0 && `(${actualCartCount})`}</span>
+                <span>
+                  Cart {actualCartCount > 0 && `(${actualCartCount})`}
+                </span>
               </Link>
               <Link
                 to="/account"
                 onClick={() => setShowMobileMenu(false)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg ${isActive('/account') ? 'bg-[#6DB33F] text-white' : 'hover:bg-gray-100'
-                  }`}
+                className={`flex items-center gap-3 px-4 py-3 rounded-lg ${
+                  isActive("/account")
+                    ? "bg-[#6DB33F] text-white"
+                    : "hover:bg-gray-100"
+                }`}
               >
                 <User size={20} />
                 <span>Account</span>
@@ -228,8 +270,11 @@ export function UnifiedHeader({ cartCount }: UnifiedHeaderProps) {
               <Link
                 to="/tracking"
                 onClick={() => setShowMobileMenu(false)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg ${isActive('/tracking') ? 'bg-[#6DB33F] text-white' : 'hover:bg-gray-100'
-                  }`}
+                className={`flex items-center gap-3 px-4 py-3 rounded-lg ${
+                  isActive("/tracking")
+                    ? "bg-[#6DB33F] text-white"
+                    : "hover:bg-gray-100"
+                }`}
               >
                 <MapPin size={20} />
                 <span>Track Order</span>
@@ -237,16 +282,22 @@ export function UnifiedHeader({ cartCount }: UnifiedHeaderProps) {
               <Link
                 to="/about"
                 onClick={() => setShowMobileMenu(false)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg ${isActive('/about') ? 'bg-[#6DB33F] text-white' : 'hover:bg-gray-100'
-                  }`}
+                className={`flex items-center gap-3 px-4 py-3 rounded-lg ${
+                  isActive("/about")
+                    ? "bg-[#6DB33F] text-white"
+                    : "hover:bg-gray-100"
+                }`}
               >
                 <span>About Us</span>
               </Link>
               <Link
                 to="/contact"
                 onClick={() => setShowMobileMenu(false)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg ${isActive('/contact') ? 'bg-[#6DB33F] text-white' : 'hover:bg-gray-100'
-                  }`}
+                className={`flex items-center gap-3 px-4 py-3 rounded-lg ${
+                  isActive("/contact")
+                    ? "bg-[#6DB33F] text-white"
+                    : "hover:bg-gray-100"
+                }`}
               >
                 <span>Contact Us</span>
               </Link>
@@ -280,7 +331,10 @@ export function UnifiedHeader({ cartCount }: UnifiedHeaderProps) {
       )}
 
       {/* Enhanced Search */}
-      <EnhancedSearch isOpen={showSearchDrawer} onClose={() => setShowSearchDrawer(false)} />
+      <EnhancedSearch
+        isOpen={showSearchDrawer}
+        onClose={() => setShowSearchDrawer(false)}
+      />
     </>
   );
 }
