@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">AlcleanApp</string>
-    <string name="title_activity_main">AlcleanApp</string>
+    <string name="app_name">Alclean</string>
+    <string name="title_activity_main">Alclean</string>
     <string name="package_name">com.alclean.app</string>
     <string name="custom_url_scheme">com.alclean.app</string>
 </resources>
