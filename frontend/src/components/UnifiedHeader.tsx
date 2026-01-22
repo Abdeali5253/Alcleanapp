@@ -67,7 +67,7 @@ export function UnifiedHeader({ cartCount }: UnifiedHeaderProps) {
   return (
     <>
       {/* Header */}
-      <header className="bg-white shadow-md sticky top-0 z-50">
+      <header className="bg-white shadow-md sticky top-0 z-50 safe-top">
         {/* Top Bar - Contact Info (Desktop Only) */}
         <div className="bg-[#6DB33F] text-white py-2 hidden md:block">
           <div className="max-w-7xl mx-auto px-4 flex items-center justify-between text-sm">

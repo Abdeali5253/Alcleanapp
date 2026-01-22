@@ -87,7 +87,12 @@
 
 // src/App.tsx
 import { useState, useEffect } from "react";
-import { HashRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import {
+  HashRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
 import { Wishlist } from "./components/Wishlist";
 import { Products } from "./components/Products";
 import { ProductDetail } from "./components/ProductDetail";
@@ -128,7 +133,7 @@ export default function App() {
       await notificationService.initialize();
 
       if (Capacitor.isNativePlatform()) {
-        StatusBar.setOverlaysWebView({ overlay: false });
+        StatusBar.setOverlaysWebView({ overlay: true });
         StatusBar.setStyle({ style: Style.Light });
 
         // Request push notification permission (shows Android system dialog)
@@ -143,7 +148,10 @@ export default function App() {
               // Wait for FCM token
               setTimeout(() => {
                 const token = notificationService.getFCMToken();
-                console.log("[App] FCM Token:", token ? token.substring(0, 30) + "..." : "null");
+                console.log(
+                  "[App] FCM Token:",
+                  token ? token.substring(0, 30) + "..." : "null",
+                );
               }, 2000);
             }
           } catch (e) {
@@ -175,7 +183,7 @@ export default function App() {
         if (path.startsWith("/checkout/success")) {
           try {
             await Browser.close();
-          } catch { }
+          } catch {}
 
           window.location.hash = `#${path}${query}`;
           return;
@@ -219,17 +227,24 @@ export default function App() {
     };
 
     window.addEventListener("alclean-notification-toast", handleNotification);
-    return () => window.removeEventListener("alclean-notification-toast", handleNotification);
+    return () =>
+      window.removeEventListener(
+        "alclean-notification-toast",
+        handleNotification,
+      );
   }, []);
 
   if (showSplash) return <SplashScreen onFinish={() => setShowSplash(false)} />;
 
   return (
     <Router>
-      <div className="min-h-screen bg-gray-50 safe-area">
+      <div className="min-h-screen bg-gray-50">
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/preview_page.html" element={<Navigate to="/" replace />} />
+          <Route
+            path="/preview_page.html"
+            element={<Navigate to="/" replace />}
+          />
           <Route path="/products" element={<Products />} />
           <Route path="/product/:id" element={<ProductDetail />} />
           <Route path="/cart" element={<Cart />} />
@@ -243,8 +258,14 @@ export default function App() {
           <Route path="/contact" element={<ContactUs />} />
           <Route path="/about" element={<AboutUs />} />
           <Route path="/notifications" element={<NotificationInbox />} />
-          <Route path="/notification-settings" element={<NotificationSettings />} />
-          <Route path="/notifications/settings" element={<NotificationSettings />} />
+          <Route
+            path="/notification-settings"
+            element={<NotificationSettings />}
+          />
+          <Route
+            path="/notifications/settings"
+            element={<NotificationSettings />}
+          />
           <Route path="/notifications/admin" element={<NotificationAdmin />} />
           <Route path="/supreme-offers" element={<SupremeOffers />} />
           <Route path="/backend-test" element={<BackendTestPage />} />
