@@ -146,7 +146,7 @@ const categoryInfo: Record<
     name: "Dishwashing",
     emoji: "🍽️",
     color: "#FF6B6B",
-    collections: ["dish-wash", "dish-wash-power"],
+    collections: ["dish-wash", "dish-wash-powder"],
     tags: ["dish washer", "dish wash powder"],
   },
   "car-washing": {

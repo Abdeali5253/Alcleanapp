@@ -177,7 +177,7 @@ export const categories: Category[] = [
     name: "Dishwashing",
     subcategories: [
       {
-        id: "dish-wash-power",
+        id: "dish-wash-powder",
         name: "Dish Wash Powder",
       },
       {
