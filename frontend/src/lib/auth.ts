@@ -1,6 +1,9 @@
 // Auth Service using Backend API
 import { toast } from "sonner";
 import { BACKEND_URL } from "./base-url";
+import { getFirebaseAuth } from "./firebase-config";
+import { signInWithRedirect, GoogleAuthProvider } from "firebase/auth";
+import { Capacitor } from "@capacitor/core";
 
 export interface User {
   id: string;
@@ -22,8 +25,8 @@ export interface Order {
   lineItems: any[];
 }
 
-const AUTH_STORAGE_KEY = 'alclean_auth';
-const REDIRECT_STORAGE_KEY = 'alclean_redirect';
+const AUTH_STORAGE_KEY = "alclean_auth";
+const REDIRECT_STORAGE_KEY = "alclean_redirect";
 
 class AuthService {
   private user: User | null = null;
@@ -59,14 +62,14 @@ class AuthService {
   }
 
   private notifyListeners(): void {
-    this.listeners.forEach(callback => callback(this.user));
+    this.listeners.forEach((callback) => callback(this.user));
   }
 
   subscribe(callback: (user: User | null) => void): () => void {
     this.listeners.push(callback);
     callback(this.user);
     return () => {
-      this.listeners = this.listeners.filter(l => l !== callback);
+      this.listeners = this.listeners.filter((l) => l !== callback);
     };
   }
 
@@ -88,13 +91,13 @@ class AuthService {
     password: string,
     firstName: string,
     lastName: string,
-    phone?: string
+    phone?: string,
   ): Promise<User> {
     try {
       const response = await fetch(`${BACKEND_URL}/api/auth/signup`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           email,
@@ -108,12 +111,12 @@ class AuthService {
       const data = await response.json();
 
       if (!data.success) {
-        throw new Error(data.error || 'Failed to create account');
+        throw new Error(data.error || "Failed to create account");
       }
 
       const user: User = {
         ...data.user,
-        accessToken: '', // Will be set after login
+        accessToken: "", // Will be set after login
       };
 
       this.saveUser(user);
@@ -129,9 +132,9 @@ class AuthService {
   async logIn(email: string, password: string): Promise<User> {
     try {
       const response = await fetch(`${BACKEND_URL}/api/auth/login`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           email,
@@ -142,7 +145,7 @@ class AuthService {
       const data = await response.json();
 
       if (!data.success) {
-        throw new Error(data.error || 'Failed to login');
+        throw new Error(data.error || "Failed to login");
       }
 
       const user: User = data.user;
@@ -153,6 +156,28 @@ class AuthService {
     } catch (error: any) {
       console.error("[Auth] Login error:", error);
       throw error;
+    }
+  }
+
+  // Google login with Firebase
+  async googleLogin(): Promise<void> {
+    console.log("[Auth] Starting Google login");
+    try {
+      const auth = getFirebaseAuth();
+      if (!auth) {
+        console.error("[Auth] Firebase Auth not available");
+        throw new Error("Firebase Auth not available");
+      }
+
+      console.log("[Auth] Firebase Auth available, creating provider");
+      const provider = new GoogleAuthProvider();
+      console.log("[Auth] Starting Google redirect");
+
+      await signInWithRedirect(auth, provider);
+      // The redirect will happen, result handled in App.tsx
+    } catch (error: any) {
+      console.error("[Auth] Google login error:", error.message || error);
+      toast.error(error.message || "Failed to start Google login");
     }
   }
 
@@ -170,9 +195,9 @@ class AuthService {
 
     try {
       const response = await fetch(`${BACKEND_URL}/api/auth/customer`, {
-        method: 'GET',
+        method: "GET",
         headers: {
-          'Authorization': `Bearer ${this.user.accessToken}`,
+          Authorization: `Bearer ${this.user.accessToken}`,
         },
       });
 
@@ -194,9 +219,9 @@ class AuthService {
   async requestPasswordReset(email: string): Promise<void> {
     try {
       const response = await fetch(`${BACKEND_URL}/api/auth/recover`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           email,
@@ -206,7 +231,7 @@ class AuthService {
       const data = await response.json();
 
       if (!data.success) {
-        throw new Error(data.error || 'Failed to send password reset email');
+        throw new Error(data.error || "Failed to send password reset email");
       }
 
       toast.success("Password reset email sent!");
