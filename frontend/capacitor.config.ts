@@ -5,8 +5,8 @@ const config: CapacitorConfig = {
   appName: "AlClean",
   webDir: "dist",
   server: {
-    androidScheme: "http", // Changed to HTTP to allow cleartext connections
-    iosScheme: "http",
+    androidScheme: "https", // Changed to HTTPS to allow secure deep links
+    iosScheme: "https",
   },
   plugins: {
     PushNotifications: {

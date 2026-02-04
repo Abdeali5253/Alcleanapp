@@ -2,7 +2,11 @@
 import { toast } from "sonner";
 import { BACKEND_URL } from "./base-url";
 import { getFirebaseAuth } from "./firebase-config";
-import { signInWithRedirect, GoogleAuthProvider } from "firebase/auth";
+import {
+  signInWithRedirect,
+  signInWithPopup,
+  GoogleAuthProvider,
+} from "firebase/auth";
 import { Capacitor } from "@capacitor/core";
 
 export interface User {
@@ -171,10 +175,44 @@ class AuthService {
 
       console.log("[Auth] Firebase Auth available, creating provider");
       const provider = new GoogleAuthProvider();
-      console.log("[Auth] Starting Google redirect");
 
-      await signInWithRedirect(auth, provider);
-      // The redirect will happen, result handled in App.tsx
+      if (Capacitor.isNativePlatform()) {
+        // For mobile, set redirect URL to custom scheme to avoid localhost redirect
+        (auth as any).settings = (auth as any).settings || {};
+        (auth as any).settings.redirectUrl = "com.alclean.app://account";
+
+        console.log("[Auth] Starting Google redirect");
+
+        await signInWithRedirect(auth, provider);
+        // The redirect will happen, result handled in App.tsx
+      } else {
+        // For web, use popup to avoid redirect issues
+        console.log("[Auth] Starting Google popup");
+
+        const result = await signInWithPopup(auth, provider);
+        const user = result.user;
+        const idToken = await user.getIdToken();
+
+        // Send to backend
+        const response = await fetch(`${BACKEND_URL}/api/auth/google-login`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            idToken,
+          }),
+        });
+
+        const data = await response.json();
+        if (data.success) {
+          // Login successful
+          authService.updateUser(data.user);
+          toast.success("Logged in with Google successfully!");
+        } else {
+          toast.error(data.error || "Failed to login with Google");
+        }
+      }
     } catch (error: any) {
       console.error("[Auth] Google login error:", error.message || error);
       toast.error(error.message || "Failed to start Google login");

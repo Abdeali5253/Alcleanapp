@@ -34,9 +34,9 @@ export function initializeFirebase(): FirebaseApp | null {
     return null;
   }
 
-  // For mobile, set auth domain to capacitor scheme to prevent browser opening
-  if (Capacitor.isNativePlatform()) {
-    firebaseConfig.authDomain = "capacitor://com.alclean.app";
+  // For mobile, set auth domain to Firebase auth hosting domain for proper OAuth redirect handling
+  if (isNative) {
+    firebaseConfig.authDomain = "app-notification-5e56b.firebaseapp.com";
   }
 
   try {

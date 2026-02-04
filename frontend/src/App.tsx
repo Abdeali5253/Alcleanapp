@@ -107,6 +107,10 @@ function AppContent() {
               // Login successful
               authService.updateUser(data.user);
               toast.success("Logged in with Google successfully!");
+              // Close the browser after successful auth
+              try {
+                await Browser.close();
+              } catch {}
               navigate("/account");
             } else {
               toast.error(data.error || "Failed to login with Google");
@@ -148,11 +152,33 @@ function AppContent() {
 
         // Handle Google auth redirect for mobile
         if (
-          u.protocol === "capacitor:" &&
-          u.hostname === "com.alclean.app" &&
-          u.hash === "#/account"
+          (u.protocol === "https" &&
+            (u.hostname === "capacitor.com.alclean.app" ||
+              u.hostname === "app-notification-5e56b.firebaseapp.com" ||
+              u.hostname === "localhost") &&
+            u.pathname === "/__/auth/handler") ||
+          (u.protocol === "http" &&
+            u.hostname === "localhost" &&
+            u.hash === "#/account") ||
+          u.protocol === "com.alclean.app"
         ) {
+          // Auth redirect handled by getRedirectResult in useEffect
+          return;
+        }
+
+        // Handle custom scheme redirect after auth
+        if (u.protocol === "com.alclean.app" && u.pathname === "/account") {
           navigate("/account");
+          return;
+        }
+
+        // Handle web redirect to /accounts (if misconfigured)
+        if (
+          u.protocol === "http" &&
+          u.hostname === "localhost" &&
+          u.hash === "#/accounts"
+        ) {
+          // Auth redirect handled by getRedirectResult
           return;
         }
       } catch (e) {
@@ -217,6 +243,7 @@ function AppContent() {
         <Route path="/tracking" element={<Tracking />} />
         <Route path="/wishlist" element={<Wishlist />} />
         <Route path="/account" element={<Account />} />
+        <Route path="/accounts" element={<Navigate to="/account" replace />} />
         <Route path="/edit-profile" element={<EditProfile />} />
         <Route path="/help-support" element={<HelpSupport />} />
         <Route path="/checkout" element={<Checkout />} />
