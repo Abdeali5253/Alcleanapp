@@ -205,39 +205,6 @@ export function Account() {
     }
   };
 
-  const handleFacebookLogin = async () => {
-    setIsLoggingIn(true);
-
-    try {
-      const result = await authService.facebookLogin();
-
-      if (!result.success && result.requiresOverride) {
-        const confirmed = window.confirm(
-          `${result.error}\n\nDo you want to override this existing password account and continue with Facebook?`,
-        );
-        if (confirmed) {
-          const overrideResult = await authService.facebookLogin(true);
-          if (!overrideResult.success) {
-            return;
-          }
-        } else {
-          return;
-        }
-      } else if (!result.success) {
-        return;
-      }
-
-      const redirectPath = authService.getRedirectAfterLogin();
-      if (redirectPath) {
-        navigate(redirectPath);
-      }
-    } catch (error: any) {
-      toast.error(error.message || "Facebook login failed. Please try again.");
-    } finally {
-      setIsLoggingIn(false);
-    }
-  };
-
   const handleLogout = () => {
     authService.logOut();
   };
@@ -534,15 +501,6 @@ export function Account() {
                 />
               </svg>
               Continue with Google
-            </Button>
-
-            <Button
-              type="button"
-              onClick={handleFacebookLogin}
-              disabled={isLoggingIn}
-              className="w-full mt-3 bg-[#1877F2] hover:bg-[#166FE5] text-white"
-            >
-              Continue with Facebook
             </Button>
 
             <div className="mt-6 text-center text-gray-600">

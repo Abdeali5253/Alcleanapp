@@ -6,7 +6,6 @@ import {
   signInWithPopup,
   signInWithCredential,
   GoogleAuthProvider,
-  FacebookAuthProvider,
   signOut as firebaseSignOut,
 } from "firebase/auth";
 import { Capacitor } from "@capacitor/core";
@@ -332,61 +331,6 @@ class AuthService {
       console.error("[Auth] Google login error:", error.message || error);
       toast.error(error.message || "Failed to start Google login");
       return { success: false, error: error.message || "Failed to start Google login" };
-    }
-  }
-
-  // Facebook login with Firebase
-  async facebookLogin(forceOverride = false): Promise<SocialLoginResult> {
-    console.log("[Auth] Starting Facebook login");
-    try {
-      const auth = getFirebaseAuth();
-      if (!auth) {
-        throw new Error("Firebase Auth not available");
-      }
-
-      let accessToken: string | undefined;
-
-      if (Capacitor.isNativePlatform()) {
-        await this.clearNativeGoogleSession(auth);
-
-        const result = await FirebaseAuthentication.signInWithFacebook();
-        accessToken = result.credential?.accessToken;
-
-        if (!accessToken) {
-          throw new Error("No Facebook access token received");
-        }
-
-        const credential = FacebookAuthProvider.credential(accessToken);
-        await signInWithCredential(auth, credential);
-      } else {
-        const provider = new FacebookAuthProvider();
-        provider.setCustomParameters({ display: "popup" });
-
-        const result = await signInWithPopup(auth, provider);
-        const credential = FacebookAuthProvider.credentialFromResult(result);
-        accessToken = credential?.accessToken || undefined;
-
-        if (!accessToken) {
-          throw new Error("No Facebook access token received");
-        }
-      }
-
-      const result = await this.finishSocialLogin(
-        auth,
-        "/api/auth/facebook-login",
-        { accessToken, forceOverride },
-      );
-      if (result.success) {
-        toast.success("Logged in with Facebook successfully!");
-      }
-      return result;
-    } catch (error: any) {
-      console.error("[Auth] Facebook login error:", error.message || error);
-      toast.error(error.message || "Failed to start Facebook login");
-      return {
-        success: false,
-        error: error.message || "Failed to start Facebook login",
-      };
     }
   }
 
