@@ -33,7 +33,6 @@ import { Home } from "./components/Home";
 import { Capacitor } from "@capacitor/core";
 import { App as CapApp } from "@capacitor/app";
 import { Browser } from "@capacitor/browser";
-import { StatusBar, Style } from "@capacitor/status-bar";
 import { toast } from "sonner";
 import { getRedirectResult, GoogleAuthProvider } from "firebase/auth";
 import { getFirebaseAuth } from "./lib/firebase-config";
@@ -51,9 +50,6 @@ function AppContent() {
       await notificationService.initialize();
 
       if (Capacitor.isNativePlatform()) {
-        StatusBar.setOverlaysWebView({ overlay: true });
-        StatusBar.setStyle({ style: Style.Light });
-
         // Request push notification permission (shows Android system dialog)
         // This will get FCM token if user allows
         setTimeout(async () => {
