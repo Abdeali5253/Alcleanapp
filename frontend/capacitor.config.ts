@@ -28,7 +28,7 @@ const config: CapacitorConfig = {
       providers: ["google.com"],
       googleClientIds: [
         "310536726569-kp1kugnvltrp06qsdjcfih2vph97un9p.apps.googleusercontent.com",
-        "310536726569-a149jog5uamvb1vr35l1oblv4rci5kbq.apps.googleusercontent.com",
+        "310536726569-4ol0gv68fp40a9vql6u18ug422sej430.apps.googleusercontent.com",
       ],
     },
   },

@@ -130,6 +130,24 @@ async function createCustomer(
   return response.customer;
 }
 
+// Set customer password (used to enable Google login for existing non-enabled customers)
+async function setCustomerPassword(
+  customerId: string | number,
+  password: string,
+): Promise<any> {
+  const response = await shopifyAdminFetch(`/customers/${customerId}.json`, {
+    method: "PUT",
+    body: JSON.stringify({
+      customer: {
+        id: customerId,
+        password,
+        password_confirmation: password,
+      },
+    }),
+  });
+  return response.customer;
+}
+
 // Transform Shopify customer to our User type
 function transformCustomer(customer: any): any {
   return {
@@ -593,12 +611,78 @@ router.post("/google-login", async (req: Request, res: Response) => {
         const errors = data.customerAccessTokenCreate.customerUserErrors
           .map((e: any) => e.message)
           .join(", ");
-        console.error(
-          `[Auth] Google login failed for existing user ${email}: ${errors}`,
+        console.error(`[Auth] Initial Google login failed for ${email}: ${errors}`);
+
+        const state = (existingCustomer.state || "").toLowerCase();
+        const canSetPassword =
+          state === "disabled" || state === "invited" || state === "declined";
+
+        if (!canSetPassword) {
+          return res.status(400).json({
+            success: false,
+            error:
+              "This email already has a password-based account. Please login with password once, then use Google with a different email if needed.",
+          });
+        }
+
+        console.log(
+          `[Auth] Customer state is '${state}'. Setting password and retrying Google login for ${email}`,
         );
-        return res.status(400).json({
-          success: false,
-          error: "Customer already exists. Please use password login.",
+
+        await setCustomerPassword(existingCustomer.id, googlePassword);
+
+        const retryData = await shopifyFetch<{
+          customerAccessTokenCreate: {
+            customerAccessToken: any;
+            customerUserErrors: any[];
+          };
+        }>(mutation, variables);
+
+        if (retryData.customerAccessTokenCreate.customerUserErrors?.length > 0) {
+          const retryErrors = retryData.customerAccessTokenCreate.customerUserErrors
+            .map((e: any) => e.message)
+            .join(", ");
+          console.error(
+            `[Auth] Google login retry failed for existing user ${email}: ${retryErrors}`,
+          );
+          return res.status(400).json({
+            success: false,
+            error: retryErrors || "Failed to login with Google",
+          });
+        }
+
+        const retryAccessToken =
+          retryData.customerAccessTokenCreate.customerAccessToken.accessToken;
+
+        const customerQuery = `
+          query getCustomer($customerAccessToken: String!) {
+            customer(customerAccessToken: $customerAccessToken) {
+              id
+              email
+              firstName
+              lastName
+              phone
+            }
+          }
+        `;
+
+        const customerData = await shopifyFetch<{ customer: any }>(
+          customerQuery,
+          {
+            customerAccessToken: retryAccessToken,
+          },
+        );
+        const customer = customerData.customer;
+        const user = transformCustomer(customer);
+        user.accessToken = retryAccessToken;
+
+        const duration = Date.now() - startTime;
+        console.log(
+          `[Auth] Google login successful after password set for existing user: ${user.email} (took ${duration}ms)`,
+        );
+        return res.json({
+          success: true,
+          user,
         });
       }
 
