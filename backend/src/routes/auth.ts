@@ -162,6 +162,15 @@ function transformCustomer(customer: any): any {
   };
 }
 
+// Shopify customer password max length is 40 chars.
+function buildSocialPassword(provider: string, providerUserId: string): string {
+  return crypto
+    .createHash("sha256")
+    .update(`${provider}:${providerUserId}`)
+    .digest("hex")
+    .slice(0, 40);
+}
+
 async function createCustomerAccessToken(
   email: string,
   password: string,
@@ -631,11 +640,8 @@ router.post("/google-login", async (req: Request, res: Response) => {
       });
     }
 
-    // Generate password hash from Google ID
-    const googlePassword = crypto
-      .createHash("sha256")
-      .update(googleId)
-      .digest("hex");
+    // Deterministic social password (<= 40 chars for Shopify).
+    const googlePassword = buildSocialPassword("google", googleId);
 
     console.log(`[Auth] Checking if customer exists for email: ${email}`);
 
