@@ -6,6 +6,8 @@ import {
   signInWithPopup,
   signInWithCredential,
   GoogleAuthProvider,
+  FacebookAuthProvider,
+  signOut as firebaseSignOut,
 } from "firebase/auth";
 import { Capacitor } from "@capacitor/core";
 import { FirebaseAuthentication } from "@capacitor-firebase/authentication";
@@ -28,6 +30,12 @@ export interface Order {
   fulfillmentStatus: string;
   totalPrice: { amount: string; currencyCode: string };
   lineItems: any[];
+}
+
+export interface SocialLoginResult {
+  success: boolean;
+  requiresOverride?: boolean;
+  error?: string;
 }
 
 const AUTH_STORAGE_KEY = "alclean_auth";
@@ -88,6 +96,71 @@ class AuthService {
 
   getAccessToken(): string | null {
     return this.user?.accessToken || null;
+  }
+
+  private async clearNativeGoogleSession(auth: any): Promise<void> {
+    try {
+      await FirebaseAuthentication.signOut();
+    } catch (error) {
+      console.log("[Auth] Native signOut skipped:", error);
+    }
+
+    try {
+      await firebaseSignOut(auth);
+    } catch (error) {
+      console.log("[Auth] Firebase signOut skipped:", error);
+    }
+  }
+
+  private async finishSocialLogin(
+    auth: any,
+    endpoint: string,
+    payload: Record<string, any>,
+  ): Promise<SocialLoginResult> {
+    const response = await fetch(`${BACKEND_URL}${endpoint}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const raw = await response.text();
+    let data: any = null;
+    try {
+      data = raw ? JSON.parse(raw) : null;
+    } catch {
+      data = null;
+    }
+
+    if (!response.ok) {
+      const backendError =
+        data?.error || `Social login failed (HTTP ${response.status})`;
+
+      if (Capacitor.isNativePlatform()) {
+        await this.clearNativeGoogleSession(auth);
+      }
+
+      if (data?.code === "ACCOUNT_EXISTS_PASSWORD_LOGIN") {
+        return {
+          success: false,
+          requiresOverride: true,
+          error: backendError,
+        };
+      }
+
+      toast.error(backendError);
+      return { success: false, error: backendError };
+    }
+
+    if (data?.success) {
+      authService.updateUser(data.user);
+      return { success: true };
+    }
+
+    const msg = data?.error || "Social login failed";
+    toast.error(msg);
+    return { success: false, error: msg };
   }
 
   // Sign up with backend API
@@ -165,7 +238,7 @@ class AuthService {
   }
 
   // Google login with Firebase
-  async googleLogin(): Promise<boolean> {
+  async googleLogin(forceOverride = false): Promise<SocialLoginResult> {
     console.log("[Auth] Starting Google login");
     try {
       const auth = getFirebaseAuth();
@@ -182,6 +255,9 @@ class AuthService {
         console.log("[Auth] Starting native Google sign-in");
 
         try {
+          // Force account picker instead of silently reusing last Google account.
+          await this.clearNativeGoogleSession(auth);
+
           // Sign in with Google using native SDK
           const result = await FirebaseAuthentication.signInWithGoogle({
             // Credential Manager can fail on some emulators with
@@ -208,7 +284,7 @@ class AuthService {
             nativeError.message?.includes("cancelled")
           ) {
             toast.info("Login cancelled");
-            return false;
+            return { success: false };
           }
           throw nativeError;
         }
@@ -230,13 +306,13 @@ class AuthService {
           if (popupError.code === "auth/popup-closed-by-user") {
             console.log("[Auth] Popup closed by user");
             toast.info("Login cancelled");
-            return false;
+            return { success: false };
           } else if (popupError.code === "auth/popup-blocked") {
             console.error("[Auth] Popup blocked by browser");
             toast.error(
               "Please allow popups for this site to use Google login",
             );
-            return false;
+            return { success: false };
           }
           throw popupError;
         }
@@ -244,46 +320,73 @@ class AuthService {
 
       // Send ID token to backend
       console.log("[Auth] Sending ID token to backend");
-      const response = await fetch(`${BACKEND_URL}/api/auth/google-login`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ idToken }),
+      const result = await this.finishSocialLogin(auth, "/api/auth/google-login", {
+        idToken,
+        forceOverride,
       });
-
-      const raw = await response.text();
-      let data: any = null;
-      try {
-        data = raw ? JSON.parse(raw) : null;
-      } catch {
-        data = null;
-      }
-
-      if (!response.ok) {
-        const backendError =
-          data?.error ||
-          `Google login failed (HTTP ${response.status})`;
-        console.error("[Auth] Google backend error:", {
-          status: response.status,
-          body: raw,
-        });
-        toast.error(backendError);
-        return false;
-      }
-
-      if (data.success) {
-        authService.updateUser(data.user);
+      if (result.success) {
         toast.success("Logged in with Google successfully!");
-        return true;
-      } else {
-        toast.error(data.error || "Failed to login with Google");
-        return false;
       }
+      return result;
     } catch (error: any) {
       console.error("[Auth] Google login error:", error.message || error);
       toast.error(error.message || "Failed to start Google login");
-      return false;
+      return { success: false, error: error.message || "Failed to start Google login" };
+    }
+  }
+
+  // Facebook login with Firebase
+  async facebookLogin(forceOverride = false): Promise<SocialLoginResult> {
+    console.log("[Auth] Starting Facebook login");
+    try {
+      const auth = getFirebaseAuth();
+      if (!auth) {
+        throw new Error("Firebase Auth not available");
+      }
+
+      let accessToken: string | undefined;
+
+      if (Capacitor.isNativePlatform()) {
+        await this.clearNativeGoogleSession(auth);
+
+        const result = await FirebaseAuthentication.signInWithFacebook();
+        accessToken = result.credential?.accessToken;
+
+        if (!accessToken) {
+          throw new Error("No Facebook access token received");
+        }
+
+        const credential = FacebookAuthProvider.credential(accessToken);
+        await signInWithCredential(auth, credential);
+      } else {
+        const provider = new FacebookAuthProvider();
+        provider.setCustomParameters({ display: "popup" });
+
+        const result = await signInWithPopup(auth, provider);
+        const credential = FacebookAuthProvider.credentialFromResult(result);
+        accessToken = credential?.accessToken || undefined;
+
+        if (!accessToken) {
+          throw new Error("No Facebook access token received");
+        }
+      }
+
+      const result = await this.finishSocialLogin(
+        auth,
+        "/api/auth/facebook-login",
+        { accessToken, forceOverride },
+      );
+      if (result.success) {
+        toast.success("Logged in with Facebook successfully!");
+      }
+      return result;
+    } catch (error: any) {
+      console.error("[Auth] Facebook login error:", error.message || error);
+      toast.error(error.message || "Failed to start Facebook login");
+      return {
+        success: false,
+        error: error.message || "Failed to start Facebook login",
+      };
     }
   }
 

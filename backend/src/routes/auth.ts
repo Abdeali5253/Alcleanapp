@@ -162,6 +162,75 @@ function transformCustomer(customer: any): any {
   };
 }
 
+async function createCustomerAccessToken(
+  email: string,
+  password: string,
+): Promise<{ accessToken?: string; errors?: string }> {
+  const mutation = `
+    mutation customerAccessTokenCreate($input: CustomerAccessTokenCreateInput!) {
+      customerAccessTokenCreate(input: $input) {
+        customerAccessToken {
+          accessToken
+          expiresAt
+        }
+        customerUserErrors {
+          field
+          message
+        }
+      }
+    }
+  `;
+
+  const variables = {
+    input: {
+      email,
+      password,
+    },
+  };
+
+  const data = await shopifyFetch<{
+    customerAccessTokenCreate: {
+      customerAccessToken: any;
+      customerUserErrors: any[];
+    };
+  }>(mutation, variables);
+
+  if (data.customerAccessTokenCreate.customerUserErrors?.length > 0) {
+    return {
+      errors: data.customerAccessTokenCreate.customerUserErrors
+        .map((e: any) => e.message)
+        .join(", "),
+    };
+  }
+
+  return {
+    accessToken: data.customerAccessTokenCreate.customerAccessToken.accessToken,
+  };
+}
+
+async function getUserByCustomerAccessToken(accessToken: string): Promise<any> {
+  const customerQuery = `
+    query getCustomer($customerAccessToken: String!) {
+      customer(customerAccessToken: $customerAccessToken) {
+        id
+        email
+        firstName
+        lastName
+        phone
+      }
+    }
+  `;
+
+  const customerData = await shopifyFetch<{ customer: any }>(customerQuery, {
+    customerAccessToken: accessToken,
+  });
+
+  const customer = customerData.customer;
+  const user = transformCustomer(customer);
+  user.accessToken = accessToken;
+  return user;
+}
+
 /**
  * POST /api/auth/signup
  * Customer signup
@@ -490,7 +559,7 @@ router.post("/google-login", async (req: Request, res: Response) => {
   console.log(`[Auth] Google login attempt started`);
 
   try {
-    const { idToken } = req.body;
+    const { idToken, forceOverride = false } = req.body;
 
     if (!idToken) {
       console.error(`[Auth] Google login failed: ID token is required`);
@@ -576,72 +645,35 @@ router.post("/google-login", async (req: Request, res: Response) => {
       console.log(
         `[Auth] Existing customer found, attempting Google login for: ${email}`,
       );
+      const firstTry = await createCustomerAccessToken(email, googlePassword);
 
-      // Try to login with Google password
-      const mutation = `
-        mutation customerAccessTokenCreate($input: CustomerAccessTokenCreateInput!) {
-          customerAccessTokenCreate(input: $input) {
-            customerAccessToken {
-              accessToken
-              expiresAt
-            }
-            customerUserErrors {
-              field
-              message
-            }
-          }
-        }
-      `;
-
-      const variables = {
-        input: {
-          email,
-          password: googlePassword,
-        },
-      };
-
-      const data = await shopifyFetch<{
-        customerAccessTokenCreate: {
-          customerAccessToken: any;
-          customerUserErrors: any[];
-        };
-      }>(mutation, variables);
-
-      if (data.customerAccessTokenCreate.customerUserErrors?.length > 0) {
-        const errors = data.customerAccessTokenCreate.customerUserErrors
-          .map((e: any) => e.message)
-          .join(", ");
+      if (!firstTry.accessToken) {
+        const errors = firstTry.errors || "Unidentified customer";
         console.error(`[Auth] Initial Google login failed for ${email}: ${errors}`);
 
         const state = (existingCustomer.state || "").toLowerCase();
         const canSetPassword =
           state === "disabled" || state === "invited" || state === "declined";
+        const shouldOverride = canSetPassword || Boolean(forceOverride);
 
-        if (!canSetPassword) {
-          return res.status(400).json({
+        if (!shouldOverride) {
+          return res.status(409).json({
             success: false,
+            code: "ACCOUNT_EXISTS_PASSWORD_LOGIN",
             error:
-              "This email already has a password-based account. Please login with password once, then use Google with a different email if needed.",
+              "This email already has a password account. Use password login, or confirm override to switch this account to Google login.",
           });
         }
 
         console.log(
-          `[Auth] Customer state is '${state}'. Setting password and retrying Google login for ${email}`,
+          `[Auth] Customer state is '${state}'. Overriding password and retrying Google login for ${email}`,
         );
 
         await setCustomerPassword(existingCustomer.id, googlePassword);
+        const retry = await createCustomerAccessToken(email, googlePassword);
 
-        const retryData = await shopifyFetch<{
-          customerAccessTokenCreate: {
-            customerAccessToken: any;
-            customerUserErrors: any[];
-          };
-        }>(mutation, variables);
-
-        if (retryData.customerAccessTokenCreate.customerUserErrors?.length > 0) {
-          const retryErrors = retryData.customerAccessTokenCreate.customerUserErrors
-            .map((e: any) => e.message)
-            .join(", ");
+        if (!retry.accessToken) {
+          const retryErrors = retry.errors || "Unidentified customer";
           console.error(
             `[Auth] Google login retry failed for existing user ${email}: ${retryErrors}`,
           );
@@ -651,30 +683,7 @@ router.post("/google-login", async (req: Request, res: Response) => {
           });
         }
 
-        const retryAccessToken =
-          retryData.customerAccessTokenCreate.customerAccessToken.accessToken;
-
-        const customerQuery = `
-          query getCustomer($customerAccessToken: String!) {
-            customer(customerAccessToken: $customerAccessToken) {
-              id
-              email
-              firstName
-              lastName
-              phone
-            }
-          }
-        `;
-
-        const customerData = await shopifyFetch<{ customer: any }>(
-          customerQuery,
-          {
-            customerAccessToken: retryAccessToken,
-          },
-        );
-        const customer = customerData.customer;
-        const user = transformCustomer(customer);
-        user.accessToken = retryAccessToken;
+        const user = await getUserByCustomerAccessToken(retry.accessToken);
 
         const duration = Date.now() - startTime;
         console.log(
@@ -685,32 +694,7 @@ router.post("/google-login", async (req: Request, res: Response) => {
           user,
         });
       }
-
-      const accessToken =
-        data.customerAccessTokenCreate.customerAccessToken.accessToken;
-
-      // Get customer details
-      const customerQuery = `
-        query getCustomer($customerAccessToken: String!) {
-          customer(customerAccessToken: $customerAccessToken) {
-            id
-            email
-            firstName
-            lastName
-            phone
-          }
-        }
-      `;
-
-      const customerData = await shopifyFetch<{ customer: any }>(
-        customerQuery,
-        {
-          customerAccessToken: accessToken,
-        },
-      );
-      const customer = customerData.customer;
-      const user = transformCustomer(customer);
-      user.accessToken = accessToken;
+      const user = await getUserByCustomerAccessToken(firstTry.accessToken);
 
       const duration = Date.now() - startTime;
       console.log(
@@ -735,40 +719,10 @@ router.post("/google-login", async (req: Request, res: Response) => {
 
       console.log(`[Auth] New customer created: ${email}, logging in`);
 
-      // Login with the Google password to get access token
-      const mutation = `
-        mutation customerAccessTokenCreate($input: CustomerAccessTokenCreateInput!) {
-          customerAccessTokenCreate(input: $input) {
-            customerAccessToken {
-              accessToken
-              expiresAt
-            }
-            customerUserErrors {
-              field
-              message
-            }
-          }
-        }
-      `;
+      const login = await createCustomerAccessToken(email, googlePassword);
 
-      const variables = {
-        input: {
-          email,
-          password: googlePassword,
-        },
-      };
-
-      const data = await shopifyFetch<{
-        customerAccessTokenCreate: {
-          customerAccessToken: any;
-          customerUserErrors: any[];
-        };
-      }>(mutation, variables);
-
-      if (data.customerAccessTokenCreate.customerUserErrors?.length > 0) {
-        const errors = data.customerAccessTokenCreate.customerUserErrors
-          .map((e: any) => e.message)
-          .join(", ");
+      if (!login.accessToken) {
+        const errors = login.errors || "Unidentified customer";
         console.error(
           `[Auth] Google signup failed during login for new user ${email}: ${errors}`,
         );
@@ -778,11 +732,8 @@ router.post("/google-login", async (req: Request, res: Response) => {
         });
       }
 
-      const accessToken =
-        data.customerAccessTokenCreate.customerAccessToken.accessToken;
-
       const user = transformCustomer(newCustomer);
-      user.accessToken = accessToken;
+      user.accessToken = login.accessToken;
 
       const duration = Date.now() - startTime;
       console.log(
@@ -802,6 +753,135 @@ router.post("/google-login", async (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       error: error.message || "Failed to login with Google",
+    });
+  }
+});
+
+/**
+ * POST /api/auth/facebook-login
+ * Facebook login
+ */
+router.post("/facebook-login", async (req: Request, res: Response) => {
+  const startTime = Date.now();
+  console.log(`[Auth] Facebook login attempt started`);
+
+  try {
+    const { accessToken, forceOverride = false } = req.body;
+
+    if (!accessToken) {
+      return res.status(400).json({
+        success: false,
+        error: "Facebook access token is required",
+      });
+    }
+
+    const profileResp = await fetch(
+      `https://graph.facebook.com/me?fields=id,email,first_name,last_name&access_token=${encodeURIComponent(accessToken)}`,
+    );
+    const profile: any = await profileResp.json();
+
+    if (!profileResp.ok || profile?.error) {
+      return res.status(401).json({
+        success: false,
+        error: profile?.error?.message || "Invalid Facebook token",
+      });
+    }
+
+    const email = profile.email;
+    const firstName = profile.first_name || "";
+    const lastName = profile.last_name || "";
+    const facebookId = profile.id;
+
+    if (!email || !facebookId) {
+      return res.status(400).json({
+        success: false,
+        error:
+          "Facebook account email is required. Please allow email permission and try again.",
+      });
+    }
+
+    const socialPassword = crypto
+      .createHash("sha256")
+      .update(`facebook:${facebookId}`)
+      .digest("hex");
+
+    const existingCustomer = await findCustomerByEmail(email);
+
+    if (existingCustomer) {
+      const firstTry = await createCustomerAccessToken(email, socialPassword);
+      if (!firstTry.accessToken) {
+        const state = (existingCustomer.state || "").toLowerCase();
+        const canSetPassword =
+          state === "disabled" || state === "invited" || state === "declined";
+        const shouldOverride = canSetPassword || Boolean(forceOverride);
+
+        if (!shouldOverride) {
+          return res.status(409).json({
+            success: false,
+            code: "ACCOUNT_EXISTS_PASSWORD_LOGIN",
+            error:
+              "This email already has a password account. Use password login, or confirm override to switch this account to Facebook login.",
+          });
+        }
+
+        await setCustomerPassword(existingCustomer.id, socialPassword);
+        const retry = await createCustomerAccessToken(email, socialPassword);
+
+        if (!retry.accessToken) {
+          return res.status(400).json({
+            success: false,
+            error: retry.errors || "Failed to login with Facebook",
+          });
+        }
+
+        const user = await getUserByCustomerAccessToken(retry.accessToken);
+        const duration = Date.now() - startTime;
+        console.log(
+          `[Auth] Facebook login successful after override for existing user: ${user.email} (${duration}ms)`,
+        );
+        return res.json({ success: true, user });
+      }
+
+      const user = await getUserByCustomerAccessToken(firstTry.accessToken);
+      const duration = Date.now() - startTime;
+      console.log(
+        `[Auth] Facebook login successful for existing user: ${user.email} (${duration}ms)`,
+      );
+      return res.json({ success: true, user });
+    }
+
+    const newCustomer = await createCustomer(
+      email,
+      firstName,
+      lastName,
+      socialPassword,
+    );
+    const login = await createCustomerAccessToken(email, socialPassword);
+
+    if (!login.accessToken) {
+      return res.status(401).json({
+        success: false,
+        error: login.errors || "Failed to login with Facebook",
+      });
+    }
+
+    const user = transformCustomer(newCustomer);
+    user.accessToken = login.accessToken;
+
+    const duration = Date.now() - startTime;
+    console.log(
+      `[Auth] Facebook signup successful for new user: ${user.email} (${duration}ms)`,
+    );
+    return res.json({ success: true, user });
+  } catch (error: any) {
+    const duration = Date.now() - startTime;
+    console.error(
+      `[Auth] Facebook login/signup error after ${duration}ms:`,
+      error.message || error,
+    );
+    return res.status(500).json({
+      success: false,
+      error: error.message || "Failed to login with Facebook",
     });
   }
 });
