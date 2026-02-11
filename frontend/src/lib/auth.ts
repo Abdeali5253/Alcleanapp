@@ -3,11 +3,12 @@ import { toast } from "sonner";
 import { BACKEND_URL } from "./base-url";
 import { getFirebaseAuth } from "./firebase-config";
 import {
-  signInWithRedirect,
   signInWithPopup,
+  signInWithCredential,
   GoogleAuthProvider,
 } from "firebase/auth";
 import { Capacitor } from "@capacitor/core";
+import { FirebaseAuthentication } from "@capacitor-firebase/authentication";
 
 export interface User {
   id: string;
@@ -164,7 +165,7 @@ class AuthService {
   }
 
   // Google login with Firebase
-  async googleLogin(): Promise<void> {
+  async googleLogin(): Promise<boolean> {
     console.log("[Auth] Starting Google login");
     try {
       const auth = getFirebaseAuth();
@@ -173,49 +174,97 @@ class AuthService {
         throw new Error("Firebase Auth not available");
       }
 
-      console.log("[Auth] Firebase Auth available, creating provider");
-      const provider = new GoogleAuthProvider();
+      let idToken: string;
 
       if (Capacitor.isNativePlatform()) {
-        // For mobile, set redirect URL to custom scheme to avoid localhost redirect
-        (auth as any).settings = (auth as any).settings || {};
-        (auth as any).settings.redirectUrl = "com.alclean.app://account";
+        // For native platforms, use Capacitor Firebase Authentication plugin
+        // This uses the native Google Sign-In SDK for a seamless experience
+        console.log("[Auth] Starting native Google sign-in");
 
-        console.log("[Auth] Starting Google redirect");
+        try {
+          // Sign in with Google using native SDK
+          const result = await FirebaseAuthentication.signInWithGoogle({
+            // Credential Manager can fail on some emulators with
+            // "no credentials available". Fallback to legacy API.
+            useCredentialManager: false,
+          });
+          console.log("[Auth] Native Google sign-in result:", result);
 
-        await signInWithRedirect(auth, provider);
-        // The redirect will happen, result handled in App.tsx
-      } else {
-        // For web, use popup to avoid redirect issues
-        console.log("[Auth] Starting Google popup");
+          if (!result.credential?.idToken) {
+            throw new Error("No ID token received from Google sign-in");
+          }
 
-        const result = await signInWithPopup(auth, provider);
-        const user = result.user;
-        const idToken = await user.getIdToken();
+          idToken = result.credential.idToken;
 
-        // Send to backend
-        const response = await fetch(`${BACKEND_URL}/api/auth/google-login`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            idToken,
-          }),
-        });
+          // Also sign in to Firebase Auth for consistency
+          const credential = GoogleAuthProvider.credential(idToken);
+          await signInWithCredential(auth, credential);
 
-        const data = await response.json();
-        if (data.success) {
-          // Login successful
-          authService.updateUser(data.user);
-          toast.success("Logged in with Google successfully!");
-        } else {
-          toast.error(data.error || "Failed to login with Google");
+          console.log("[Auth] Native Google sign-in successful");
+        } catch (nativeError: any) {
+          console.error("[Auth] Native Google sign-in error:", nativeError);
+          if (
+            nativeError.message?.includes("canceled") ||
+            nativeError.message?.includes("cancelled")
+          ) {
+            toast.info("Login cancelled");
+            return false;
+          }
+          throw nativeError;
         }
+      } else {
+        // For web, use popup
+        console.log("[Auth] Starting web Google popup sign-in");
+        const provider = new GoogleAuthProvider();
+        provider.setCustomParameters({ prompt: "select_account" });
+
+        try {
+        const result = await signInWithPopup(auth, provider);
+        const credential = GoogleAuthProvider.credentialFromResult(result);
+        if (!credential?.idToken) {
+          throw new Error("No Google ID token received from popup sign-in");
+        }
+        idToken = credential.idToken;
+        console.log("[Auth] Web Google sign-in successful");
+        } catch (popupError: any) {
+          if (popupError.code === "auth/popup-closed-by-user") {
+            console.log("[Auth] Popup closed by user");
+            toast.info("Login cancelled");
+            return false;
+          } else if (popupError.code === "auth/popup-blocked") {
+            console.error("[Auth] Popup blocked by browser");
+            toast.error(
+              "Please allow popups for this site to use Google login",
+            );
+            return false;
+          }
+          throw popupError;
+        }
+      }
+
+      // Send ID token to backend
+      console.log("[Auth] Sending ID token to backend");
+      const response = await fetch(`${BACKEND_URL}/api/auth/google-login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ idToken }),
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        authService.updateUser(data.user);
+        toast.success("Logged in with Google successfully!");
+        return true;
+      } else {
+        toast.error(data.error || "Failed to login with Google");
+        return false;
       }
     } catch (error: any) {
       console.error("[Auth] Google login error:", error.message || error);
       toast.error(error.message || "Failed to start Google login");
+      return false;
     }
   }
 

@@ -35,7 +35,7 @@ import { App as CapApp } from "@capacitor/app";
 import { Browser } from "@capacitor/browser";
 import { StatusBar, Style } from "@capacitor/status-bar";
 import { toast } from "sonner";
-import { getRedirectResult } from "firebase/auth";
+import { getRedirectResult, GoogleAuthProvider } from "firebase/auth";
 import { getFirebaseAuth } from "./lib/firebase-config";
 import { BACKEND_URL } from "./lib/base-url";
 import { authService } from "./lib/auth";
@@ -85,8 +85,11 @@ function AppContent() {
           const result = await getRedirectResult(auth);
           if (result) {
             console.log("[App] Firebase redirect result:", result);
-            const user = result.user;
-            const idToken = await user.getIdToken();
+            const credential = GoogleAuthProvider.credentialFromResult(result);
+            if (!credential?.idToken) {
+              throw new Error("No Google ID token received from redirect");
+            }
+            const idToken = credential.idToken;
 
             // Send to backend
             const response = await fetch(
@@ -107,17 +110,27 @@ function AppContent() {
               // Login successful
               authService.updateUser(data.user);
               toast.success("Logged in with Google successfully!");
+
               // Close the browser after successful auth
-              try {
-                await Browser.close();
-              } catch {}
-              navigate("/account");
+              if (Capacitor.isNativePlatform()) {
+                try {
+                  await Browser.close();
+                } catch {}
+              }
+
+              // Match email/password flow by honoring redirectAfterLogin first.
+              const redirectPath = authService.getRedirectAfterLogin();
+              navigate(redirectPath || "/account", { replace: true });
             } else {
               toast.error(data.error || "Failed to login with Google");
             }
           }
         } catch (error: any) {
           console.error("[App] Firebase redirect error:", error);
+          // If there's an error, still try to navigate to account if we're on /accounts
+          if (window.location.hash === "#/accounts") {
+            navigate("/account", { replace: true });
+          }
         }
       }
     };
@@ -152,33 +165,50 @@ function AppContent() {
 
         // Handle Google auth redirect for mobile
         if (
-          (u.protocol === "https" &&
-            (u.hostname === "capacitor.com.alclean.app" ||
-              u.hostname === "app-notification-5e56b.firebaseapp.com" ||
-              u.hostname === "localhost") &&
+          (u.protocol === "https:" &&
+            u.hostname === "app-notification-5e56b.firebaseapp.com" &&
+            (u.pathname === "/__/auth/handler" ||
+              u.pathname === "/__/auth/callback")) ||
+          (u.protocol === "https:" &&
+            u.hostname === "capacitor.com.alclean.app" &&
             u.pathname === "/__/auth/handler") ||
-          (u.protocol === "http" &&
+          (u.protocol === "http:" &&
             u.hostname === "localhost" &&
-            u.hash === "#/account") ||
-          u.protocol === "com.alclean.app"
+            (u.hash === "#/account" || u.hash === "#/accounts")) ||
+          u.protocol === "com.alclean.app:"
         ) {
-          // Auth redirect handled by getRedirectResult in useEffect
+          console.log(
+            "[DeepLink] OAuth redirect detected, closing browser and waiting for auth result",
+          );
+
+          // Close browser if open
+          try {
+            await Browser.close();
+          } catch (e) {
+            console.log(
+              "[DeepLink] Browser close error (may already be closed):",
+              e,
+            );
+          }
+
+          // Wait a moment for Firebase to process the redirect result
+          setTimeout(() => {
+            // Check if user is now logged in
+            const user = authService.getUser();
+            if (user) {
+              console.log("[DeepLink] User logged in, navigating to account");
+              navigate("/account", { replace: true });
+            } else {
+              console.log("[DeepLink] Waiting for auth to complete...");
+              // The getRedirectResult in initApp will handle the navigation
+            }
+          }, 1000);
           return;
         }
 
         // Handle custom scheme redirect after auth
         if (u.protocol === "com.alclean.app" && u.pathname === "/account") {
-          navigate("/account");
-          return;
-        }
-
-        // Handle web redirect to /accounts (if misconfigured)
-        if (
-          u.protocol === "http" &&
-          u.hostname === "localhost" &&
-          u.hash === "#/accounts"
-        ) {
-          // Auth redirect handled by getRedirectResult
+          navigate("/account", { replace: true });
           return;
         }
       } catch (e) {

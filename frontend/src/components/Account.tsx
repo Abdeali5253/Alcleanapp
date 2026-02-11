@@ -172,10 +172,16 @@ export function Account() {
     setIsLoggingIn(true);
 
     try {
-      await authService.googleLogin();
-      // The redirect will happen, result handled in App.tsx
+      const success = await authService.googleLogin();
+      if (success) {
+        const redirectPath = authService.getRedirectAfterLogin();
+        if (redirectPath) {
+          navigate(redirectPath);
+        }
+      }
     } catch (error: any) {
       toast.error(error.message || "Google login failed. Please try again.");
+    } finally {
       setIsLoggingIn(false);
     }
   };

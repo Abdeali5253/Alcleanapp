@@ -47,6 +47,16 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="alclean" />
             </intent-filter>
+
+            <!-- Firebase OAuth redirect handler -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" />
+                <data android:host="app-notification-5e56b.firebaseapp.com" />
+                <data android:pathPrefix="/__/auth/callback" />
+            </intent-filter>
         </activity>
 
         <!-- Firebase Cloud Messaging Service -->
