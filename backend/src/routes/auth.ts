@@ -493,12 +493,31 @@ router.post("/google-login", async (req: Request, res: Response) => {
             .filter(Boolean)
         : [process.env.GOOGLE_CLIENT_ID].filter(Boolean)
     ) as string[];
+    console.log(
+      `[Auth] Google verification audiences configured: ${validAudiences.length}`,
+    );
 
-    const ticket = await client.verifyIdToken({
-      idToken,
-      audience: validAudiences,
-    });
-    const payload = ticket.getPayload();
+    let payload: any;
+    try {
+      const verifyOptions: any = { idToken };
+      if (validAudiences.length > 0) {
+        verifyOptions.audience = validAudiences;
+      }
+      const ticket = await client.verifyIdToken(verifyOptions);
+      payload = ticket.getPayload();
+    } catch (verifyError: any) {
+      console.error(
+        `[Auth] Google token verification failed:`,
+        verifyError?.message || verifyError,
+      );
+      return res.status(401).json({
+        success: false,
+        error:
+          validAudiences.length > 0
+            ? `Google token verification failed. Check GOOGLE_CLIENT_IDS. ${verifyError?.message || ""}`.trim()
+            : `Google token verification failed. GOOGLE_CLIENT_IDS is not configured on backend. ${verifyError?.message || ""}`.trim(),
+      });
+    }
 
     if (!payload) {
       console.error(`[Auth] Google login failed: Invalid ID token`);

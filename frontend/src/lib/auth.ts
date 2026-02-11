@@ -252,7 +252,26 @@ class AuthService {
         body: JSON.stringify({ idToken }),
       });
 
-      const data = await response.json();
+      const raw = await response.text();
+      let data: any = null;
+      try {
+        data = raw ? JSON.parse(raw) : null;
+      } catch {
+        data = null;
+      }
+
+      if (!response.ok) {
+        const backendError =
+          data?.error ||
+          `Google login failed (HTTP ${response.status})`;
+        console.error("[Auth] Google backend error:", {
+          status: response.status,
+          body: raw,
+        });
+        toast.error(backendError);
+        return false;
+      }
+
       if (data.success) {
         authService.updateUser(data.user);
         toast.success("Logged in with Google successfully!");
