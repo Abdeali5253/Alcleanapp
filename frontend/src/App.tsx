@@ -30,7 +30,7 @@ import { BackendTestPage } from "./components/BackendTestPage";
 import { Toaster } from "./components/ui/sonner";
 import { notificationService } from "./lib/notifications";
 import { Home } from "./components/Home";
-import { Capacitor } from "@capacitor/core";
+import { Capacitor, registerPlugin } from "@capacitor/core";
 import { App as CapApp } from "@capacitor/app";
 import { Browser } from "@capacitor/browser";
 import { toast } from "sonner";
@@ -38,6 +38,15 @@ import { getRedirectResult, GoogleAuthProvider } from "firebase/auth";
 import { getFirebaseAuth } from "./lib/firebase-config";
 import { BACKEND_URL } from "./lib/base-url";
 import { authService } from "./lib/auth";
+
+type StatusBarStyle = "DARK" | "LIGHT" | "DEFAULT";
+interface StatusBarPlugin {
+  setOverlaysWebView(options: { overlay: boolean }): Promise<void>;
+  setStyle(options: { style: StatusBarStyle }): Promise<void>;
+  setBackgroundColor(options: { color: string }): Promise<void>;
+}
+
+const StatusBar = registerPlugin<StatusBarPlugin>("StatusBar");
 
 function AppContent() {
   const navigate = useNavigate();
@@ -50,6 +59,14 @@ function AppContent() {
       await notificationService.initialize();
 
       if (Capacitor.isNativePlatform()) {
+        try {
+          await StatusBar.setOverlaysWebView({ overlay: false });
+          await StatusBar.setStyle({ style: "DARK" });
+          await StatusBar.setBackgroundColor({ color: "#ffffffff" });
+        } catch (e) {
+          console.log("[App] StatusBar setup skipped:", e);
+        }
+
         // Request push notification permission (shows Android system dialog)
         // This will get FCM token if user allows
         setTimeout(async () => {
