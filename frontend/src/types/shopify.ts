@@ -18,6 +18,7 @@ export interface Product {
   lowStock: boolean;
 
   description: string;
+  descriptionHtml?: string;
   tags: string[];
 
   productType: string;

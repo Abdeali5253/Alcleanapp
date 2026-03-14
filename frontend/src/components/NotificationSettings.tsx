@@ -7,8 +7,6 @@ import {
   Tag,
   Sparkles,
   Truck,
-  TestTube,
-  Clock,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "./ui/button";
@@ -26,45 +24,29 @@ export function NotificationSettings() {
     newProducts: true,
     deliveryAlerts: true,
   });
-
-  const [permission, setPermission] = useState<"granted" | "denied" | "default">("default");
+  const [permission, setPermission] = useState<
+    "granted" | "denied" | "default"
+  >("default");
   const [fcmToken, setFcmToken] = useState<string | null>(null);
+  const [isEnabling, setIsEnabling] = useState(false);
   const isNative = Capacitor.isNativePlatform();
 
-  const [isEnabling, setIsEnabling] = useState(false);
-
   useEffect(() => {
-    // Load current settings
-    const currentSettings = notificationService.getSettings();
-    setSettings(currentSettings);
+    setSettings(notificationService.getSettings());
 
-    // Check permission
     const checkPermission = async () => {
       try {
         const perm = await notificationService.checkPermission();
-        console.log("[NotificationSettings] Permission status:", perm);
         setPermission(perm);
-        
+
         const token = notificationService.getFCMToken();
         setFcmToken(token);
-        
-        // If permission was granted externally (from Android settings), 
-        // try to register for push automatically
+
         if (perm === "granted" && !token && isNative) {
-          console.log("[NotificationSettings] Permission granted but no token, registering...");
-          try {
-            await notificationService.requestPermission();
-            // Check again after a delay
-            setTimeout(() => {
-              const newToken = notificationService.getFCMToken();
-              if (newToken) {
-                setFcmToken(newToken);
-                console.log("[NotificationSettings] Got FCM token after registration");
-              }
-            }, 2000);
-          } catch (e) {
-            console.error("[NotificationSettings] Auto-register failed:", e);
-          }
+          await notificationService.requestPermission();
+          setTimeout(() => {
+            setFcmToken(notificationService.getFCMToken());
+          }, 2000);
         }
       } catch (e) {
         console.error("[NotificationSettings] Error checking permission:", e);
@@ -72,41 +54,35 @@ export function NotificationSettings() {
     };
 
     checkPermission();
-    
-    // Also check periodically in case user enables from system settings
     const interval = setInterval(checkPermission, 5000);
     return () => clearInterval(interval);
   }, [isNative]);
 
   const handleToggleMaster = async () => {
     if (isEnabling) return;
-    
+
     if (!settings.enabled) {
-      // User wants to enable notifications
       setIsEnabling(true);
-      console.log("[NotificationSettings] Enabling notifications...");
-      
+
       try {
         const granted = await notificationService.requestPermission();
-        console.log("[NotificationSettings] Permission result:", granted);
-        
+
         if (granted) {
           const newSettings = { ...settings, enabled: true };
           setSettings(newSettings);
           notificationService.updateSettings(newSettings);
           setPermission("granted");
-          
-          // Wait a bit for token
+
           setTimeout(() => {
             setFcmToken(notificationService.getFCMToken());
           }, 1500);
-          
-          toast.success("Notifications enabled! 🔔");
+
+          toast.success("Notifications enabled!");
         } else {
           toast.error(
             isNative
               ? "Permission denied. Please enable in app settings."
-              : "Permission denied. Please enable in browser settings."
+              : "Permission denied. Please enable in browser settings.",
           );
         }
       } catch (error) {
@@ -116,7 +92,6 @@ export function NotificationSettings() {
         setIsEnabling(false);
       }
     } else {
-      // User wants to disable notifications
       const newSettings = { ...settings, enabled: false };
       setSettings(newSettings);
       notificationService.updateSettings(newSettings);
@@ -136,53 +111,15 @@ export function NotificationSettings() {
     toast.success("Settings updated");
   };
 
-  const handleTestNotification = async () => {
-    try {
-      console.log("[NotificationSettings] Sending test notification...");
-      await notificationService.sendTestNotification();
-      toast.success("Test notification sent! Check your notification tray.");
-    } catch (e) {
-      console.error("[NotificationSettings] Test notification error:", e);
-      toast.error("Failed to send test notification");
-    }
-  };
-
-  const handleScheduledTest = async () => {
-    if (isNative) {
-      try {
-        console.log("[NotificationSettings] Scheduling notification...");
-        const id = await notificationService.scheduleLocalNotification({
-          title: "⏰ Scheduled Reminder",
-          body: "This notification was scheduled 10 seconds ago!",
-          delayMinutes: 0.17, // ~10 seconds
-          data: { type: "general" },
-        });
-        if (id) {
-          toast.success("Notification scheduled for 10 seconds!");
-        } else {
-          toast.info("Notification scheduled!");
-        }
-      } catch (e) {
-        console.error("[NotificationSettings] Schedule error:", e);
-        toast.error("Failed to schedule notification");
-      }
-    } else {
-      toast.info("Scheduled notifications only work on mobile app");
-    }
-  };
-
   const handleRegisterPush = async () => {
     try {
-      console.log("[NotificationSettings] Manually registering for push...");
       const granted = await notificationService.requestPermission();
       if (granted) {
-        // Wait a bit for token to be received
         setTimeout(() => {
           const token = notificationService.getFCMToken();
           setFcmToken(token);
           if (token) {
             toast.success("Push notifications registered!");
-            console.log("[NotificationSettings] FCM Token:", token.substring(0, 50) + "...");
           } else {
             toast.info("Waiting for FCM token...");
           }
@@ -225,7 +162,6 @@ export function NotificationSettings() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
-      {/* Header */}
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center gap-4">
           <button
@@ -234,12 +170,13 @@ export function NotificationSettings() {
           >
             <ArrowLeft size={24} className="text-gray-600" />
           </button>
-          <h1 className="text-xl font-bold text-gray-900">Notification Settings</h1>
+          <h1 className="text-xl font-bold text-gray-900">
+            Notification Settings
+          </h1>
         </div>
       </div>
 
       <div className="max-w-4xl mx-auto px-4 py-6">
-        {/* Master Toggle */}
         <div className="bg-white rounded-2xl border border-gray-200 p-6 mb-6">
           <div className="flex items-start gap-4">
             <div
@@ -257,7 +194,9 @@ export function NotificationSettings() {
             </div>
 
             <div className="flex-1">
-              <h2 className="font-bold text-gray-900 mb-1">Push Notifications</h2>
+              <h2 className="font-bold text-gray-900 mb-1">
+                Push Notifications
+              </h2>
               <p className="text-sm text-gray-600 mb-4">
                 {settings.enabled
                   ? "Notifications are enabled. You'll receive updates about orders, discounts, and more."
@@ -267,7 +206,7 @@ export function NotificationSettings() {
               {permission === "denied" && (
                 <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
                   <p className="text-sm text-red-800">
-                    ⚠️ Notifications are blocked.{" "}
+                    Notifications are blocked.{" "}
                     {isNative
                       ? "Please enable them in your device settings."
                       : "Please enable them in browser settings."}
@@ -284,13 +223,16 @@ export function NotificationSettings() {
                     : "bg-gradient-to-r from-[#6DB33F] to-[#5da035] hover:from-[#5da035] hover:to-[#4d8f2e] text-white"
                 }`}
               >
-                {isEnabling ? "Enabling..." : settings.enabled ? "Disable All Notifications" : "Enable Notifications"}
+                {isEnabling
+                  ? "Enabling..."
+                  : settings.enabled
+                    ? "Disable All Notifications"
+                    : "Enable Notifications"}
               </Button>
             </div>
           </div>
         </div>
 
-        {/* Individual Settings */}
         {settings.enabled && (
           <div className="bg-white rounded-2xl border border-gray-200 divide-y overflow-hidden mb-6">
             {notificationOptions.map((option) => {
@@ -305,8 +247,12 @@ export function NotificationSettings() {
                     </div>
 
                     <div className="flex-1">
-                      <h3 className="font-semibold text-gray-900 mb-1">{option.label}</h3>
-                      <p className="text-sm text-gray-600">{option.description}</p>
+                      <h3 className="font-semibold text-gray-900 mb-1">
+                        {option.label}
+                      </h3>
+                      <p className="text-sm text-gray-600">
+                        {option.description}
+                      </p>
                     </div>
 
                     <button
@@ -328,62 +274,40 @@ export function NotificationSettings() {
           </div>
         )}
 
-        {/* Test Notifications - Always show for native since local notifications work */}
-        {settings.enabled && (isNative || permission === "granted") && (
-          <div className="bg-white rounded-2xl border border-gray-200 p-6 mb-6">
-            <h3 className="font-bold text-gray-900 mb-4">Test Notifications</h3>
-            <div className="flex flex-col gap-3">
-              <div className="flex gap-3">
-                <Button
-                  onClick={handleTestNotification}
-                  variant="outline"
-                  className="flex-1 flex items-center justify-center gap-2"
-                >
-                  <TestTube size={18} />
-                  Local Test
-                </Button>
-                {isNative && (
-                  <Button
-                    onClick={handleScheduledTest}
-                    variant="outline"
-                    className="flex-1 flex items-center justify-center gap-2"
-                  >
-                    <Clock size={18} />
-                    Schedule (10s)
-                  </Button>
-                )}
-              </div>
-              {isNative && permission !== "granted" && (
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-800">
-                  ⚠️ Push notifications not enabled. Local notifications will still work.
-                  <br />
-                  <span className="text-xs text-yellow-600">
-                    To receive push notifications, enable in device Settings → Apps → AlClean → Notifications
-                  </span>
-                </div>
-              )}
-              {isNative && fcmToken && (
-                <div className="text-center text-sm text-green-600 font-medium">
-                  ✅ Push notifications registered!
-                </div>
-              )}
+        {settings.enabled && isNative && permission !== "granted" && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-6 text-sm text-yellow-800">
+            Push notifications are not enabled yet.
+            <br />
+            <span className="text-xs text-yellow-600">
+              Enable them in Android Settings, or tap below to retry registration.
+            </span>
+            <div className="mt-3">
+              <Button variant="outline" onClick={handleRegisterPush}>
+                Retry Push Registration
+              </Button>
             </div>
           </div>
         )}
 
-        {/* Info Box */}
+        {settings.enabled && isNative && fcmToken && (
+          <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-6 text-sm text-green-700">
+            Push notifications are registered on this device.
+          </div>
+        )}
+
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-          <h3 className="font-semibold text-blue-900 mb-2">Why enable notifications?</h3>
+          <h3 className="font-semibold text-blue-900 mb-2">
+            Why enable notifications?
+          </h3>
           <ul className="text-sm text-blue-800 space-y-1">
-            <li>• Stay updated on your order status in real-time</li>
-            <li>• Never miss exclusive discounts and flash sales</li>
-            <li>• Be first to know about new product launches</li>
-            <li>• Get delivery updates directly to your device</li>
-            <li>• Receive personalized offers based on your interests</li>
+            <li>Stay updated on your order status in real-time</li>
+            <li>Never miss exclusive discounts and flash sales</li>
+            <li>Be first to know about new product launches</li>
+            <li>Get delivery updates directly to your device</li>
+            <li>Receive personalized offers based on your interests</li>
           </ul>
         </div>
 
-        {/* Platform Info */}
         <div className="mt-4 text-center text-xs text-gray-400">
           Platform: {Capacitor.getPlatform()} | Native: {isNative ? "Yes" : "No"}
         </div>

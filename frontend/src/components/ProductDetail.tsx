@@ -9,6 +9,7 @@ import { Product } from "../types/shopify";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { cartService } from "../lib/cart";
 import { wishlistService } from "../lib/wishlist";
+import { ProductDescription } from "./ProductDescription";
 
 export function ProductDetail() {
   const { id } = useParams<{ id: string }>();
@@ -328,14 +329,12 @@ export function ProductDetail() {
             </div>
 
             {/* Description */}
-            {product.description && (
+            {(product.description || product.descriptionHtml) && (
               <div className="bg-gray-50 p-6 rounded-2xl">
                 <h3 className="font-bold text-gray-900 mb-3">
                   Product Description
                 </h3>
-                <p className="text-gray-600 leading-relaxed">
-                  {product.description}
-                </p>
+                <ProductDescription product={product} />
               </div>
             )}
 

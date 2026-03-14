@@ -82,6 +82,79 @@ class NotificationService {
     deliveryAlerts: true,
   };
 
+  private getNotificationSignature(notification: {
+    title: string;
+    body: string;
+    type?: string;
+    data?: Record<string, any>;
+    imageUrl?: string;
+  }): string {
+    return JSON.stringify({
+      title: notification.title,
+      body: notification.body,
+      type: notification.type || "general",
+      orderId: notification.data?.orderId || "",
+      productId: notification.data?.productId || "",
+      deepLink: notification.data?.deepLink || "",
+      discountCode: notification.data?.discountCode || "",
+      imageUrl: notification.imageUrl || "",
+    });
+  }
+
+  private findMatchingNotification(
+    target: {
+      title: string;
+      body: string;
+      type?: string;
+      timestamp?: Date | number;
+      data?: Record<string, any>;
+      imageUrl?: string;
+    },
+    notifications: PushNotification[],
+  ): PushNotification | undefined {
+    const targetSignature = this.getNotificationSignature(target);
+    const targetTime =
+      target.timestamp instanceof Date
+        ? target.timestamp.getTime()
+        : target.timestamp || 0;
+
+    return notifications.find((notification) => {
+      if (this.getNotificationSignature(notification) !== targetSignature) {
+        return false;
+      }
+
+      if (!targetTime) {
+        return true;
+      }
+
+      const existingTime =
+        notification.timestamp instanceof Date
+          ? notification.timestamp.getTime()
+          : new Date(notification.timestamp).getTime();
+
+      return Math.abs(existingTime - targetTime) < 10 * 60 * 1000;
+    });
+  }
+
+  private upsertNotification(notification: PushNotification): void {
+    const existing = this.findMatchingNotification(
+      {
+        ...notification,
+        timestamp: notification.timestamp,
+      },
+      this.getNotifications(),
+    );
+
+    if (existing) {
+      if (notification.read && !existing.read) {
+        this.markAsRead(existing.id);
+      }
+      return;
+    }
+
+    this.addNotification(notification);
+  }
+
   constructor() {
     console.log("[Notifications] Service constructor");
     console.log("[Notifications] Platform:", Capacitor.getPlatform());
@@ -279,6 +352,20 @@ class NotificationService {
   // Add notification to list
   addNotification(notification: PushNotification): void {
     try {
+      const existing = this.findMatchingNotification(
+        {
+          ...notification,
+          timestamp: notification.timestamp,
+        },
+        this.getNotifications(),
+      );
+      if (existing) {
+        if (notification.read && !existing.read) {
+          this.markAsRead(existing.id);
+        }
+        return;
+      }
+
       if (isNativePlatform()) {
         nativeNotificationService.addNotification({
           id: notification.id,
@@ -653,7 +740,7 @@ class NotificationService {
                 "[Notifications] Adding notification from history:",
                 notif.title,
               );
-              this.addNotification({
+              this.upsertNotification({
                 id: notif.id,
                 title: notif.title,
                 body: notif.body,
@@ -663,11 +750,6 @@ class NotificationService {
                 data: notif.data,
                 imageUrl: notif.data?.imageUrl,
               });
-            } else {
-              console.log(
-                "[Notifications] Notification already exists:",
-                notif.title,
-              );
             }
           });
           console.log(

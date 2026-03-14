@@ -84,6 +84,8 @@ interface SentNotification {
   read: boolean;
 }
 
+const NOTIFICATION_DEDUPE_WINDOW_MS = 10 * 60 * 1000;
+
 // File paths for persistent storage
 const DATA_DIR = path.join(process.cwd(), "data");
 const DEVICES_FILE = path.join(DATA_DIR, "devices.json");
@@ -144,6 +146,122 @@ function saveDevices() {
   } catch (error) {
     console.error("[Notifications] Failed to save devices:", error);
   }
+}
+
+function getNotificationSignature(notification: {
+  token: string;
+  title: string;
+  body: string;
+  data?: any;
+}) {
+  return JSON.stringify({
+    token: notification.token,
+    title: notification.title,
+    body: notification.body,
+    type: notification.data?.type || "general",
+    orderId: notification.data?.orderId || "",
+    productId: notification.data?.productId || "",
+    deepLink: notification.data?.deepLink || "",
+    discountCode: notification.data?.discountCode || "",
+    imageUrl: notification.data?.imageUrl || "",
+  });
+}
+
+function findDuplicateNotification(candidate: {
+  token: string;
+  title: string;
+  body: string;
+  data?: any;
+  timestamp?: string;
+}): SentNotification | undefined {
+  const candidateSignature = getNotificationSignature(candidate);
+  const candidateTime = candidate.timestamp
+    ? new Date(candidate.timestamp).getTime()
+    : Date.now();
+
+  return Array.from(sentNotifications.values()).find((notification) => {
+    if (getNotificationSignature(notification) !== candidateSignature) {
+      return false;
+    }
+
+    const existingTime = new Date(notification.timestamp).getTime();
+    return (
+      Math.abs(existingTime - candidateTime) <= NOTIFICATION_DEDUPE_WINDOW_MS
+    );
+  });
+}
+
+function upsertStoredNotification(notification: SentNotification): SentNotification {
+  const existing = findDuplicateNotification(notification);
+
+  if (existing) {
+    existing.delivered = existing.delivered || notification.delivered;
+    existing.read = existing.read && notification.read;
+    existing.userId = existing.userId || notification.userId;
+    existing.timestamp =
+      new Date(existing.timestamp).getTime() <=
+      new Date(notification.timestamp).getTime()
+        ? existing.timestamp
+        : notification.timestamp;
+    existing.data = {
+      ...notification.data,
+      ...existing.data,
+    };
+    sentNotifications.set(existing.id, existing);
+    saveNotifications();
+    return existing;
+  }
+
+  sentNotifications.set(notification.id, notification);
+  saveNotifications();
+  return notification;
+}
+
+function dedupeNotifications(notifications: SentNotification[]): SentNotification[] {
+  const sorted = [...notifications].sort(
+    (a, b) =>
+      new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
+  );
+
+  const deduped: SentNotification[] = [];
+
+  for (const notification of sorted) {
+    const existing = deduped.find((item) => {
+      if (getNotificationSignature(item) !== getNotificationSignature(notification)) {
+        return false;
+      }
+
+      return (
+        Math.abs(
+          new Date(item.timestamp).getTime() -
+            new Date(notification.timestamp).getTime(),
+        ) <= NOTIFICATION_DEDUPE_WINDOW_MS
+      );
+    });
+
+    if (existing) {
+      existing.delivered = existing.delivered || notification.delivered;
+      existing.read = existing.read && notification.read;
+      existing.userId = existing.userId || notification.userId;
+      existing.data = {
+        ...notification.data,
+        ...existing.data,
+      };
+      if (
+        new Date(notification.timestamp).getTime() <
+        new Date(existing.timestamp).getTime()
+      ) {
+        existing.timestamp = notification.timestamp;
+      }
+    } else {
+      deduped.push({ ...notification });
+    }
+  }
+
+  return deduped.sort(
+    (a, b) =>
+      new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+  );
 }
 
 function saveNotifications() {
@@ -225,7 +343,7 @@ async function sendFCMNotification(
         const notificationId = `sent_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         const device = deviceTokens.get(token);
         const userId = device?.userId;
-        sentNotifications.set(notificationId, {
+        upsertStoredNotification({
           id: notificationId,
           userId,
           token,
@@ -236,7 +354,6 @@ async function sendFCMNotification(
           delivered: true,
           read: false,
         });
-        saveNotifications();
       } else {
         failureCount++;
       }
@@ -498,7 +615,7 @@ router.post("/store-received", async (req: Request, res: Response) => {
     const userId = device?.userId;
 
     const notificationId = `received_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    sentNotifications.set(notificationId, {
+    upsertStoredNotification({
       id: notificationId,
       userId,
       token,
@@ -509,7 +626,6 @@ router.post("/store-received", async (req: Request, res: Response) => {
       delivered: true,
       read: false,
     });
-    saveNotifications();
 
     res.json({ success: true, message: "Notification stored successfully" });
   } catch (error: any) {
@@ -530,12 +646,9 @@ router.get("/history", async (req: Request, res: Response) => {
         .status(400)
         .json({ success: false, error: "Token is required" });
 
-    const userNotifications = Array.from(sentNotifications.values())
-      .filter((n) => n.token === token)
-      .sort(
-        (a, b) =>
-          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
-      );
+    const userNotifications = dedupeNotifications(
+      Array.from(sentNotifications.values()).filter((n) => n.token === token),
+    );
 
     res.json({
       success: true,
@@ -560,12 +673,9 @@ router.get("/user-notifications", async (req: Request, res: Response) => {
         .status(400)
         .json({ success: false, error: "userId is required" });
 
-    const userNotifications = Array.from(sentNotifications.values())
-      .filter((n) => n.userId === userId)
-      .sort(
-        (a, b) =>
-          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
-      );
+    const userNotifications = dedupeNotifications(
+      Array.from(sentNotifications.values()).filter((n) => n.userId === userId),
+    );
 
     res.json({
       success: true,

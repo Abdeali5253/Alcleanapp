@@ -111,6 +111,25 @@ class AuthService {
     }
   }
 
+  private getGoogleSignInErrorMessage(error: any): string {
+    const rawMessage = error?.message || "";
+    const rawCode = error?.code;
+    const codeText = String(rawCode ?? "");
+    const lowerMessage = rawMessage.toLowerCase();
+    const isDeveloperError =
+      rawCode === 10 ||
+      codeText === "10" ||
+      lowerMessage.includes("status code: 10") ||
+      lowerMessage.includes("developer_error") ||
+      lowerMessage.includes("code 10");
+
+    if (isDeveloperError) {
+      return "Google Sign-In is misconfigured for the Play Store build. Add the Google Play App Signing SHA fingerprints to Firebase for com.alclean.app, download the updated google-services.json, and publish a new release.";
+    }
+
+    return rawMessage || "Failed to start Google login";
+  }
+
   private async finishSocialLogin(
     auth: any,
     endpoint: string,
@@ -277,7 +296,12 @@ class AuthService {
 
           console.log("[Auth] Native Google sign-in successful");
         } catch (nativeError: any) {
-          console.error("[Auth] Native Google sign-in error:", nativeError);
+          console.error("[Auth] Native Google sign-in error:", {
+            code: nativeError?.code,
+            message: nativeError?.message,
+            platform: Capacitor.getPlatform(),
+            isNative: Capacitor.isNativePlatform(),
+          });
           if (
             nativeError.message?.includes("canceled") ||
             nativeError.message?.includes("cancelled")
@@ -328,9 +352,14 @@ class AuthService {
       }
       return result;
     } catch (error: any) {
-      console.error("[Auth] Google login error:", error.message || error);
-      toast.error(error.message || "Failed to start Google login");
-      return { success: false, error: error.message || "Failed to start Google login" };
+      const friendlyMessage = this.getGoogleSignInErrorMessage(error);
+      console.error("[Auth] Google login error:", {
+        code: error?.code,
+        message: error?.message || error,
+        resolvedMessage: friendlyMessage,
+      });
+      toast.error(friendlyMessage);
+      return { success: false, error: friendlyMessage };
     }
   }
 

@@ -66,6 +66,7 @@ class NativeNotificationService {
   private isInitialized = false;
   private notificationIdCounter = 1;
   private pluginsLoaded = false;
+  private readonly duplicateWindowMs = 10 * 60 * 1000;
 
   constructor() {
     log("NativeNotif", "Service constructor called");
@@ -779,6 +780,37 @@ class NativeNotificationService {
 
   // Add notification to local storage
   addNotification(notification: NativeNotification): void {
+    const existing = this.notifications.find((current) => {
+      const sameContent =
+        current.title === notification.title &&
+        current.body === notification.body &&
+        current.type === notification.type &&
+        (current.data?.orderId || "") === (notification.data?.orderId || "") &&
+        (current.data?.productId || "") ===
+          (notification.data?.productId || "") &&
+        (current.data?.deepLink || "") ===
+          (notification.data?.deepLink || "") &&
+        (current.imageUrl || "") === (notification.imageUrl || "");
+
+      if (!sameContent) {
+        return false;
+      }
+
+      return (
+        Math.abs(current.timestamp - notification.timestamp) <
+        this.duplicateWindowMs
+      );
+    });
+
+    if (existing) {
+      if (notification.read && !existing.read) {
+        existing.read = true;
+        this.saveNotifications();
+        this.notifyListeners();
+      }
+      return;
+    }
+
     log("NativeNotif", "Adding notification to storage", {
       id: notification.id,
       title: notification.title,

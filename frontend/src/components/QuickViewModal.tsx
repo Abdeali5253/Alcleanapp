@@ -5,6 +5,7 @@ import { Product } from "../types/shopify";
 import { ProductBadge } from "./ProductBadge";
 import { PriceDisplay } from "./PriceDisplay";
 import { QuantitySelector } from "./QuantitySelector";
+import { ProductDescription } from "./ProductDescription";
 
 interface QuickViewModalProps {
   product: Product | null;
@@ -100,11 +101,9 @@ export function QuickViewModal({
                 )}
               </div>
 
-              {product.description && (
+              {(product.description || product.descriptionHtml) && (
                 <div className="mb-6">
-                  <p className="text-gray-600 leading-relaxed">
-                    {product.description}
-                  </p>
+                  <ProductDescription product={product} />
                 </div>
               )}
 

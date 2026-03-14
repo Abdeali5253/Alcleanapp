@@ -204,6 +204,7 @@ function transformProduct(node: any): any {
     title: node.title || '',
     handle: node.handle || '',
     description: node.description || '',
+    descriptionHtml: node.descriptionHtml || '',
     image: node.featuredImage?.url || node.images?.edges?.[0]?.node?.url || '',
     images: node.images?.edges?.map((img: any) => img.node.url) || [],
     price: priceAmount,
@@ -279,6 +280,7 @@ async function fetchAllProducts(maxProducts: number = 700): Promise<any[]> {
             id
             title
             description
+            descriptionHtml
             handle
             productType
             vendor
@@ -416,6 +418,7 @@ router.get('/:id', async (req: Request, res: Response) => {
           id
           title
           description
+          descriptionHtml
           handle
           productType
           vendor
@@ -486,6 +489,7 @@ router.get('/collection/:handle', async (req: Request, res: Response) => {
                 id
                 title
                 description
+                descriptionHtml
                 handle
                 productType
                 vendor
