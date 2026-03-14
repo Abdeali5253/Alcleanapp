@@ -23,7 +23,6 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { toast } from "sonner";
-import { Logo } from "./Logo";
 import { UnifiedHeader } from "./UnifiedHeader";
 
 const menuItems = [
@@ -213,13 +212,7 @@ export function Account() {
   if (showForgotPassword) {
     return (
       <div className="min-h-screen bg-gray-50 pb-20">
-        <header className="bg-white border-b border-gray-200">
-          <div className="max-w-md mx-auto px-4 py-4 flex items-center justify-center">
-            <Link to="/">
-              <Logo />
-            </Link>
-          </div>
-        </header>
+        <UnifiedHeader />
 
         <main className="max-w-md mx-auto px-4 py-6">
           <div className="bg-white rounded-2xl p-6 border border-gray-200">
@@ -280,13 +273,7 @@ export function Account() {
   if (!user) {
     return (
       <div className="min-h-screen bg-gray-50 pb-20">
-        <header className="bg-white border-b border-gray-200">
-          <div className="max-w-md mx-auto px-4 py-4 flex items-center justify-center">
-            <Link to="/">
-              <Logo />
-            </Link>
-          </div>
-        </header>
+        <UnifiedHeader />
 
         <main className="max-w-md mx-auto px-4 py-6">
           <div className="bg-white rounded-2xl p-6 border border-gray-200">

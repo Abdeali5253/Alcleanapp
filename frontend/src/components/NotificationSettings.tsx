@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import {
-  ArrowLeft,
   Bell,
   BellOff,
   Package,
@@ -8,15 +7,14 @@ import {
   Sparkles,
   Truck,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
 import { Button } from "./ui/button";
 import { notificationService } from "../lib/notifications";
 import { NotificationSettings as Settings } from "../types/notifications";
 import { toast } from "sonner";
 import { Capacitor } from "@capacitor/core";
+import { UnifiedHeader } from "./UnifiedHeader";
 
 export function NotificationSettings() {
-  const navigate = useNavigate();
   const [settings, setSettings] = useState<Settings>({
     enabled: true,
     orderUpdates: true,
@@ -162,19 +160,7 @@ export function NotificationSettings() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center gap-4">
-          <button
-            onClick={() => navigate(-1)}
-            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-          >
-            <ArrowLeft size={24} className="text-gray-600" />
-          </button>
-          <h1 className="text-xl font-bold text-gray-900">
-            Notification Settings
-          </h1>
-        </div>
-      </div>
+      <UnifiedHeader />
 
       <div className="max-w-4xl mx-auto px-4 py-6">
         <div className="bg-white rounded-2xl border border-gray-200 p-6 mb-6">

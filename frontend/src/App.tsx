@@ -5,6 +5,7 @@ import {
   Route,
   Navigate,
   useNavigate,
+  useLocation,
 } from "react-router-dom";
 import { Wishlist } from "./components/Wishlist";
 import { Products } from "./components/Products";
@@ -50,6 +51,7 @@ const StatusBar = registerPlugin<StatusBarPlugin>("StatusBar");
 
 function AppContent() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [showSplash, setShowSplash] = useState(true);
   const [showBackendStatus, setShowBackendStatus] = useState(true);
 
@@ -153,6 +155,38 @@ function AppContent() {
     const timer = setTimeout(() => setShowBackendStatus(false), 10000);
     return () => clearTimeout(timer);
   }, [navigate]);
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform() || showSplash) return;
+
+    const isRootRoute = location.pathname === "/";
+
+    const sub = CapApp.addListener("backButton", async () => {
+      const mobileMenuOpen = document.querySelector("[data-mobile-menu='open']");
+      if (mobileMenuOpen) {
+        const closeButton = mobileMenuOpen.querySelector(
+          "[data-mobile-menu-close='true']",
+        ) as HTMLButtonElement | null;
+        closeButton?.click();
+        return;
+      }
+
+      if (window.history.length > 1 && !isRootRoute) {
+        navigate(-1);
+        return;
+      }
+
+      try {
+        await CapApp.exitApp();
+      } catch (error) {
+        console.log("[App] exitApp skipped:", error);
+      }
+    });
+
+    return () => {
+      sub.then((listener) => listener.remove());
+    };
+  }, [location.pathname, navigate, showSplash]);
 
   // Deep-link handler: alclean://checkout/success OR https://alclean.pk/checkout/success
   useEffect(() => {
@@ -273,7 +307,7 @@ function AppContent() {
   if (showSplash) return <SplashScreen onFinish={() => setShowSplash(false)} />;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 app-shell">
       <Routes>
         <Route path="/" element={<Home />} />
         <Route

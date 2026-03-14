@@ -35,13 +35,12 @@ export function HeroCarousel() {
 
   const prevSlide = () => {
     setCurrentSlide(
-      (prev) =>
-        (prev - 1 + heroImages.length) % heroImages.length,
+      (prev) => (prev - 1 + heroImages.length) % heroImages.length,
     );
   };
 
   return (
-    <div className="relative w-full h-[280px] overflow-hidden rounded-2xl">
+    <div className="relative w-full h-[280px] md:h-[360px] overflow-hidden rounded-2xl bg-gradient-to-r from-slate-100 via-white to-slate-100">
       {heroImages.map((image, index) => (
         <div
           key={index}
@@ -55,9 +54,7 @@ export function HeroCarousel() {
             className="w-full h-full object-cover object-center"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex flex-col justify-end p-4">
-            <h2 className="text-white text-2xl mb-2">
-              {image.title}
-            </h2>
+            <h2 className="text-white text-2xl mb-2">{image.title}</h2>
             <p className="text-white/90">{image.subtitle}</p>
           </div>
         </div>

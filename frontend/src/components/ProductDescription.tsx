@@ -35,6 +35,11 @@ const ALLOWED_TAGS = new Set([
 const URL_ATTRS = new Set(["href", "src"]);
 const SAFE_PROTOCOLS = ["http:", "https:", "mailto:", "tel:"];
 
+interface LinkResolution {
+  href: string;
+  internal: boolean;
+}
+
 function escapeHtml(text: string): string {
   return text
     .replace(/&/g, "&amp;")
@@ -139,6 +144,37 @@ function isSafeUrl(value: string): boolean {
   }
 }
 
+function resolveAppLink(value: string): LinkResolution | null {
+  try {
+    const parsed = new URL(value, window.location.origin);
+    const isAlCleanHost =
+      parsed.hostname === "alclean.pk" ||
+      parsed.hostname === "www.alclean.pk" ||
+      parsed.hostname === window.location.hostname;
+
+    if (isAlCleanHost) {
+      const pathMatch = parsed.pathname.match(
+        /\/products\/([^/?#]+)|\/collections\/[^/]+\/products\/([^/?#]+)/i,
+      );
+      const handle = pathMatch?.[1] || pathMatch?.[2];
+      if (handle) {
+        return {
+          href: `#/product/${encodeURIComponent(handle)}`,
+          internal: true,
+        };
+      }
+    }
+
+    if (SAFE_PROTOCOLS.includes(parsed.protocol)) {
+      return { href: parsed.toString(), internal: false };
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 function sanitizeHtml(html: string): string {
   if (typeof window === "undefined" || !html.trim()) {
     return "";
@@ -174,10 +210,15 @@ function sanitizeHtml(html: string): string {
 
     if (tag === "a") {
       const href = element.getAttribute("href");
-      if (href && isSafeUrl(href)) {
-        attrs.push(`href="${escapeHtml(href)}"`);
-        attrs.push('target="_blank"');
-        attrs.push('rel="noopener noreferrer nofollow"');
+      const resolvedLink = href ? resolveAppLink(href) : null;
+      if (resolvedLink) {
+        attrs.push(`href="${escapeHtml(resolvedLink.href)}"`);
+        if (resolvedLink.internal) {
+          attrs.push('data-internal-link="true"');
+        } else {
+          attrs.push('target="_blank"');
+          attrs.push('rel="noopener noreferrer nofollow"');
+        }
       }
     }
 
@@ -236,6 +277,11 @@ export function ProductDescription({
   product,
   className = "",
 }: ProductDescriptionProps) {
+  const isBundleDescription = useMemo(() => {
+    const source = `${product.descriptionHtml || ""} ${product.description || ""}`;
+    return /Bundle Includes:|\.bundle-[a-z0-9_-]+/i.test(source);
+  }, [product.description, product.descriptionHtml]);
+
   const html = useMemo(() => {
     const sanitized = sanitizeHtml(product.descriptionHtml || "");
     if (sanitized) {
@@ -258,7 +304,9 @@ export function ProductDescription({
         "[&_h2]:text-xl [&_h2]:font-bold [&_h2]:text-gray-900",
         "[&_h3]:text-lg [&_h3]:font-semibold [&_h3]:text-gray-900",
         "[&_h4]:text-base [&_h4]:font-semibold [&_h4]:text-gray-900",
-        "[&_img]:my-4 [&_img]:w-full [&_img]:rounded-xl [&_img]:border [&_img]:border-gray-200",
+        isBundleDescription
+          ? "[&_img]:my-2 [&_img]:h-16 [&_img]:w-16 [&_img]:rounded-lg [&_img]:border [&_img]:border-gray-200 [&_img]:object-contain"
+          : "[&_img]:my-4 [&_img]:w-full [&_img]:rounded-xl [&_img]:border [&_img]:border-gray-200",
         "[&_li]:ml-5 [&_li]:list-disc [&_li]:pl-1",
         "[&_ol]:ml-5 [&_ol]:list-decimal [&_ol]:space-y-2",
         "[&_p]:leading-relaxed [&_p]:mb-3",

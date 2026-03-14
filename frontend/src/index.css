@@ -81,6 +81,10 @@
   padding-bottom: var(--safe-bottom);
 }
 
+.app-shell {
+  padding-bottom: calc(88px + var(--safe-bottom));
+}
+
 /* Loading spinner animation */
 @keyframes spin {
   to {

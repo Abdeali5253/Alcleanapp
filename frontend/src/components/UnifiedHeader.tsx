@@ -208,10 +208,17 @@ export function UnifiedHeader({ cartCount }: UnifiedHeaderProps) {
       {/* Mobile Menu Drawer */}
       {showMobileMenu && (
         <div className="fixed inset-0 bg-black/50 z-50 md:hidden">
-          <div className="bg-white w-80 h-full overflow-y-auto">
+          <div
+            className="bg-white w-80 h-full overflow-y-auto safe-top safe-bottom"
+            data-mobile-menu="open"
+          >
             <div className="p-4 border-b border-gray-200 flex items-center justify-between">
               <h2 className="text-gray-900 text-lg">Menu</h2>
-              <button onClick={() => setShowMobileMenu(false)} className="p-2">
+              <button
+                onClick={() => setShowMobileMenu(false)}
+                className="p-2"
+                data-mobile-menu-close="true"
+              >
                 <X size={24} />
               </button>
             </div>
