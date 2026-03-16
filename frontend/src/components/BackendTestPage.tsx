@@ -8,6 +8,8 @@ import { ArrowLeft, CheckCircle, XCircle, Loader2, Copy } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { BACKEND_URL } from "../lib/base-url.ts";
 
+const SHOPIFY_TEST_ENDPOINT = `${BACKEND_URL}/api/shopify/create-order`;
+
 export function BackendTestPage() {
   const navigate = useNavigate();
   const [testing, setTesting] = useState(false);
@@ -21,7 +23,7 @@ export function BackendTestPage() {
 
   const testBackendConnectivity = async () => {
     try {
-      const response = await fetch('https://app.albizco.com/api/create-shopify-order.php', {
+      const response = await fetch(SHOPIFY_TEST_ENDPOINT, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({}),
@@ -69,7 +71,7 @@ export function BackendTestPage() {
         paymentMethod: 'cod',
       };
 
-      const response = await fetch('https://app.albizco.com/api/create-shopify-order.php', {
+      const response = await fetch(SHOPIFY_TEST_ENDPOINT, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(testData),
@@ -238,17 +240,17 @@ header('Content-Type: application/json');
             <h2 className="font-medium text-red-900 mb-3">How to Fix:</h2>
             <div className="space-y-3 text-sm text-red-800">
               <div>
-                <p className="font-medium mb-1">1. Create PHP file:</p>
+                <p className="font-medium mb-1">1. Verify backend route:</p>
                 <code className="block bg-red-100 p-2 rounded text-xs">
-                  https://app.albizco.com/api/create-shopify-order.php
+                  {SHOPIFY_TEST_ENDPOINT}
                 </code>
               </div>
 
               <div>
-                <p className="font-medium mb-1">2. Get the complete PHP code:</p>
+                <p className="font-medium mb-1">2. Check backend logs:</p>
                 <div className="flex gap-2">
                   <code className="flex-1 bg-red-100 p-2 rounded text-xs">
-                    /BACKEND_PHP_FILES.md
+                    backend route: /api/shopify/create-order
                   </code>
                   <button
                     onClick={copyPHPCode}
@@ -261,26 +263,26 @@ header('Content-Type: application/json');
               </div>
 
               <div>
-                <p className="font-medium mb-1">3. Upload via FTP/SSH:</p>
+                <p className="font-medium mb-1">3. Confirm the backend service is running:</p>
                 <code className="block bg-red-100 p-2 rounded text-xs">
-                  Upload to: /api/ directory on your server
+                  Ensure your Node backend is reachable behind Nginx
                 </code>
               </div>
 
               <div>
-                <p className="font-medium mb-1">4. Set permissions:</p>
+                <p className="font-medium mb-1">4. Test with curl:</p>
                 <code className="block bg-red-100 p-2 rounded text-xs">
-                  chmod 644 create-shopify-order.php
+                  curl https://api.alclean.pk/health
                 </code>
               </div>
 
               <div>
-                <p className="font-medium mb-1">5. Test with curl:</p>
+                <p className="font-medium mb-1">5. Test order route manually:</p>
                 <code className="block bg-red-100 p-2 rounded text-xs whitespace-pre-wrap">
-                  curl https://app.albizco.com/api/create-shopify-order.php
+                  curl -X POST https://api.alclean.pk/api/shopify/create-order
                 </code>
                 <p className="text-xs text-red-600 mt-1">
-                  Should return: {`{"success":false,"error":"Invalid JSON input"}`}
+                  It should return a JSON error if required fields are missing.
                 </p>
               </div>
 
@@ -306,7 +308,7 @@ header('Content-Type: application/json');
         <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
           <h2 className="font-medium text-gray-900 mb-2">Backend Endpoint:</h2>
           <code className="text-xs bg-white p-2 rounded border border-gray-200 block break-all">
-            https://app.albizco.com/api/create-shopify-order.php
+            {SHOPIFY_TEST_ENDPOINT}
           </code>
           
           <h2 className="font-medium text-gray-900 mt-4 mb-2">Documentation:</h2>

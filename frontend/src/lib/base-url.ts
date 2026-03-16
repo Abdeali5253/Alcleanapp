@@ -1,11 +1,10 @@
 import { Capacitor } from "@capacitor/core";
 
-// EC2 / Production backend (no extra slash)
-const PRODUCTION_BACKEND_URL = "http://44.232.17.149:3001";
-
 // Vite envs (ONLY import.meta.env in frontend)
 const USE_PRODUCTION =
   (import.meta.env.VITE_USE_PRODUCTION as string | undefined) === "true";
+const ENV_BACKEND_URL = import.meta.env.VITE_BACKEND_URL as string | undefined;
+const PRODUCTION_BACKEND_URL = ENV_BACKEND_URL || "https://api.alclean.pk";
 
 const getBackendUrl = (): string => {
   const platform = Capacitor.getPlatform();
@@ -17,10 +16,9 @@ const getBackendUrl = (): string => {
   }
 
   // explicit env override for web
-  const envUrl = import.meta.env.VITE_BACKEND_URL as string | undefined;
-  if (envUrl) {
-    console.log("[BaseURL] Using env VITE_BACKEND_URL:", envUrl);
-    return envUrl;
+  if (ENV_BACKEND_URL) {
+    console.log("[BaseURL] Using env VITE_BACKEND_URL:", ENV_BACKEND_URL);
+    return ENV_BACKEND_URL;
   }
 
   // production mode for web
