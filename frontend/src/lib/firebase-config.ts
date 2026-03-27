@@ -34,11 +34,6 @@ export function initializeFirebase(): FirebaseApp | null {
     return null;
   }
 
-  // For mobile, set auth domain to Firebase auth hosting domain for proper OAuth redirect handling
-  if (isNative) {
-    firebaseConfig.authDomain = "app-notification-5e56b.firebaseapp.com";
-  }
-
   try {
     app = initializeApp(firebaseConfig);
     console.log("[Firebase] Initialized successfully");

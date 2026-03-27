@@ -22,6 +22,25 @@ export interface Order {
   trackingNumber?: string;
   courier?: string;
   companyType?: string;
+  trackingStatusText?: string;
+  trackingLastUpdated?: string;
+  ratingEligible?: boolean;
+  localDelivery?: {
+    city: string;
+    managerName: string;
+    phone: string;
+    estimatedWindow: string;
+    note: string;
+  } | null;
+  trackingTimeline?: {
+    status: 'pending' | 'processing' | 'in-transit' | 'delivered';
+    label: string;
+    details?: string;
+    location?: string;
+    timestamp?: string;
+    completed: boolean;
+    source: 'system' | 'courier';
+  }[];
   shopifyOrderId?: string; // Shopify order ID
   shopifyDraftOrderId?: string; // Shopify draft order ID
 }
