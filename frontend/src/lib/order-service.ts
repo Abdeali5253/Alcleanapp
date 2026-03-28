@@ -24,6 +24,7 @@ export interface Order {
   companyType?: string;
   trackingStatusText?: string;
   trackingLastUpdated?: string;
+  courierTrackingError?: string;
   ratingEligible?: boolean;
   localDelivery?: {
     city: string;

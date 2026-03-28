@@ -25,6 +25,11 @@ interface TrackingTimelineEvent {
   source: 'system' | 'courier';
 }
 
+interface CourierTrackingResult {
+  timeline: TrackingTimelineEvent[];
+  error?: string;
+}
+
 interface LocalDeliveryContact {
   city: string;
   managerName: string;
@@ -281,6 +286,114 @@ function mapCourierEvents(payload: any): TrackingTimelineEvent[] {
   });
 }
 
+function stringifyCourierError(value: any): string | undefined {
+  if (!value) return undefined;
+  if (typeof value === 'string') return value.trim() || undefined;
+  if (Array.isArray(value)) {
+    const joined = value
+      .map((item) => stringifyCourierError(item))
+      .filter(Boolean)
+      .join(', ');
+    return joined || undefined;
+  }
+  if (typeof value === 'object') {
+    return (
+      stringifyCourierError(value.message) ||
+      stringifyCourierError(value.error) ||
+      stringifyCourierError(value.detail) ||
+      stringifyCourierError(value.reason)
+    );
+  }
+  return String(value);
+}
+
+function collectCourierMessages(input: any, depth = 0): string[] {
+  if (depth > 4 || input == null) {
+    return [];
+  }
+
+  if (typeof input === 'string') {
+    return [input.trim()].filter(Boolean);
+  }
+
+  if (Array.isArray(input)) {
+    return input.flatMap((item) => collectCourierMessages(item, depth + 1));
+  }
+
+  if (typeof input === 'object') {
+    return Object.entries(input).flatMap(([key, value]) => {
+      const normalizedKey = key.toLowerCase();
+      if (
+        normalizedKey.includes('message') ||
+        normalizedKey.includes('error') ||
+        normalizedKey.includes('reason') ||
+        normalizedKey.includes('detail') ||
+        normalizedKey.includes('remark')
+      ) {
+        return collectCourierMessages(value, depth + 1);
+      }
+      return [];
+    });
+  }
+
+  return [];
+}
+
+function extractCourierError(payload: any): string | undefined {
+  if (payload == null) {
+    return 'Courier API returned an empty response.';
+  }
+
+  const directError =
+    stringifyCourierError(payload.error) ||
+    stringifyCourierError(payload.errors) ||
+    stringifyCourierError(payload.error_message);
+
+  if (directError) {
+    return directError;
+  }
+
+  const messages = collectCourierMessages(payload);
+  const errorHints = [
+    'not found',
+    'no record',
+    'invalid',
+    'error',
+    'failed',
+    'unable',
+    'does not exist',
+    'incorrect',
+  ];
+
+  const hintedMessage = messages.find((message) =>
+    errorHints.some((hint) => message.toLowerCase().includes(hint)),
+  );
+
+  if (hintedMessage) {
+    return hintedMessage;
+  }
+
+  if (
+    Array.isArray(payload?.packet_list) &&
+    payload.packet_list.length === 0
+  ) {
+    return (
+      stringifyCourierError(payload.message) ||
+      'Order not found in courier system.'
+    );
+  }
+
+  if (payload?.status === false || payload?.status === 0) {
+    return (
+      stringifyCourierError(payload.message) ||
+      stringifyCourierError(payload.status_message) ||
+      'Courier API returned an unsuccessful status.'
+    );
+  }
+
+  return undefined;
+}
+
 async function fetchTrackingAssignments(): Promise<TrackingAssignment[]> {
   const { assignmentsUrl } = getTrackingConfig();
   if (!assignmentsUrl) {
@@ -364,14 +477,14 @@ function buildCourierRequest(
 async function fetchCourierTimeline(
   courier?: string,
   trackingNumber?: string,
-): Promise<TrackingTimelineEvent[]> {
+): Promise<CourierTrackingResult> {
   if (!courier || !trackingNumber) {
-    return [];
+    return { timeline: [] };
   }
 
   const request = buildCourierRequest(courier, trackingNumber);
   if (!request) {
-    return [];
+    return { timeline: [] };
   }
 
   try {
@@ -382,14 +495,37 @@ async function fetchCourierTimeline(
     });
 
     if (!response.ok) {
-      throw new Error(`Courier tracking request failed: ${response.status}`);
+      return {
+        timeline: [],
+        error: `Courier tracking request failed: ${response.status} ${response.statusText}`,
+      };
     }
 
     const payload = await response.json();
-    return mapCourierEvents(payload);
+    const error = extractCourierError(payload);
+    const timeline = mapCourierEvents(payload);
+
+    if (error) {
+      return { timeline, error };
+    }
+
+    if (!timeline.length) {
+      return {
+        timeline: [],
+        error: 'Courier API returned no tracking scans for this shipment.',
+      };
+    }
+
+    return { timeline };
   } catch (error) {
     console.error('[Orders] Failed to fetch courier timeline:', error);
-    return [];
+    return {
+      timeline: [],
+      error:
+        error instanceof Error
+          ? error.message
+          : 'Failed to fetch courier tracking details.',
+    };
   }
 }
 
@@ -549,9 +685,10 @@ async function enrichOrderTracking(
   const courier = assignment?.courier || order.courier;
   const city = order.city || assignment?.city || '';
   const localDelivery = getLocalDeliveryContact(city);
-  const courierTimeline = localDelivery
-    ? []
+  const courierResult = localDelivery
+    ? { timeline: [] }
     : await fetchCourierTimeline(courier, trackingNumber);
+  const courierTimeline = courierResult.timeline;
   const fallbackTimeline = buildFallbackTimeline({
     ...order,
     trackingNumber,
@@ -585,6 +722,7 @@ async function enrichOrderTracking(
     trackingLastUpdated: latestCheckpoint?.timestamp,
     ratingEligible: status === 'delivered',
     localDelivery,
+    courierTrackingError: courierResult.error,
   };
 }
 
