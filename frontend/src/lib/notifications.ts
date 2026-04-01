@@ -714,17 +714,11 @@ class NotificationService {
 
   // Fetch notification history from backend
   private async fetchNotificationHistory(token: string): Promise<void> {
-    console.log(
-      "[Notifications] Fetching notification history for token:",
-      token.substring(0, 20) + "...",
-    );
     try {
       const url = `${BACKEND_URL}/api/notifications/history?token=${encodeURIComponent(
         token,
       )}`;
-      console.log("[Notifications] History URL:", url);
       const response = await fetch(url);
-      console.log("[Notifications] History response status:", response.status);
       if (response.ok) {
         const data = await response.json();
         console.log("[Notifications] History data:", data);

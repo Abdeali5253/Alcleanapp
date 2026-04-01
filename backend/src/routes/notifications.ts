@@ -43,12 +43,7 @@ function initializeFirebaseAdmin() {
     );
   }
 
-  console.log(
-    "[FCM] Initializing with project:",
-    process.env.FIREBASE_PROJECT_ID,
-  );
-  console.log("[FCM] Client email:", process.env.FIREBASE_CLIENT_EMAIL);
-  console.log("[FCM] Private key length:", privateKey.length);
+  console.log("[FCM] Initializing Firebase Admin");
 
   initializeApp({
     credential: cert({
@@ -286,15 +281,12 @@ async function sendFCMNotification(
   notification: { title: string; body: string; image?: string },
   data?: Record<string, string>,
 ): Promise<{ success: number; failure: number }> {
-  console.log(`[FCM] Attempting to send to ${tokens.length} tokens`);
-  console.log(`[FCM] Notification:`, notification);
-  console.log(`[FCM] Data:`, data);
+  console.log(`[FCM] Attempting to send notification to ${tokens.length} device(s)`);
 
   try {
-    console.log("[FCM] Initializing Firebase Admin...");
     initializeFirebaseAdmin();
     const messaging = getMessaging();
-    console.log("[FCM] Firebase Admin initialized successfully");
+    console.log("[FCM] Firebase Admin ready");
   } catch (error: any) {
     console.error("[FCM] Failed to initialize Firebase:", error);
     return { success: 0, failure: tokens.length };
@@ -306,8 +298,6 @@ async function sendFCMNotification(
 
   for (const token of tokens) {
     try {
-      console.log(`[FCM] Sending to token: ${token.substring(0, 30)}...`);
-
       const message: Message = {
         notification: {
           title: notification.title,
@@ -331,14 +321,10 @@ async function sendFCMNotification(
         },
       };
 
-      console.log(`[FCM] Message payload:`, JSON.stringify(message, null, 2));
-
       const messageId = await messaging.send(message);
       if (messageId) {
         successCount++;
-        console.log(
-          `[FCM] SUCCESS: Sent to ${token.substring(0, 20)}... (messageId: ${messageId})`,
-        );
+        console.log(`[FCM] Notification delivered (messageId: ${messageId})`);
 
         const notificationId = `sent_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         const device = deviceTokens.get(token);
@@ -359,10 +345,7 @@ async function sendFCMNotification(
       }
     } catch (error: any) {
       failureCount++;
-      console.error(
-        `[FCM] ERROR sending to ${token.substring(0, 20)}...`,
-        error.message,
-      );
+      console.error("[FCM] Error sending notification:", error.message);
 
       if (
         error.code === "messaging/invalid-registration-token" ||
@@ -405,9 +388,7 @@ router.post("/register", async (req: Request, res: Response) => {
     deviceTokens.set(token, deviceInfo);
     saveDevices();
 
-    console.log(
-      `[Notifications] Registered device: ${platform} - ${token.substring(0, 20)}...`,
-    );
+    console.log(`[Notifications] Registered ${platform || "web"} device`);
 
     res.json({
       success: true,

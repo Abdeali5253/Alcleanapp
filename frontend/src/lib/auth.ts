@@ -327,7 +327,6 @@ class AuthService {
         console.log("[Auth] Web Google sign-in successful");
         } catch (popupError: any) {
           if (popupError.code === "auth/popup-closed-by-user") {
-            console.log("[Auth] Popup closed by user");
             toast.info("Login cancelled");
             return { success: false };
           } else if (popupError.code === "auth/popup-blocked") {
@@ -341,8 +340,6 @@ class AuthService {
         }
       }
 
-      // Send ID token to backend
-      console.log("[Auth] Sending ID token to backend");
       const result = await this.finishSocialLogin(auth, "/api/auth/google-login", {
         idToken,
         forceOverride,

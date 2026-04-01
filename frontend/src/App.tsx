@@ -69,19 +69,18 @@ function AppContent() {
         // Request push notification permission (shows Android system dialog)
         // This will get FCM token if user allows
         setTimeout(async () => {
-          console.log("[App] Requesting push notification permission...");
           try {
             const granted = await notificationService.requestPermission();
-            console.log("[App] Push permission result:", granted);
 
             if (granted) {
               // Wait for FCM token
               setTimeout(() => {
                 const token = notificationService.getFCMToken();
-                console.log(
-                  "[App] FCM Token:",
-                  token ? token.substring(0, 30) + "..." : "null",
-                );
+                if (!token) {
+                  console.warn(
+                    "[App] Push permission granted but FCM token is not available yet",
+                  );
+                }
               }, 1000);
             }
           } catch (e) {

@@ -124,11 +124,6 @@ export function Checkout() {
     const cordovaAny = (window as any).cordova;
     const IAB = cordovaAny?.InAppBrowser;
 
-    console.log("[Checkout] isNative:", Capacitor.isNativePlatform());
-    console.log("[Checkout] cordova exists:", !!cordovaAny);
-    console.log("[Checkout] InAppBrowser exists:", !!IAB);
-    console.log("[Checkout] opening url:", url);
-
     if (Capacitor.isNativePlatform() && IAB) {
       const ref = IAB.open(
         url,

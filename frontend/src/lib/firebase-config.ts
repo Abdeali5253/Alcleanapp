@@ -117,7 +117,6 @@ export async function requestNotificationPermission(): Promise<string | null> {
       });
 
       if (token) {
-        console.log("[Firebase] FCM Token:", token.substring(0, 30) + "...");
         return token;
       }
     } catch (tokenError: any) {
@@ -149,7 +148,6 @@ export function onForegroundMessage(
   if (!messagingInstance) return null;
 
   return onMessage(messagingInstance, (payload) => {
-    console.log("[Firebase] Message received:", payload);
     callback(payload);
   });
 }

@@ -4,8 +4,11 @@
 import { Capacitor } from "@capacitor/core";
 import { BACKEND_URL } from "./base-url";
 
+const shouldLog = import.meta.env.DEV;
+
 // Enhanced logging function
 const log = (tag: string, message: string, data?: any) => {
+  if (!shouldLog) return;
   const timestamp = new Date().toISOString();
   const logMessage = `[${timestamp}][${tag}] ${message}`;
 
@@ -17,6 +20,7 @@ const log = (tag: string, message: string, data?: any) => {
 };
 
 const logError = (tag: string, message: string, error?: any) => {
+  if (!shouldLog) return;
   const timestamp = new Date().toISOString();
   console.error(`[${timestamp}][${tag}][ERROR] ${message}`, error || "");
 };
@@ -569,9 +573,9 @@ class NativeNotificationService {
         platform: Capacitor.getPlatform(),
         timestamp: new Date().toISOString(),
       };
-      log("NativeNotif", "Registration payload", {
-        ...payload,
-        token: token.substring(0, 30) + "...",
+      log("NativeNotif", "Registration payload prepared", {
+        platform: payload.platform,
+        timestamp: payload.timestamp,
       });
 
       const backendUrl = BACKEND_URL;
