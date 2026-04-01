@@ -32,15 +32,13 @@ A mobile shopping application for AlClean cleaning products, integrated with Sho
 
 **Frontend (.env)**
 ```
-VITE_SHOPIFY_STORE_DOMAIN=your-store.myshopify.com
-VITE_SHOPIFY_STOREFRONT_TOKEN=your-storefront-token
-VITE_SHOPIFY_API_VERSION=2025-07
 VITE_API_URL=http://localhost:3001
 ```
 
 **Backend (.env)**
 ```
 SHOPIFY_STORE_DOMAIN=your-store.myshopify.com
+SHOPIFY_STOREFRONT_TOKEN=your-storefront-token
 SHOPIFY_ADMIN_API_TOKEN=your-admin-token
 SHOPIFY_API_VERSION=2025-07
 PORT=3001
