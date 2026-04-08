@@ -14,10 +14,24 @@ import shopifyRoutes from './routes/shopify.js';
 
 const app = express();
 const port: number = Number(process.env.PORT) || 3001;
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
 
 app.use(
   cors({
-    origin: true,
+    origin:
+      allowedOrigins.length > 0
+        ? (origin, callback) => {
+            if (!origin || allowedOrigins.includes(origin)) {
+              callback(null, true);
+              return;
+            }
+
+            callback(new Error(`Origin not allowed by CORS: ${origin}`));
+          }
+        : true,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
