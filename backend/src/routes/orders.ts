@@ -43,22 +43,22 @@ const LOCAL_DELIVERY_CONTACTS: Record<string, LocalDeliveryContact> = {
     city: 'Karachi',
     managerName: 'Mr Ahsan',
     phone: '+923312709542',
-    estimatedWindow: '1-2 days',
-    note: 'Karachi orders are usually delivered directly by the local team.',
+    estimatedWindow: '2-3 days',
+    note: 'Karachi orders are delivered directly by the local team in 2-3 days.',
   },
   lahore: {
     city: 'Lahore',
     managerName: 'Mr Aftab',
     phone: '+923235555702',
-    estimatedWindow: '1-2 days if stock is available locally, otherwise 5-6 days from Karachi.',
-    note: 'Lahore orders may be sent from Karachi if the local team is out of stock.',
+    estimatedWindow: '2-3 days',
+    note: 'Lahore orders are handled by the local delivery manager in 2-3 days.',
   },
   islamabad: {
     city: 'Islamabad',
     managerName: 'Mr Muhammad',
     phone: '+923345245651',
-    estimatedWindow: '1-2 days if stock is available locally, otherwise 5-6 days from Karachi.',
-    note: 'Islamabad orders may be sent from Karachi if the local team is out of stock.',
+    estimatedWindow: '2-3 days',
+    note: 'Islamabad orders are handled by the local delivery manager in 2-3 days.',
   },
 };
 
@@ -119,6 +119,10 @@ async function shopifyFetch<T>(
 
 function normalizeOrderNumber(value?: string | number | null): string {
   return String(value ?? '').replace(/\D/g, '');
+}
+
+function normalizeTrackingOrderId(value?: string | number | null): string {
+  return String(value ?? '').trim().replace(/^#/, '');
 }
 
 function normalizePhone(value?: string | null): string {
@@ -394,14 +398,27 @@ function extractCourierError(payload: any): string | undefined {
   return undefined;
 }
 
-async function fetchTrackingAssignments(): Promise<TrackingAssignment[]> {
+function buildTrackingAssignmentsUrl(orderId?: string): string {
+  const { assignmentsUrl } = getTrackingConfig();
+  const url = new URL(assignmentsUrl);
+
+  url.searchParams.set('comapny_type', 'Alclean');
+
+  if (orderId) {
+    url.searchParams.set('order_id', orderId);
+  }
+
+  return url.toString();
+}
+
+async function fetchTrackingAssignments(orderId?: string): Promise<TrackingAssignment[]> {
   const { assignmentsUrl } = getTrackingConfig();
   if (!assignmentsUrl) {
     return [];
   }
 
   try {
-    const response = await fetch(assignmentsUrl);
+    const response = await fetch(buildTrackingAssignmentsUrl(orderId));
     if (!response.ok) {
       throw new Error(`Tracking assignments request failed: ${response.status}`);
     }
@@ -413,6 +430,10 @@ async function fetchTrackingAssignments(): Promise<TrackingAssignment[]> {
 
     if (Array.isArray(data?.data)) {
       return data.data;
+    }
+
+    if (data && typeof data === 'object') {
+      return [data];
     }
 
     return [];
@@ -794,8 +815,6 @@ router.get('/', async (req: Request, res: Response) => {
       });
     }
 
-    const assignments = await fetchTrackingAssignments();
-
     const orders = await Promise.all(
       (customer.orders?.edges || []).map(async (edge: any) => {
         const order = transformShopifyOrder(edge.node);
@@ -805,6 +824,9 @@ router.get('/', async (req: Request, res: Response) => {
           customer.email;
         order.customerPhone = customer.phone || '';
 
+        const assignments = await fetchTrackingAssignments(
+          normalizeTrackingOrderId(order.orderNumber),
+        );
         const assignment = matchTrackingAssignment(
           order,
           assignments,

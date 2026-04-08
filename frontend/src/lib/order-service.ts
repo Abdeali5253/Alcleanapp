@@ -448,10 +448,19 @@ class OrderService {
   /**
    * Fetch tracking data from server API
    */
-  async fetchTrackingData(): Promise<any[]> {
+  async fetchTrackingData(orderId?: string): Promise<any[]> {
     try {
-      const response = await fetch('https://app.albizco.com/end_points/get_tracking.php');
+      const url = new URL('https://app.albizco.com/end_points/get_tracking.php');
+      url.searchParams.set('comapny_type', 'Alclean');
+      if (orderId) {
+        url.searchParams.set('order_id', orderId.replace(/^#/, ''));
+      }
+
+      const response = await fetch(url.toString());
       const data = await response.json();
+      if (Array.isArray(data)) return data;
+      if (Array.isArray(data?.data)) return data.data;
+      if (data && typeof data === 'object') return [data];
       return data;
     } catch (error) {
       console.error('Error fetching tracking data:', error);
@@ -482,13 +491,18 @@ class OrderService {
    * Sync orders with tracking API
    */
   async syncTrackingData() {
-    const trackingData = await this.fetchTrackingData();
     const user = authService.getCurrentUser();
 
     if (!user) return;
 
     // Match orders with tracking data by phone number
     const userPhone = user.phone?.replace(/\D/g, '');
+    const userOrders = this.orders.filter(order => order.customerEmail === user.email);
+    const trackingData = (
+      await Promise.all(
+        userOrders.map(order => this.fetchTrackingData(order.orderNumber)),
+      )
+    ).flat();
 
     trackingData.forEach((tracking: any) => {
       const trackingPhone = tracking.phone?.replace(/\D/g, '');
