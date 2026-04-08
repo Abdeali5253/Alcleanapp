@@ -88,6 +88,10 @@ function getTrackingConfig() {
     leopardApiPassword: process.env.LEOPARD_TRACKING_API_PASSWORD || "",
     leopardApiHeader:
       process.env.LEOPARD_TRACKING_API_HEADER || "Authorization",
+    daewooUrl:
+      process.env.DAEWOO_TRACKING_URL ||
+      "https://codapi.daewoo.net.pk/api/booking/quickTrack",
+    daewooApiKey: process.env.DAEWOO_API_KEY || "",
   };
 }
 
@@ -467,11 +471,34 @@ function buildCourierRequest(
   headers: Record<string, string>;
   body?: string;
 } | null {
-  const { leopardUrl, leopardApiKey, leopardApiPassword, leopardApiHeader } =
-    getTrackingConfig();
+  const {
+    leopardUrl,
+    leopardApiKey,
+    leopardApiPassword,
+    leopardApiHeader,
+    daewooUrl,
+    daewooApiKey,
+  } = getTrackingConfig();
   const normalizedCourier = courier.trim().toLowerCase();
 
-  if (normalizedCourier !== "leopard" || !leopardUrl) {
+  if (normalizedCourier.includes("daewoo")) {
+    if (!daewooUrl || !daewooApiKey) {
+      return null;
+    }
+
+    const url = new URL(daewooUrl);
+    url.searchParams.set("trackingNo", trackingNumber);
+
+    return {
+      url: url.toString(),
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${daewooApiKey}`,
+      },
+    };
+  }
+
+  if (!normalizedCourier.includes("leopard") || !leopardUrl) {
     return null;
   }
 
