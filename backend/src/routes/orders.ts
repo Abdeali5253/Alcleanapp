@@ -1,9 +1,9 @@
-import { Router, Request, Response } from 'express';
-import fetch from 'node-fetch';
+import { Router, Request, Response } from "express";
+import fetch from "node-fetch";
 
 const router = Router();
 
-type AppOrderStatus = 'pending' | 'processing' | 'in-transit' | 'delivered';
+type AppOrderStatus = "pending" | "processing" | "in-transit" | "delivered";
 
 interface TrackingAssignment {
   order_id?: string;
@@ -22,7 +22,7 @@ interface TrackingTimelineEvent {
   location?: string;
   timestamp?: string;
   completed: boolean;
-  source: 'system' | 'courier';
+  source: "system" | "courier";
 }
 
 interface CourierTrackingResult {
@@ -40,33 +40,40 @@ interface LocalDeliveryContact {
 
 const LOCAL_DELIVERY_CONTACTS: Record<string, LocalDeliveryContact> = {
   karachi: {
-    city: 'Karachi',
-    managerName: 'Mr Ahsan',
-    phone: '+923312709542',
-    estimatedWindow: '2-3 days',
-    note: 'Karachi orders are delivered directly by the local team in 2-3 days.',
+    city: "Karachi",
+    managerName: "Mr Ahsan",
+    phone: "+923312709542",
+    estimatedWindow: "2-3 days",
+    note: "Karachi orders are delivered directly by the local team in 2-3 days.",
   },
   lahore: {
-    city: 'Lahore',
-    managerName: 'Mr Aftab',
-    phone: '+923235555702',
-    estimatedWindow: '2-3 days',
-    note: 'Lahore orders are handled by the local delivery manager in 2-3 days.',
+    city: "Lahore",
+    managerName: "Mr Aftab",
+    phone: "+923235555702",
+    estimatedWindow: "2-3 days",
+    note: "Lahore orders are handled by the local delivery manager in 2-3 days.",
   },
   islamabad: {
-    city: 'Islamabad',
-    managerName: 'Mr Muhammad',
-    phone: '+923345245651',
-    estimatedWindow: '2-3 days',
-    note: 'Islamabad orders are handled by the local delivery manager in 2-3 days.',
+    city: "Islamabad",
+    managerName: "Mr Muhammad",
+    phone: "+923345245651",
+    estimatedWindow: "2-3 days",
+    note: "Islamabad orders are handled by the local delivery manager in 2-3 days.",
+  },
+  rawalpindi: {
+    city: "Rawalpindi",
+    managerName: "Mr Muhammad",
+    phone: "+923345245651",
+    estimatedWindow: "2-3 days",
+    note: "Rawalpindi orders are handled by the local delivery manager in 2-3 days.",
   },
 };
 
 function getShopifyConfig() {
-  const domain = process.env.SHOPIFY_STORE_DOMAIN || '';
-  const token = process.env.SHOPIFY_STOREFRONT_TOKEN || '';
-  const apiVersion = process.env.SHOPIFY_API_VERSION || '2025-01';
-  const url = domain ? `https://${domain}/api/${apiVersion}/graphql.json` : '';
+  const domain = process.env.SHOPIFY_STORE_DOMAIN || "";
+  const token = process.env.SHOPIFY_STOREFRONT_TOKEN || "";
+  const apiVersion = process.env.SHOPIFY_API_VERSION || "2025-01";
+  const url = domain ? `https://${domain}/api/${apiVersion}/graphql.json` : "";
 
   return { domain, token, apiVersion, url };
 }
@@ -75,11 +82,12 @@ function getTrackingConfig() {
   return {
     assignmentsUrl:
       process.env.TRACKING_ASSIGNMENTS_URL ||
-      'https://app.albizco.com/end_points/get_tracking.php',
-    leopardUrl: process.env.LEOPARD_TRACKING_URL || '',
-    leopardApiKey: process.env.LEOPARD_TRACKING_API_KEY || '',
-    leopardApiPassword: process.env.LEOPARD_TRACKING_API_PASSWORD || '',
-    leopardApiHeader: process.env.LEOPARD_TRACKING_API_HEADER || 'Authorization',
+      "https://app.albizco.com/end_points/get_tracking.php?comapny_type=Alclean",
+    leopardUrl: process.env.LEOPARD_TRACKING_URL || "",
+    leopardApiKey: process.env.LEOPARD_TRACKING_API_KEY || "",
+    leopardApiPassword: process.env.LEOPARD_TRACKING_API_PASSWORD || "",
+    leopardApiHeader:
+      process.env.LEOPARD_TRACKING_API_HEADER || "Authorization",
   };
 }
 
@@ -95,14 +103,14 @@ async function shopifyFetch<T>(
   const { url, token } = getShopifyConfig();
 
   if (!isShopifyConfigured()) {
-    throw new Error('Shopify not configured');
+    throw new Error("Shopify not configured");
   }
 
   const response = await fetch(url, {
-    method: 'POST',
+    method: "POST",
     headers: {
-      'Content-Type': 'application/json',
-      'X-Shopify-Storefront-Access-Token': token,
+      "Content-Type": "application/json",
+      "X-Shopify-Storefront-Access-Token": token,
     },
     body: JSON.stringify({ query, variables }),
   });
@@ -110,46 +118,54 @@ async function shopifyFetch<T>(
   const json: any = await response.json();
 
   if (json.errors?.length) {
-    console.error('[Shopify] GraphQL errors:', json.errors);
-    throw new Error(json.errors.map((e: any) => e.message).join(', '));
+    console.error("[Shopify] GraphQL errors:", json.errors);
+    throw new Error(json.errors.map((e: any) => e.message).join(", "));
   }
 
   return json.data;
 }
 
 function normalizeOrderNumber(value?: string | number | null): string {
-  return String(value ?? '').replace(/\D/g, '');
+  return String(value ?? "").replace(/\D/g, "");
 }
 
 function normalizeTrackingOrderId(value?: string | number | null): string {
-  return String(value ?? '').trim().replace(/^#/, '');
+  return String(value ?? "")
+    .trim()
+    .replace(/^#/, "");
 }
 
 function normalizePhone(value?: string | null): string {
-  const digits = String(value ?? '').replace(/\D/g, '');
+  const digits = String(value ?? "").replace(/\D/g, "");
   return digits.slice(-10);
 }
 
 function normalizeCity(value?: string | null): string {
-  return String(value ?? '').trim().toLowerCase();
+  return String(value ?? "")
+    .trim()
+    .toLowerCase();
 }
 
-function getLocalDeliveryContact(city?: string | null): LocalDeliveryContact | null {
+function getLocalDeliveryContact(
+  city?: string | null,
+): LocalDeliveryContact | null {
   const normalizedCity = normalizeCity(city);
   if (!normalizedCity) return null;
 
-  if (normalizedCity.includes('karachi')) {
+  if (normalizedCity.includes("karachi")) {
     return LOCAL_DELIVERY_CONTACTS.karachi;
   }
 
-  if (normalizedCity.includes('lahore')) {
+  if (normalizedCity.includes("lahore")) {
     return LOCAL_DELIVERY_CONTACTS.lahore;
   }
 
-  if (normalizedCity.includes('islamabad')) {
+  if (normalizedCity.includes("islamabad")) {
     return LOCAL_DELIVERY_CONTACTS.islamabad;
   }
-
+  if (normalizedCity.includes("rawalpindi")) {
+    return LOCAL_DELIVERY_CONTACTS.rawalpindi;
+  }
   return null;
 }
 
@@ -161,11 +177,11 @@ function buildTimestamp(value: any): string | undefined {
     return direct.toISOString();
   }
 
-  if (typeof value === 'object') {
+  if (typeof value === "object") {
     const datePart = value.date || value.status_date || value.created_at;
     const timePart = value.time || value.status_time;
     if (datePart || timePart) {
-      const combined = [datePart, timePart].filter(Boolean).join(' ');
+      const combined = [datePart, timePart].filter(Boolean).join(" ");
       const parsed = new Date(combined);
       if (!Number.isNaN(parsed.getTime())) {
         return parsed.toISOString();
@@ -189,47 +205,47 @@ function getTextValue(
   return undefined;
 }
 
-function inferStatusFromText(text: string): TrackingTimelineEvent['status'] {
+function inferStatusFromText(text: string): TrackingTimelineEvent["status"] {
   const lower = text.toLowerCase();
-  if (lower.includes('deliver')) return 'delivered';
+  if (lower.includes("deliver")) return "delivered";
   if (
-    lower.includes('transit') ||
-    lower.includes('dispatch') ||
-    lower.includes('shipment') ||
-    lower.includes('out for delivery') ||
-    lower.includes('arrival') ||
-    lower.includes('received at facility')
+    lower.includes("transit") ||
+    lower.includes("dispatch") ||
+    lower.includes("shipment") ||
+    lower.includes("out for delivery") ||
+    lower.includes("arrival") ||
+    lower.includes("received at facility")
   ) {
-    return 'in-transit';
+    return "in-transit";
   }
   if (
-    lower.includes('book') ||
-    lower.includes('pickup') ||
-    lower.includes('manifest') ||
-    lower.includes('confirm') ||
-    lower.includes('process')
+    lower.includes("book") ||
+    lower.includes("pickup") ||
+    lower.includes("manifest") ||
+    lower.includes("confirm") ||
+    lower.includes("process")
   ) {
-    return 'processing';
+    return "processing";
   }
-  return 'pending';
+  return "pending";
 }
 
-function findTimelineArrays(input: any, path = 'root', depth = 0): any[] {
+function findTimelineArrays(input: any, path = "root", depth = 0): any[] {
   if (depth > 4 || input == null) {
     return [];
   }
 
   if (Array.isArray(input)) {
     const looksLikeTimeline = input.some((item) => {
-      if (!item || typeof item !== 'object') return false;
-      const keys = Object.keys(item).join(' ').toLowerCase();
+      if (!item || typeof item !== "object") return false;
+      const keys = Object.keys(item).join(" ").toLowerCase();
       return (
-        keys.includes('status') ||
-        keys.includes('activity') ||
-        keys.includes('detail') ||
-        keys.includes('date') ||
-        keys.includes('time') ||
-        keys.includes('location')
+        keys.includes("status") ||
+        keys.includes("activity") ||
+        keys.includes("detail") ||
+        keys.includes("date") ||
+        keys.includes("time") ||
+        keys.includes("location")
       );
     });
 
@@ -240,7 +256,7 @@ function findTimelineArrays(input: any, path = 'root', depth = 0): any[] {
     return [...current, ...nested];
   }
 
-  if (typeof input === 'object') {
+  if (typeof input === "object") {
     return Object.entries(input).flatMap(([key, value]) =>
       findTimelineArrays(value, `${path}.${key}`, depth + 1),
     );
@@ -262,8 +278,8 @@ function mapCourierEvents(payload: any): TrackingTimelineEvent[] {
   const events = bestMatch.value
     .map((entry: Record<string, any>) => {
       const label =
-        getTextValue(entry, ['status', 'activity', 'description', 'detail']) ||
-        getTextValue(entry, ['reason', 'remarks', 'message']);
+        getTextValue(entry, ["status", "activity", "description", "detail"]) ||
+        getTextValue(entry, ["reason", "remarks", "message"]);
       if (!label) {
         return null;
       }
@@ -271,13 +287,13 @@ function mapCourierEvents(payload: any): TrackingTimelineEvent[] {
       return {
         status: inferStatusFromText(label),
         label,
-        details: getTextValue(entry, ['remarks', 'detail', 'message']),
-        location: getTextValue(entry, ['location', 'city', 'branch']),
+        details: getTextValue(entry, ["remarks", "detail", "message"]),
+        location: getTextValue(entry, ["location", "city", "branch"]),
         timestamp:
-          buildTimestamp(getTextValue(entry, ['timestamp', 'datetime'])) ||
+          buildTimestamp(getTextValue(entry, ["timestamp", "datetime"])) ||
           buildTimestamp(entry),
         completed: true,
-        source: 'courier' as const,
+        source: "courier" as const,
       };
     })
     .filter(Boolean) as TrackingTimelineEvent[];
@@ -292,15 +308,15 @@ function mapCourierEvents(payload: any): TrackingTimelineEvent[] {
 
 function stringifyCourierError(value: any): string | undefined {
   if (!value) return undefined;
-  if (typeof value === 'string') return value.trim() || undefined;
+  if (typeof value === "string") return value.trim() || undefined;
   if (Array.isArray(value)) {
     const joined = value
       .map((item) => stringifyCourierError(item))
       .filter(Boolean)
-      .join(', ');
+      .join(", ");
     return joined || undefined;
   }
-  if (typeof value === 'object') {
+  if (typeof value === "object") {
     return (
       stringifyCourierError(value.message) ||
       stringifyCourierError(value.error) ||
@@ -316,7 +332,7 @@ function collectCourierMessages(input: any, depth = 0): string[] {
     return [];
   }
 
-  if (typeof input === 'string') {
+  if (typeof input === "string") {
     return [input.trim()].filter(Boolean);
   }
 
@@ -324,15 +340,15 @@ function collectCourierMessages(input: any, depth = 0): string[] {
     return input.flatMap((item) => collectCourierMessages(item, depth + 1));
   }
 
-  if (typeof input === 'object') {
+  if (typeof input === "object") {
     return Object.entries(input).flatMap(([key, value]) => {
       const normalizedKey = key.toLowerCase();
       if (
-        normalizedKey.includes('message') ||
-        normalizedKey.includes('error') ||
-        normalizedKey.includes('reason') ||
-        normalizedKey.includes('detail') ||
-        normalizedKey.includes('remark')
+        normalizedKey.includes("message") ||
+        normalizedKey.includes("error") ||
+        normalizedKey.includes("reason") ||
+        normalizedKey.includes("detail") ||
+        normalizedKey.includes("remark")
       ) {
         return collectCourierMessages(value, depth + 1);
       }
@@ -345,7 +361,7 @@ function collectCourierMessages(input: any, depth = 0): string[] {
 
 function extractCourierError(payload: any): string | undefined {
   if (payload == null) {
-    return 'Courier API returned an empty response.';
+    return "Courier API returned an empty response.";
   }
 
   const directError =
@@ -359,14 +375,14 @@ function extractCourierError(payload: any): string | undefined {
 
   const messages = collectCourierMessages(payload);
   const errorHints = [
-    'not found',
-    'no record',
-    'invalid',
-    'error',
-    'failed',
-    'unable',
-    'does not exist',
-    'incorrect',
+    "not found",
+    "no record",
+    "invalid",
+    "error",
+    "failed",
+    "unable",
+    "does not exist",
+    "incorrect",
   ];
 
   const hintedMessage = messages.find((message) =>
@@ -377,13 +393,10 @@ function extractCourierError(payload: any): string | undefined {
     return hintedMessage;
   }
 
-  if (
-    Array.isArray(payload?.packet_list) &&
-    payload.packet_list.length === 0
-  ) {
+  if (Array.isArray(payload?.packet_list) && payload.packet_list.length === 0) {
     return (
       stringifyCourierError(payload.message) ||
-      'Order not found in courier system.'
+      "Order not found in courier system."
     );
   }
 
@@ -391,7 +404,7 @@ function extractCourierError(payload: any): string | undefined {
     return (
       stringifyCourierError(payload.message) ||
       stringifyCourierError(payload.status_message) ||
-      'Courier API returned an unsuccessful status.'
+      "Courier API returned an unsuccessful status."
     );
   }
 
@@ -402,16 +415,16 @@ function buildTrackingAssignmentsUrl(orderId?: string): string {
   const { assignmentsUrl } = getTrackingConfig();
   const url = new URL(assignmentsUrl);
 
-  url.searchParams.set('comapny_type', 'Alclean');
-
   if (orderId) {
-    url.searchParams.set('order_id', orderId);
+    url.searchParams.set("order_id", orderId);
   }
 
   return url.toString();
 }
 
-async function fetchTrackingAssignments(orderId?: string): Promise<TrackingAssignment[]> {
+async function fetchTrackingAssignments(
+  orderId?: string,
+): Promise<TrackingAssignment[]> {
   const { assignmentsUrl } = getTrackingConfig();
   if (!assignmentsUrl) {
     return [];
@@ -420,7 +433,9 @@ async function fetchTrackingAssignments(orderId?: string): Promise<TrackingAssig
   try {
     const response = await fetch(buildTrackingAssignmentsUrl(orderId));
     if (!response.ok) {
-      throw new Error(`Tracking assignments request failed: ${response.status}`);
+      throw new Error(
+        `Tracking assignments request failed: ${response.status}`,
+      );
     }
 
     const data: any = await response.json();
@@ -432,13 +447,13 @@ async function fetchTrackingAssignments(orderId?: string): Promise<TrackingAssig
       return data.data;
     }
 
-    if (data && typeof data === 'object') {
+    if (data && typeof data === "object") {
       return [data];
     }
 
     return [];
   } catch (error) {
-    console.error('[Orders] Failed to fetch tracking assignments:', error);
+    console.error("[Orders] Failed to fetch tracking assignments:", error);
     return [];
   }
 }
@@ -448,28 +463,24 @@ function buildCourierRequest(
   trackingNumber: string,
 ): {
   url: string;
-  method: 'GET' | 'POST';
+  method: "GET" | "POST";
   headers: Record<string, string>;
   body?: string;
 } | null {
-  const {
-    leopardUrl,
-    leopardApiKey,
-    leopardApiPassword,
-    leopardApiHeader,
-  } = getTrackingConfig();
+  const { leopardUrl, leopardApiKey, leopardApiPassword, leopardApiHeader } =
+    getTrackingConfig();
   const normalizedCourier = courier.trim().toLowerCase();
 
-  if (normalizedCourier !== 'leopard' || !leopardUrl) {
+  if (normalizedCourier !== "leopard" || !leopardUrl) {
     return null;
   }
 
   if (leopardApiPassword) {
     return {
       url: leopardUrl,
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
         api_key: leopardApiKey,
@@ -479,20 +490,20 @@ function buildCourierRequest(
     };
   }
 
-  const url = leopardUrl.includes('{trackingNumber}')
-    ? leopardUrl.replace('{trackingNumber}', encodeURIComponent(trackingNumber))
-    : `${leopardUrl}${leopardUrl.includes('?') ? '&' : '?'}trackingNumber=${encodeURIComponent(trackingNumber)}`;
+  const url = leopardUrl.includes("{trackingNumber}")
+    ? leopardUrl.replace("{trackingNumber}", encodeURIComponent(trackingNumber))
+    : `${leopardUrl}${leopardUrl.includes("?") ? "&" : "?"}trackingNumber=${encodeURIComponent(trackingNumber)}`;
 
   const headers: Record<string, string> = {};
 
   if (leopardApiKey) {
     headers[leopardApiHeader] =
-      leopardApiHeader.toLowerCase() === 'authorization'
+      leopardApiHeader.toLowerCase() === "authorization"
         ? `Bearer ${leopardApiKey}`
         : leopardApiKey;
   }
 
-  return { url, method: 'GET', headers };
+  return { url, method: "GET", headers };
 }
 
 async function fetchCourierTimeline(
@@ -533,61 +544,64 @@ async function fetchCourierTimeline(
     if (!timeline.length) {
       return {
         timeline: [],
-        error: 'Courier API returned no tracking scans for this shipment.',
+        error: "Courier API returned no tracking scans for this shipment.",
       };
     }
 
     return { timeline };
   } catch (error) {
-    console.error('[Orders] Failed to fetch courier timeline:', error);
+    console.error("[Orders] Failed to fetch courier timeline:", error);
     return {
       timeline: [],
       error:
         error instanceof Error
           ? error.message
-          : 'Failed to fetch courier tracking details.',
+          : "Failed to fetch courier tracking details.",
     };
   }
 }
 
-function buildFallbackTimeline(order: any, localDelivery: LocalDeliveryContact | null): TrackingTimelineEvent[] {
+function buildFallbackTimeline(
+  order: any,
+  localDelivery: LocalDeliveryContact | null,
+): TrackingTimelineEvent[] {
   const timeline: TrackingTimelineEvent[] = [
     {
-      status: 'processing',
-      label: 'Order placed',
-      details: 'Your order was received and is being prepared.',
+      status: "processing",
+      label: "Order placed",
+      details: "Your order was received and is being prepared.",
       timestamp: order.createdAt,
       completed: true,
-      source: 'system',
+      source: "system",
     },
   ];
 
   if (localDelivery) {
     timeline.push({
-      status: 'processing',
+      status: "processing",
       label: `Assigned to ${localDelivery.city} delivery team`,
       details: `${localDelivery.managerName} will coordinate the local delivery. ${localDelivery.note}`,
       completed: true,
-      source: 'system',
+      source: "system",
     });
 
-    if (order.status === 'in-transit' || order.status === 'delivered') {
+    if (order.status === "in-transit" || order.status === "delivered") {
       timeline.push({
-        status: 'in-transit',
-        label: 'Out for local delivery',
+        status: "in-transit",
+        label: "Out for local delivery",
         details: `Estimated delivery window: ${localDelivery.estimatedWindow}`,
         completed: true,
-        source: 'system',
+        source: "system",
       });
     }
 
-    if (order.status === 'delivered') {
+    if (order.status === "delivered") {
       timeline.push({
-        status: 'delivered',
-        label: 'Delivered by local team',
+        status: "delivered",
+        label: "Delivered by local team",
         details: `Completed by the ${localDelivery.city} team.`,
         completed: true,
-        source: 'system',
+        source: "system",
       });
     }
 
@@ -596,31 +610,31 @@ function buildFallbackTimeline(order: any, localDelivery: LocalDeliveryContact |
 
   if (order.trackingNumber) {
     timeline.push({
-      status: 'processing',
-      label: 'Tracking assigned',
-      details: `${order.courier || 'Courier'} tracking number ${order.trackingNumber}`,
+      status: "processing",
+      label: "Tracking assigned",
+      details: `${order.courier || "Courier"} tracking number ${order.trackingNumber}`,
       completed: true,
-      source: 'system',
+      source: "system",
     });
   }
 
-  if (order.status === 'in-transit' || order.status === 'delivered') {
+  if (order.status === "in-transit" || order.status === "delivered") {
     timeline.push({
-      status: 'in-transit',
-      label: 'Parcel in transit',
-      details: 'Your shipment is moving through the courier network.',
+      status: "in-transit",
+      label: "Parcel in transit",
+      details: "Your shipment is moving through the courier network.",
       completed: true,
-      source: 'system',
+      source: "system",
     });
   }
 
-  if (order.status === 'delivered') {
+  if (order.status === "delivered") {
     timeline.push({
-      status: 'delivered',
-      label: 'Delivered',
-      details: 'The parcel has been delivered successfully.',
+      status: "delivered",
+      label: "Delivered",
+      details: "The parcel has been delivered successfully.",
       completed: true,
-      source: 'system',
+      source: "system",
     });
   }
 
@@ -631,17 +645,17 @@ function mapShopifyStatus(
   financialStatus: string,
   fulfillmentStatus: string,
 ): AppOrderStatus {
-  if (fulfillmentStatus === 'FULFILLED') return 'delivered';
+  if (fulfillmentStatus === "FULFILLED") return "delivered";
   if (
-    fulfillmentStatus === 'PARTIALLY_FULFILLED' ||
-    fulfillmentStatus === 'IN_PROGRESS'
+    fulfillmentStatus === "PARTIALLY_FULFILLED" ||
+    fulfillmentStatus === "IN_PROGRESS"
   ) {
-    return 'in-transit';
+    return "in-transit";
   }
-  if (financialStatus === 'PAID' || financialStatus === 'PARTIALLY_PAID') {
-    return 'processing';
+  if (financialStatus === "PAID" || financialStatus === "PARTIALLY_PAID") {
+    return "processing";
   }
-  return 'pending';
+  return "pending";
 }
 
 function transformShopifyOrder(order: any): any {
@@ -649,11 +663,11 @@ function transformShopifyOrder(order: any): any {
     const item = itemEdge.node;
     return {
       product: {
-        id: item.variant?.id || '',
+        id: item.variant?.id || "",
         title: item.title,
-        image: item.variant?.image?.url || '',
-        price: parseFloat(item.variant?.price?.amount || '0'),
-        variantId: item.variant?.id || '',
+        image: item.variant?.image?.url || "",
+        price: parseFloat(item.variant?.price?.amount || "0"),
+        variantId: item.variant?.id || "",
       },
       quantity: item.quantity,
     };
@@ -662,16 +676,16 @@ function transformShopifyOrder(order: any): any {
   return {
     id: order.id,
     orderNumber: `#${order.orderNumber}`,
-    customerName: '',
-    customerEmail: '',
-    customerPhone: '',
-    customerAddress: '',
-    city: '',
+    customerName: "",
+    customerEmail: "",
+    customerPhone: "",
+    customerAddress: "",
+    city: "",
     items: lineItems,
     subtotal: parseFloat(order.totalPrice.amount),
     deliveryCharge: 0,
     total: parseFloat(order.totalPrice.amount),
-    paymentMethod: 'cod',
+    paymentMethod: "cod",
     status: mapShopifyStatus(order.financialStatus, order.fulfillmentStatus),
     createdAt: order.processedAt,
     shopifyOrderId: order.id,
@@ -704,28 +718,31 @@ async function enrichOrderTracking(
 ): Promise<any> {
   const trackingNumber = assignment?.tracking_number || order.trackingNumber;
   const courier = assignment?.courier || order.courier;
-  const city = order.city || assignment?.city || '';
+  const city = order.city || assignment?.city || "";
   const localDelivery = getLocalDeliveryContact(city);
   const courierResult = localDelivery
     ? { timeline: [] }
     : await fetchCourierTimeline(courier, trackingNumber);
   const courierTimeline = courierResult.timeline;
-  const fallbackTimeline = buildFallbackTimeline({
-    ...order,
-    trackingNumber,
-    courier,
-  }, localDelivery);
+  const fallbackTimeline = buildFallbackTimeline(
+    {
+      ...order,
+      trackingNumber,
+      courier,
+    },
+    localDelivery,
+  );
   const trackingTimeline =
     courierTimeline.length > 0 ? courierTimeline : fallbackTimeline;
 
   const deliveredFromTimeline = trackingTimeline.some(
-    (event) => event.status === 'delivered',
+    (event) => event.status === "delivered",
   );
   const status: AppOrderStatus =
-    deliveredFromTimeline || order.status === 'delivered'
-      ? 'delivered'
-      : trackingTimeline.some((event) => event.status === 'in-transit')
-        ? 'in-transit'
+    deliveredFromTimeline || order.status === "delivered"
+      ? "delivered"
+      : trackingTimeline.some((event) => event.status === "in-transit")
+        ? "in-transit"
         : order.status;
 
   const latestCheckpoint =
@@ -735,26 +752,26 @@ async function enrichOrderTracking(
     ...order,
     status,
     trackingNumber,
-    courier: localDelivery ? 'Alclean Local Delivery' : courier,
+    courier: localDelivery ? "Alclean Local Delivery" : courier,
     companyType: assignment?.company_type || order.companyType,
     city,
     trackingTimeline,
-    trackingStatusText: latestCheckpoint?.label || '',
+    trackingStatusText: latestCheckpoint?.label || "",
     trackingLastUpdated: latestCheckpoint?.timestamp,
-    ratingEligible: status === 'delivered',
+    ratingEligible: status === "delivered",
     localDelivery,
     courierTrackingError: courierResult.error,
   };
 }
 
-router.get('/', async (req: Request, res: Response) => {
+router.get("/", async (req: Request, res: Response) => {
   try {
-    const accessToken = req.headers.authorization?.replace('Bearer ', '');
+    const accessToken = req.headers.authorization?.replace("Bearer ", "");
 
     if (!accessToken) {
       return res.status(401).json({
         success: false,
-        error: 'Access token required',
+        error: "Access token required",
       });
     }
 
@@ -811,7 +828,7 @@ router.get('/', async (req: Request, res: Response) => {
     if (!customer) {
       return res.status(404).json({
         success: false,
-        error: 'Customer not found',
+        error: "Customer not found",
       });
     }
 
@@ -820,9 +837,9 @@ router.get('/', async (req: Request, res: Response) => {
         const order = transformShopifyOrder(edge.node);
         order.customerEmail = customer.email;
         order.customerName =
-          `${customer.firstName || ''} ${customer.lastName || ''}`.trim() ||
+          `${customer.firstName || ""} ${customer.lastName || ""}`.trim() ||
           customer.email;
-        order.customerPhone = customer.phone || '';
+        order.customerPhone = customer.phone || "";
 
         const assignments = await fetchTrackingAssignments(
           normalizeTrackingOrderId(order.orderNumber),
@@ -851,10 +868,10 @@ router.get('/', async (req: Request, res: Response) => {
       orders,
     });
   } catch (error: any) {
-    console.error('[Orders] Get orders error:', error);
+    console.error("[Orders] Get orders error:", error);
     res.status(500).json({
       success: false,
-      error: error.message || 'Failed to get orders',
+      error: error.message || "Failed to get orders",
     });
   }
 });
