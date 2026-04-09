@@ -53,6 +53,19 @@ function AppContent() {
   const [showBackendStatus, setShowBackendStatus] = useState(true);
   const didRequestNativeNotifications = useRef(false);
 
+  const getBackFallbackRoute = (pathname: string) => {
+    if (pathname.startsWith("/product/")) return "/products";
+    if (pathname === "/edit-profile") return "/account";
+    if (pathname === "/notification-settings") return "/notifications";
+    if (pathname === "/notifications/settings") return "/notifications";
+    if (pathname === "/checkout/success") return "/checkout";
+    if (pathname === "/checkout") return "/cart";
+    if (pathname === "/contact") return "/account";
+    if (pathname === "/about") return "/account";
+    if (pathname === "/help-support") return "/account";
+    return "/";
+  };
+
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
   }, [location.pathname, location.search]);
@@ -130,6 +143,11 @@ function AppContent() {
 
       if (window.history.length > 1 && !isRootRoute) {
         navigate(-1);
+        return;
+      }
+
+      if (!isRootRoute) {
+        navigate(getBackFallbackRoute(location.pathname), { replace: true });
         return;
       }
 

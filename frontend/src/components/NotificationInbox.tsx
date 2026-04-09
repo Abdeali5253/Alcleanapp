@@ -18,6 +18,7 @@ export function NotificationInbox() {
   const navigate = useNavigate();
   const [notifications, setNotifications] = useState<PushNotification[]>([]);
   const [filter, setFilter] = useState<"all" | "unread">("all");
+  const [brokenImages, setBrokenImages] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     loadNotifications();
@@ -124,6 +125,14 @@ export function NotificationInbox() {
     if (days < 7) return `${days}d ago`;
     
     return new Date(ts).toLocaleDateString();
+  };
+
+  const canRenderImage = (notification: PushNotification) => {
+    if (!notification.imageUrl || brokenImages[notification.id]) {
+      return false;
+    }
+
+    return /^https?:\/\//i.test(notification.imageUrl);
   };
 
   const filteredNotifications = filter === "unread" 
@@ -271,12 +280,18 @@ export function NotificationInbox() {
                 </div>
 
                 {/* Image if available */}
-                {notification.imageUrl && (
+                {canRenderImage(notification) && (
                   <div className="mt-3 rounded-lg overflow-hidden">
                     <img
                       src={notification.imageUrl}
                       alt=""
                       className="w-full h-32 object-cover"
+                      onError={() =>
+                        setBrokenImages((current) => ({
+                          ...current,
+                          [notification.id]: true,
+                        }))
+                      }
                     />
                   </div>
                 )}

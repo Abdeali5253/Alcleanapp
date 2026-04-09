@@ -60,6 +60,9 @@ export interface NotificationSettings {
 const NOTIFICATIONS_STORAGE_KEY = "alclean_notifications";
 const FCM_TOKEN_STORAGE_KEY = "alclean_fcm_token";
 const NOTIFICATION_SETTINGS_KEY = "alclean_notification_settings";
+const NOTIFICATION_READ_SIGNATURES_KEY = "alclean_notification_read_signatures";
+const NOTIFICATION_HIDDEN_SIGNATURES_KEY =
+  "alclean_notification_hidden_signatures";
 
 // Helper functions
 const isNativePlatform = () => Capacitor.isNativePlatform();
@@ -74,6 +77,8 @@ class NotificationService {
   private notifications: PushNotification[] = [];
   private listeners: ((notifications: PushNotification[]) => void)[] = [];
   private isInitialized = false;
+  private readSignatures = new Set<string>();
+  private hiddenSignatures = new Set<string>();
   private settings: NotificationSettings = {
     enabled: true,
     orderUpdates: true,
@@ -136,23 +141,72 @@ class NotificationService {
     });
   }
 
+  private isHiddenNotification(notification: {
+    title: string;
+    body: string;
+    type?: string;
+    data?: Record<string, any>;
+    imageUrl?: string;
+  }): boolean {
+    return this.hiddenSignatures.has(this.getNotificationSignature(notification));
+  }
+
+  private applyPersistedState(notification: PushNotification): PushNotification {
+    const signature = this.getNotificationSignature(notification);
+    if (this.readSignatures.has(signature)) {
+      return {
+        ...notification,
+        read: true,
+      };
+    }
+
+    return notification;
+  }
+
+  private persistReadSignature(notification: {
+    title: string;
+    body: string;
+    type?: string;
+    data?: Record<string, any>;
+    imageUrl?: string;
+  }): void {
+    this.readSignatures.add(this.getNotificationSignature(notification));
+    this.saveNotificationState();
+  }
+
+  private persistHiddenSignature(notification: {
+    title: string;
+    body: string;
+    type?: string;
+    data?: Record<string, any>;
+    imageUrl?: string;
+  }): void {
+    this.hiddenSignatures.add(this.getNotificationSignature(notification));
+    this.saveNotificationState();
+  }
+
   private upsertNotification(notification: PushNotification): void {
+    if (this.isHiddenNotification(notification)) {
+      return;
+    }
+
+    const normalizedNotification = this.applyPersistedState(notification);
     const existing = this.findMatchingNotification(
       {
-        ...notification,
-        timestamp: notification.timestamp,
+        ...normalizedNotification,
+        timestamp: normalizedNotification.timestamp,
       },
       this.getNotifications(),
     );
 
     if (existing) {
-      if (notification.read && !existing.read) {
+      if (normalizedNotification.read && !existing.read) {
         this.markAsRead(existing.id);
       }
       return;
     }
 
-    this.addNotification(notification);
+    this.addNotification(normalizedNotification);
   }
 
   constructor() {
@@ -160,6 +214,7 @@ class NotificationService {
     console.log("[Notifications] Platform:", Capacitor.getPlatform());
     console.log("[Notifications] Is Native:", isNativePlatform());
     this.loadNotifications();
+    this.loadNotificationState();
     this.loadFCMToken();
     this.loadSettings();
   }
@@ -270,16 +325,19 @@ class NotificationService {
     nativeNotifs: NativeNotification[],
   ): void {
     try {
-      this.notifications = nativeNotifs.map((n) => ({
-        id: n.id,
-        title: n.title,
-        body: n.body,
-        type: n.type as PushNotification["type"],
-        timestamp: new Date(n.timestamp),
-        read: n.read,
-        data: n.data,
-        imageUrl: n.imageUrl,
-      }));
+      this.notifications = nativeNotifs
+        .map((n) => ({
+          id: n.id,
+          title: n.title,
+          body: n.body,
+          type: n.type as PushNotification["type"],
+          timestamp: new Date(n.timestamp),
+          read: n.read,
+          data: n.data,
+          imageUrl: n.imageUrl,
+        }))
+        .filter((notification) => !this.isHiddenNotification(notification))
+        .map((notification) => this.applyPersistedState(notification));
       this.notifyListeners();
     } catch (e) {
       console.error("[Notifications] Sync error:", e);
@@ -352,15 +410,20 @@ class NotificationService {
   // Add notification to list
   addNotification(notification: PushNotification): void {
     try {
+      if (this.isHiddenNotification(notification)) {
+        return;
+      }
+
+      const normalizedNotification = this.applyPersistedState(notification);
       const existing = this.findMatchingNotification(
         {
-          ...notification,
-          timestamp: notification.timestamp,
+          ...normalizedNotification,
+          timestamp: normalizedNotification.timestamp,
         },
         this.getNotifications(),
       );
       if (existing) {
-        if (notification.read && !existing.read) {
+        if (normalizedNotification.read && !existing.read) {
           this.markAsRead(existing.id);
         }
         return;
@@ -368,19 +431,19 @@ class NotificationService {
 
       if (isNativePlatform()) {
         nativeNotificationService.addNotification({
-          id: notification.id,
-          title: notification.title,
-          body: notification.body,
-          type: notification.type,
-          timestamp: notification.timestamp.getTime(),
-          read: notification.read,
-          data: notification.data,
-          imageUrl: notification.imageUrl,
+          id: normalizedNotification.id,
+          title: normalizedNotification.title,
+          body: normalizedNotification.body,
+          type: normalizedNotification.type,
+          timestamp: normalizedNotification.timestamp.getTime(),
+          read: normalizedNotification.read,
+          data: normalizedNotification.data,
+          imageUrl: normalizedNotification.imageUrl,
         });
         return;
       }
 
-      this.notifications.unshift(notification);
+      this.notifications.unshift(normalizedNotification);
       this.saveNotifications();
       this.notifyListeners();
     } catch (e) {
@@ -426,8 +489,14 @@ class NotificationService {
   // Mark notification as read
   markAsRead(id: string): void {
     try {
+      const target = this.getNotifications().find((notification) => notification.id === id);
+      if (target) {
+        this.persistReadSignature(target);
+      }
+
       if (isNativePlatform()) {
         nativeNotificationService.markAsRead(id);
+        this.syncFromNativeNotifications(nativeNotificationService.getNotifications());
         return;
       }
 
@@ -445,8 +514,13 @@ class NotificationService {
   // Mark all as read
   markAllAsRead(): void {
     try {
+      this.getNotifications().forEach((notification) => {
+        this.persistReadSignature(notification);
+      });
+
       if (isNativePlatform()) {
         nativeNotificationService.markAllAsRead();
+        this.syncFromNativeNotifications(nativeNotificationService.getNotifications());
         return;
       }
 
@@ -461,8 +535,14 @@ class NotificationService {
   // Delete notification
   deleteNotification(id: string): void {
     try {
+      const target = this.getNotifications().find((notification) => notification.id === id);
+      if (target) {
+        this.persistHiddenSignature(target);
+      }
+
       if (isNativePlatform()) {
         nativeNotificationService.deleteNotification(id);
+        this.syncFromNativeNotifications(nativeNotificationService.getNotifications());
         return;
       }
 
@@ -477,8 +557,13 @@ class NotificationService {
   // Clear all notifications
   clearAll(): void {
     try {
+      this.getNotifications().forEach((notification) => {
+        this.persistHiddenSignature(notification);
+      });
+
       if (isNativePlatform()) {
         nativeNotificationService.clearAll();
+        this.syncFromNativeNotifications(nativeNotificationService.getNotifications());
         return;
       }
 
@@ -850,6 +935,41 @@ class NotificationService {
 
   private generateId(): string {
     return `notif_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  }
+
+  private loadNotificationState(): void {
+    try {
+      const storedReadSignatures = localStorage.getItem(
+        NOTIFICATION_READ_SIGNATURES_KEY,
+      );
+      if (storedReadSignatures) {
+        this.readSignatures = new Set(JSON.parse(storedReadSignatures));
+      }
+
+      const storedHiddenSignatures = localStorage.getItem(
+        NOTIFICATION_HIDDEN_SIGNATURES_KEY,
+      );
+      if (storedHiddenSignatures) {
+        this.hiddenSignatures = new Set(JSON.parse(storedHiddenSignatures));
+      }
+    } catch (error) {
+      console.error("[Notifications] Failed to load notification state:", error);
+    }
+  }
+
+  private saveNotificationState(): void {
+    try {
+      localStorage.setItem(
+        NOTIFICATION_READ_SIGNATURES_KEY,
+        JSON.stringify(Array.from(this.readSignatures)),
+      );
+      localStorage.setItem(
+        NOTIFICATION_HIDDEN_SIGNATURES_KEY,
+        JSON.stringify(Array.from(this.hiddenSignatures)),
+      );
+    } catch (error) {
+      console.error("[Notifications] Failed to save notification state:", error);
+    }
   }
 }
 

@@ -82,11 +82,17 @@ export function EditProfile() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
+      <header className="bg-white border-b border-gray-200 sticky top-0 z-40 safe-top">
         <div className="max-w-md mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <button 
-              onClick={() => navigate(-1)}
+              onClick={() => {
+                if (window.history.length > 1) {
+                  navigate(-1);
+                  return;
+                }
+                navigate("/account");
+              }}
               className="p-2 hover:bg-gray-100 rounded-lg"
             >
               <ChevronLeft size={24} className="text-gray-700" />

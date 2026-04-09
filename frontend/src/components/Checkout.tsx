@@ -28,12 +28,13 @@ declare global {
 export function Checkout() {
   const navigate = useNavigate();
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(authService.getUser());
   const [isLoading, setIsLoading] = useState(false);
   const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
   const [paymentCompleted, setPaymentCompleted] = useState(false);
   const inAppRef = useRef<any>(null);
   const paymentCompletedRef = useRef(false);
+  const guestHintShownRef = useRef(false);
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -68,6 +69,21 @@ export function Checkout() {
   useEffect(() => {
     paymentCompletedRef.current = paymentCompleted;
   }, [paymentCompleted]);
+
+  useEffect(() => {
+    if (user || guestHintShownRef.current) {
+      return;
+    }
+
+    guestHintShownRef.current = true;
+    toast.info(
+      "Sign in to your account for easier order tracking, or continue as guest.",
+      {
+        duration: 8000,
+        position: "bottom-center",
+      },
+    );
+  }, [user]);
 
   const calculateTotalWeight = (): number => {
     let totalWeight = 0;
