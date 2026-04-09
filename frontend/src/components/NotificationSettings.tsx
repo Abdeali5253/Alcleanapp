@@ -41,7 +41,7 @@ export function NotificationSettings() {
         setFcmToken(token);
 
         if (perm === "granted" && !token && isNative) {
-          await notificationService.requestPermission();
+          await notificationService.tryRegisterIfPermitted();
           setTimeout(() => {
             setFcmToken(notificationService.getFCMToken());
           }, 2000);
@@ -61,14 +61,16 @@ export function NotificationSettings() {
 
     if (!settings.enabled) {
       setIsEnabling(true);
+      const newSettings = { ...settings, enabled: true };
+      setSettings(newSettings);
+      notificationService.updateSettings(newSettings);
 
       try {
-        const granted = await notificationService.requestPermission();
+        const currentPermission = await notificationService.checkPermission();
+        setPermission(currentPermission);
 
-        if (granted) {
-          const newSettings = { ...settings, enabled: true };
-          setSettings(newSettings);
-          notificationService.updateSettings(newSettings);
+        if (currentPermission === "granted") {
+          await notificationService.tryRegisterIfPermitted();
           setPermission("granted");
 
           setTimeout(() => {
@@ -76,16 +78,33 @@ export function NotificationSettings() {
           }, 1500);
 
           toast.success("Notifications enabled!");
+        } else if (currentPermission === "default") {
+          const granted = await notificationService.requestPermission();
+          const updatedPermission = await notificationService.checkPermission();
+          setPermission(updatedPermission);
+
+          if (granted) {
+            setTimeout(() => {
+              setFcmToken(notificationService.getFCMToken());
+            }, 1500);
+            toast.success("Notifications enabled!");
+          } else {
+            toast.info(
+              isNative
+                ? "Notifications are enabled in the app. Allow system permission to receive alerts."
+                : "Notifications are enabled in the app. Allow browser permission to receive alerts.",
+            );
+          }
         } else {
-          toast.error(
+          toast.info(
             isNative
-              ? "Permission denied. Please enable in app settings."
-              : "Permission denied. Please enable in browser settings.",
+              ? "Notifications are enabled in the app. Allow them in device settings to receive alerts."
+              : "Notifications are enabled in the app. Allow them in browser settings to receive alerts.",
           );
         }
       } catch (error) {
         console.error("[NotificationSettings] Error enabling notifications:", error);
-        toast.error("Failed to enable notifications. Please try again.");
+        toast.error("Failed to update notification settings. Please try again.");
       } finally {
         setIsEnabling(false);
       }
@@ -123,7 +142,11 @@ export function NotificationSettings() {
           }
         }, 2000);
       } else {
-        toast.error("Permission denied");
+        toast.info(
+          isNative
+            ? "System notification permission is still off. Enable it in device settings to receive alerts."
+            : "System notification permission is still off. Enable it in browser settings to receive alerts.",
+        );
       }
     } catch (e) {
       console.error("[NotificationSettings] Register error:", e);
@@ -265,7 +288,7 @@ export function NotificationSettings() {
             Push notifications are not enabled yet.
             <br />
             <span className="text-xs text-yellow-600">
-              Enable them in Android Settings, or tap below to retry registration.
+              Allow notification permission in your device settings, or tap below to retry registration.
             </span>
             <div className="mt-3">
               <Button variant="outline" onClick={handleRegisterPush}>
@@ -292,10 +315,6 @@ export function NotificationSettings() {
             <li>Get delivery updates directly to your device</li>
             <li>Receive personalized offers based on your interests</li>
           </ul>
-        </div>
-
-        <div className="mt-4 text-center text-xs text-gray-400">
-          Platform: {Capacitor.getPlatform()} | Native: {isNative ? "Yes" : "No"}
         </div>
       </div>
     </div>

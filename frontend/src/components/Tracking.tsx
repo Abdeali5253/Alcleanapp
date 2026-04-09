@@ -48,32 +48,40 @@ export function Tracking() {
   const navigate = useNavigate();
   const [orders, setOrders] = useState<Order[]>([]);
   const [ratings, setRatings] = useState<RatingsMap>({});
-  const [drafts, setDrafts] = useState<Record<string, { stars: number; review: string }>>({});
+  const [drafts, setDrafts] = useState<
+    Record<string, { stars: number; review: string }>
+  >({});
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     setRatings(orderRatingService.getAll());
-    loadOrders();
-  }, []);
-
-  const loadOrders = async () => {
-    if (!authService.isLoggedIn()) {
-      setIsLoading(false);
-      return;
-    }
-
-    try {
-      const user = authService.getCurrentUser();
+    const unsubscribe = authService.subscribe((user) => {
       if (!user?.accessToken) {
-        console.error("[Tracking] No access token");
+        setOrders([]);
         setIsLoading(false);
         return;
       }
 
+      loadOrders(user.accessToken);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const loadOrders = async (accessToken?: string) => {
+    const resolvedToken = accessToken || authService.getAccessToken();
+    if (!resolvedToken) {
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
       const response = await fetch(`${BACKEND_URL}/api/orders`, {
         method: "GET",
         headers: {
-          Authorization: `Bearer ${user.accessToken}`,
+          Authorization: `Bearer ${resolvedToken}`,
         },
       });
 
@@ -81,6 +89,7 @@ export function Tracking() {
 
       if (!data.success) {
         console.error("[Tracking] Backend error:", data.error);
+        toast.error(data.error || "Unable to load your orders right now.");
         setOrders([]);
       } else {
         setOrders(data.orders || []);

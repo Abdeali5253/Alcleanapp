@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   HashRouter as Router,
   Routes,
@@ -51,6 +51,11 @@ function AppContent() {
   const location = useLocation();
   const [showSplash, setShowSplash] = useState(true);
   const [showBackendStatus, setShowBackendStatus] = useState(true);
+  const didRequestNativeNotifications = useRef(false);
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }, [location.pathname, location.search]);
 
   useEffect(() => {
     const initApp = async () => {
@@ -65,28 +70,6 @@ function AppContent() {
         } catch (e) {
           console.log("[App] StatusBar setup skipped:", e);
         }
-
-        // Request push notification permission (shows Android system dialog)
-        // This will get FCM token if user allows
-        setTimeout(async () => {
-          try {
-            const granted = await notificationService.requestPermission();
-
-            if (granted) {
-              // Wait for FCM token
-              setTimeout(() => {
-                const token = notificationService.getFCMToken();
-                if (!token) {
-                  console.warn(
-                    "[App] Push permission granted but FCM token is not available yet",
-                  );
-                }
-              }, 1000);
-            }
-          } catch (e) {
-            console.error("[App] Push permission error:", e);
-          }
-        }, 2000);
       }
 
     };
@@ -96,6 +79,39 @@ function AppContent() {
     const timer = setTimeout(() => setShowBackendStatus(false), 10000);
     return () => clearTimeout(timer);
   }, [navigate]);
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform() || showSplash) return;
+    if (didRequestNativeNotifications.current) return;
+
+    didRequestNativeNotifications.current = true;
+
+    const timer = window.setTimeout(async () => {
+      try {
+        const currentPermission = await notificationService.checkPermission();
+        if (currentPermission === "granted") {
+          await notificationService.tryRegisterIfPermitted();
+          return;
+        }
+
+        const granted = await notificationService.requestPermission();
+        if (granted) {
+          window.setTimeout(() => {
+            const token = notificationService.getFCMToken();
+            if (!token) {
+              console.warn(
+                "[App] Push permission granted but FCM token is not available yet",
+              );
+            }
+          }, 1000);
+        }
+      } catch (e) {
+        console.error("[App] Push permission error:", e);
+      }
+    }, 600);
+
+    return () => window.clearTimeout(timer);
+  }, [showSplash]);
 
   useEffect(() => {
     if (!Capacitor.isNativePlatform() || showSplash) return;
@@ -129,7 +145,8 @@ function AppContent() {
     };
   }, [location.pathname, navigate, showSplash]);
 
-  // Deep-link handler: alclean://checkout/success OR https://alclean.pk/checkout/success
+  // Deep-link handler: alclean://checkout/success, com.alclean.app://checkout/success,
+  // or https://alclean.pk/checkout/success
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
 
@@ -137,9 +154,13 @@ function AppContent() {
       try {
         if (!url) return;
 
-        // Normalize: handle both custom scheme and https links
         const u = new URL(url);
-        const path = u.pathname || "/";
+        const host = (u.host || "").toLowerCase();
+        const protocol = (u.protocol || "").toLowerCase();
+        const path =
+          protocol === "alclean:" || protocol === "com.alclean.app:"
+            ? `/${host}${u.pathname || ""}`
+            : u.pathname || "/";
         const query = u.search || "";
 
         if (path.startsWith("/checkout/success")) {
@@ -147,11 +168,15 @@ function AppContent() {
             await Browser.close();
           } catch {}
 
-          navigate(path + query);
+          navigate(path + query, { replace: true });
           return;
         }
 
-        if (u.protocol === "com.alclean.app:" || path === "/account") {
+        if (
+          protocol === "alclean:" ||
+          protocol === "com.alclean.app:" ||
+          path === "/account"
+        ) {
           navigate("/account", { replace: true });
           return;
         }

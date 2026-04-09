@@ -4,7 +4,6 @@ import { BACKEND_URL } from "./base-url";
 import { getFirebaseAuth } from "./firebase-config";
 import {
   signInWithPopup,
-  signInWithCredential,
   GoogleAuthProvider,
   signOut as firebaseSignOut,
 } from "firebase/auth";
@@ -97,17 +96,19 @@ class AuthService {
     return this.user?.accessToken || null;
   }
 
-  private async clearNativeGoogleSession(auth: any): Promise<void> {
+  private async clearNativeGoogleSession(auth?: any | null): Promise<void> {
     try {
       await FirebaseAuthentication.signOut();
     } catch (error) {
       console.log("[Auth] Native signOut skipped:", error);
     }
 
-    try {
-      await firebaseSignOut(auth);
-    } catch (error) {
-      console.log("[Auth] Firebase signOut skipped:", error);
+    if (auth) {
+      try {
+        await firebaseSignOut(auth);
+      } catch (error) {
+        console.log("[Auth] Firebase signOut skipped:", error);
+      }
     }
   }
 
@@ -124,14 +125,20 @@ class AuthService {
       lowerMessage.includes("code 10");
 
     if (isDeveloperError) {
-      return "Google Sign-In is misconfigured for the Play Store build. Add the Google Play App Signing SHA fingerprints to Firebase for com.alclean.app, download the updated google-services.json, and publish a new release.";
+      if (Capacitor.getPlatform() === "android") {
+        return "Google Sign-In is misconfigured for this Android build. Add this build's SHA-1 and SHA-256 fingerprints to Firebase for com.alclean.app, then download the updated google-services.json and rebuild the app.";
+      }
+
+      if (Capacitor.getPlatform() === "ios") {
+        return "Google Sign-In is misconfigured for iOS. Verify the iOS app bundle, URL scheme, and GoogleService-Info.plist for com.alclean.app, then rebuild the app.";
+      }
     }
 
     return rawMessage || "Failed to start Google login";
   }
 
   private async finishSocialLogin(
-    auth: any,
+    auth: any | null,
     endpoint: string,
     payload: Record<string, any>,
   ): Promise<SocialLoginResult> {
@@ -210,12 +217,7 @@ class AuthService {
         throw new Error(data.error || "Failed to create account");
       }
 
-      const user: User = {
-        ...data.user,
-        accessToken: "", // Will be set after login
-      };
-
-      this.saveUser(user);
+      const user = await this.logIn(email, password);
       toast.success("Account created successfully!");
       return user;
     } catch (error: any) {
@@ -259,15 +261,16 @@ class AuthService {
   async googleLogin(forceOverride = false): Promise<SocialLoginResult> {
     console.log("[Auth] Starting Google login");
     try {
+      const isNative = Capacitor.isNativePlatform();
       const auth = getFirebaseAuth();
-      if (!auth) {
+      if (!isNative && !auth) {
         console.error("[Auth] Firebase Auth not available");
         throw new Error("Firebase Auth not available");
       }
 
       let idToken: string;
 
-      if (Capacitor.isNativePlatform()) {
+      if (isNative) {
         // For native platforms, use Capacitor Firebase Authentication plugin
         // This uses the native Google Sign-In SDK for a seamless experience
         console.log("[Auth] Starting native Google sign-in");
@@ -290,10 +293,6 @@ class AuthService {
 
           idToken = result.credential.idToken;
 
-          // Also sign in to Firebase Auth for consistency
-          const credential = GoogleAuthProvider.credential(idToken);
-          await signInWithCredential(auth, credential);
-
           console.log("[Auth] Native Google sign-in successful");
         } catch (nativeError: any) {
           console.error("[Auth] Native Google sign-in error:", {
@@ -313,12 +312,16 @@ class AuthService {
         }
       } else {
         // For web, use popup
+        const webAuth = auth;
+        if (!webAuth) {
+          throw new Error("Firebase Auth not available");
+        }
         console.log("[Auth] Starting web Google popup sign-in");
         const provider = new GoogleAuthProvider();
         provider.setCustomParameters({ prompt: "select_account" });
 
         try {
-        const result = await signInWithPopup(auth, provider);
+        const result = await signInWithPopup(webAuth, provider);
         const credential = GoogleAuthProvider.credentialFromResult(result);
         if (!credential?.idToken) {
           throw new Error("No Google ID token received from popup sign-in");
@@ -340,7 +343,7 @@ class AuthService {
         }
       }
 
-      const result = await this.finishSocialLogin(auth, "/api/auth/google-login", {
+      const result = await this.finishSocialLogin(auth ?? null, "/api/auth/google-login", {
         idToken,
         forceOverride,
       });

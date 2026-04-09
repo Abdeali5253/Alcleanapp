@@ -17,6 +17,7 @@ import {
   Phone as PhoneIcon,
   Lock,
   Heart,
+  Loader2,
 } from "lucide-react";
 import { authService, User as AuthUser } from "../lib/auth";
 import { Button } from "./ui/button";
@@ -77,6 +78,7 @@ export function Account() {
   const [isSignup, setIsSignup] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   // Form fields
   const [firstName, setFirstName] = useState("");
@@ -169,6 +171,7 @@ export function Account() {
 
   const handleGoogleLogin = async () => {
     setIsLoggingIn(true);
+    setIsGoogleLoading(true);
 
     try {
       const result = await authService.googleLogin();
@@ -200,8 +203,13 @@ export function Account() {
     } catch (error: any) {
       toast.error(error.message || "Google login failed. Please try again.");
     } finally {
+      setIsGoogleLoading(false);
       setIsLoggingIn(false);
     }
+  };
+
+  const handleContinueAsGuest = () => {
+    navigate("/checkout");
   };
 
   const handleLogout = () => {
@@ -213,6 +221,22 @@ export function Account() {
     return (
       <div className="min-h-screen bg-gray-50 pb-20">
         <UnifiedHeader />
+
+        {isGoogleLoading && (
+          <div className="fixed inset-0 z-[70] flex items-center justify-center bg-white/80 px-6 backdrop-blur-sm">
+            <div className="w-full max-w-sm rounded-2xl border border-gray-200 bg-white p-6 text-center shadow-xl">
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[#6DB33F]/10">
+                <Loader2 className="h-7 w-7 animate-spin text-[#6DB33F]" />
+              </div>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Opening Google Sign-In
+              </h2>
+              <p className="mt-2 text-sm text-gray-600">
+                Please wait while we prepare the Google account picker.
+              </p>
+            </div>
+          </div>
+        )}
 
         <main className="max-w-md mx-auto px-4 py-6">
           <div className="bg-white rounded-2xl p-6 border border-gray-200">
@@ -502,6 +526,16 @@ export function Account() {
                 className="text-[#6DB33F] hover:underline font-medium"
               >
                 {isSignup ? "Login" : "Sign up"}
+              </button>
+            </div>
+
+            <div className="mt-4 text-center">
+              <button
+                type="button"
+                onClick={handleContinueAsGuest}
+                className="text-sm font-medium text-gray-500 hover:text-[#6DB33F]"
+              >
+                Continue as Guest
               </button>
             </div>
           </div>

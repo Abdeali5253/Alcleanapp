@@ -25,8 +25,6 @@ declare global {
   }
 }
 
-const isNative = () => Capacitor.isNativePlatform();
-
 export function Checkout() {
   const navigate = useNavigate();
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
@@ -35,6 +33,7 @@ export function Checkout() {
   const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
   const [paymentCompleted, setPaymentCompleted] = useState(false);
   const inAppRef = useRef<any>(null);
+  const paymentCompletedRef = useRef(false);
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -48,6 +47,7 @@ export function Checkout() {
   useEffect(() => {
     const unsubscribeCart = cartService.subscribe(setCartItems);
     const unsubscribeAuth = authService.subscribe(setUser);
+
     return () => {
       unsubscribeCart();
       unsubscribeAuth();
@@ -65,33 +65,50 @@ export function Checkout() {
     }
   }, [user]);
 
+  useEffect(() => {
+    paymentCompletedRef.current = paymentCompleted;
+  }, [paymentCompleted]);
+
   const calculateTotalWeight = (): number => {
     let totalWeight = 0;
     cartItems.forEach((item) => {
       const weightStr = item.product.weight || "";
       const weightMatch = weightStr.match(
-        /(\d+\.?\d*)\s*(KILOGRAMS|KG|GRAMS|G)/i
+        /(\d+\.?\d*)\s*(KILOGRAMS|KG|GRAMS|G)/i,
       );
+
       if (weightMatch) {
         const value = parseFloat(weightMatch[1]);
         const unit = weightMatch[2].toUpperCase();
         let weightInKg = 0;
-        if (unit.includes("KILOGRAM") || unit === "KG") weightInKg = value;
-        else if (unit.includes("GRAM") || unit === "G")
+
+        if (unit.includes("KILOGRAM") || unit === "KG") {
+          weightInKg = value;
+        } else if (unit.includes("GRAM") || unit === "G") {
           weightInKg = value / 1000;
+        }
+
         totalWeight += weightInKg * item.quantity;
       }
     });
-    if (totalWeight === 0)
+
+    if (totalWeight === 0) {
       totalWeight = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+    }
+
     return totalWeight;
   };
 
   const calculateDeliveryCharge = (): number => {
     if (!city) return 0;
+
     const cityLower = city.toLowerCase().trim();
-    const isMajorCity = majorCities.some((mc) => cityLower.includes(mc));
+    const isMajorCity = majorCities.some((majorCity) =>
+      cityLower.includes(majorCity),
+    );
+
     if (isMajorCity) return 200;
+
     const totalWeight = calculateTotalWeight();
     return Math.ceil(totalWeight) * 50;
   };
@@ -100,32 +117,39 @@ export function Checkout() {
   const deliveryCharge = calculateDeliveryCharge();
   const total = subtotal + deliveryCharge;
 
-  const isThankYouUrl = (u: string) => {
-    const url = (u || "").toLowerCase();
-    return (
-      url.includes("/thank-you") ||
-      url.includes("thank_you") ||
-      url.includes("thank-you")
-    );
+  const completeCheckout = () => {
+    cartService.clearCart();
+    setPaymentCompleted(true);
+    toast.success("Order placed successfully!");
+    navigate("/checkout/success", { replace: true });
   };
 
   const openPaymentPage = async (url: string) => {
     setCheckoutUrl(url);
-    const isThankYou = (u: string) => {
-      const x = (u || "").toLowerCase();
+
+    const isCheckoutCompleteUrl = (targetUrl: string) => {
+      const normalizedUrl = (targetUrl || "").toLowerCase();
       return (
-        x.includes("/thank-you") ||
-        x.includes("thank-you") ||
-        x.includes("thank_you") ||
-        x.includes("thank")
+        normalizedUrl.includes("/thank-you") ||
+        normalizedUrl.includes("thank-you") ||
+        normalizedUrl.includes("thank_you") ||
+        normalizedUrl.includes("/orders/") ||
+        normalizedUrl.includes("/order-confirmation") ||
+        normalizedUrl.includes("/checkout/success") ||
+        normalizedUrl.includes("alclean://checkout/success") ||
+        normalizedUrl.includes("com.alclean.app://checkout/success")
       );
     };
 
     const cordovaAny = (window as any).cordova;
-    const IAB = cordovaAny?.InAppBrowser;
+    const inAppBrowser = cordovaAny?.InAppBrowser;
 
-    if (Capacitor.isNativePlatform() && IAB) {
-      const ref = IAB.open(
+    if (Capacitor.isNativePlatform() && inAppBrowser) {
+      try {
+        inAppRef.current?.close?.();
+      } catch {}
+
+      const ref = inAppBrowser.open(
         url,
         "_blank",
         [
@@ -136,39 +160,41 @@ export function Checkout() {
           "clearsessioncache=yes",
           "hidden=no",
           "zoom=no",
-        ].join(",")
+        ].join(","),
       );
 
-      ref.addEventListener("loadstart", (e: any) => {
-        console.log("[IAB] loadstart:", e?.url);
-        if (isThankYou(e?.url || "")) {
-          console.log("[IAB] thank-you detected -> closing");
-          try {
-            ref.close();
-          } catch {}
-          cartService.clearCart();
-          setPaymentCompleted(true);
-          toast.success("Order placed successfully!");
+      inAppRef.current = ref;
+
+      const handleBrowserUrl = (event: any, source: string) => {
+        const targetUrl = event?.url || "";
+        console.log(`[IAB] ${source}:`, targetUrl);
+
+        if (!isCheckoutCompleteUrl(targetUrl)) {
+          return;
         }
+
+        console.log(`[IAB] checkout completion detected on ${source} -> closing`);
+        try {
+          ref.close();
+        } catch {}
+        completeCheckout();
+      };
+
+      ref.addEventListener("loadstart", (event: any) => {
+        handleBrowserUrl(event, "loadstart");
       });
 
-      ref.addEventListener("loadstop", (e: any) => {
-        console.log("[IAB] loadstop:", e?.url);
-        if (isThankYou(e?.url || "")) {
-          console.log("[IAB] thank-you detected on loadstop -> closing");
-          try {
-            ref.close();
-          } catch {}
-          cartService.clearCart();
-          setPaymentCompleted(true);
-          toast.success("Order placed successfully!");
-        }
+      ref.addEventListener("loadstop", (event: any) => {
+        handleBrowserUrl(event, "loadstop");
       });
 
       ref.addEventListener("exit", () => {
         console.log("[IAB] exit");
-        if (!paymentCompleted)
-          toast.info("If you completed payment, tap “I’ve Completed Payment”.");
+        inAppRef.current = null;
+
+        if (!paymentCompletedRef.current) {
+          toast.info("If you completed payment, tap 'I've Completed Payment'.");
+        }
       });
 
       return;
@@ -176,7 +202,7 @@ export function Checkout() {
 
     console.log("[Checkout] Falling back to Capacitor Browser (no URL events)");
     await Browser.open({ url, presentationStyle: "fullscreen" });
-    toast.info("After payment, come back and tap “I’ve Completed Payment”.");
+    toast.info("After payment, come back and tap 'I've Completed Payment'.");
   };
 
   const handleCheckout = async () => {
@@ -184,12 +210,7 @@ export function Checkout() {
       toast.error("Please fill in all required fields");
       return;
     }
-    if (!user) {
-      authService.setRedirectAfterLogin("/checkout");
-      toast.info("Please login or create an account to track your orders");
-      navigate("/account");
-      return;
-    }
+
     setIsLoading(true);
     try {
       const { checkoutUrl: url } = await cartService.createCheckout();
@@ -199,7 +220,7 @@ export function Checkout() {
         address1: address,
         city,
         province: city,
-        country: "PK", // ISO country code for Pakistan - required by Shopify Cart API
+        country: "PK",
         zip: postalCode || "00000",
         phone,
       });
@@ -208,7 +229,7 @@ export function Checkout() {
     } catch (error: any) {
       console.error("[Checkout] Error:", error);
       toast.error(
-        error.message || "Failed to create checkout. Please try again."
+        error.message || "Failed to create checkout. Please try again.",
       );
     } finally {
       setIsLoading(false);
@@ -216,15 +237,13 @@ export function Checkout() {
   };
 
   const handlePaymentComplete = () => {
-    cartService.clearCart();
-    setPaymentCompleted(true);
-    toast.success("Order placed successfully!");
+    completeCheckout();
   };
 
   if (paymentCompleted) {
     return (
       <div className="min-h-screen bg-gray-50 pb-20">
-        <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
+        <header className="bg-white border-b border-gray-200 sticky top-0 z-10 safe-top">
           <div className="max-w-md mx-auto px-4 py-4 flex items-center gap-4">
             <h1 className="text-xl font-bold text-gray-900">Order Confirmed</h1>
           </div>
@@ -268,7 +287,7 @@ export function Checkout() {
   if (cartItems.length === 0) {
     return (
       <div className="min-h-screen bg-gray-50 pb-20">
-        <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
+        <header className="bg-white border-b border-gray-200 sticky top-0 z-10 safe-top">
           <div className="max-w-md mx-auto px-4 py-4 flex items-center gap-4">
             <button
               onClick={() => navigate(-1)}
@@ -294,7 +313,7 @@ export function Checkout() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
+      <header className="bg-white border-b border-gray-200 sticky top-0 z-10 safe-top">
         <div className="max-w-md mx-auto px-4 py-4 flex items-center gap-4">
           <button
             onClick={() => navigate(-1)}
@@ -361,6 +380,12 @@ export function Checkout() {
             <Truck size={20} className="text-[#6DB33F]" />
             <h2 className="font-bold text-gray-900">Shipping Information</h2>
           </div>
+          {!user && (
+            <div className="mb-4 rounded-xl border border-[#6DB33F]/20 bg-[#6DB33F]/5 p-3 text-sm text-gray-700">
+              You're checking out as a guest. Create an account later if you want
+              order history and tracking inside the app.
+            </div>
+          )}
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -469,10 +494,10 @@ export function Checkout() {
             <div>
               <p className="text-sm text-blue-700 mb-2">
                 <strong>Payment page opened!</strong> Complete your payment and
-                it will auto-return after “Thank you” page.
+                it will auto-return after the Thank You page.
               </p>
               <p className="text-xs text-blue-600">
-                If it didn’t open, tap below:
+                If it didn't open, tap below:
               </p>
             </div>
             <button
@@ -484,7 +509,7 @@ export function Checkout() {
             </button>
             <div className="border-t border-blue-200 pt-4">
               <p className="text-xs text-blue-600 mb-3">
-                If you paid but it didn’t auto-close, tap:
+                If you paid but it didn't auto-close, tap:
               </p>
               <button
                 onClick={handlePaymentComplete}

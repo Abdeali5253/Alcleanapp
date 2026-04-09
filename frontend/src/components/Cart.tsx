@@ -49,18 +49,10 @@ export function Cart() {
   );
 
   const handleCheckout = () => {
-    // Check if user is logged in
     if (!authService.isLoggedIn()) {
-      // Save that they wanted to checkout
-      authService.setRedirectAfterLogin("/checkout");
-      // Show toast notification
-      toast.error("Please login to continue with checkout");
-      // Redirect to account/login page
-      navigate("/account");
-      return;
+      toast.info("Guest checkout is available. You can log in later to track orders.");
     }
 
-    // User is logged in, proceed to checkout
     navigate("/checkout");
   };
 
