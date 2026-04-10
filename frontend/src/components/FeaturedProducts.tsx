@@ -8,6 +8,7 @@ import { ProductCardSkeleton } from "./ProductCardSkeleton";
 import { cartService } from "../lib/cart";
 import { wishlistService } from "../lib/wishlist";
 import { toast } from "sonner";
+import { sortProductsInStockFirst } from "../lib/product-order";
 
 interface FeaturedProductsProps {
   title: string;
@@ -93,7 +94,7 @@ export function FeaturedProducts({
             break;
         }
 
-        setProducts(fetchedProducts.slice(0, limit));
+        setProducts(sortProductsInStockFirst(fetchedProducts).slice(0, limit));
       } catch (error) {
         console.error(`Failed to fetch ${type} products:`, error);
       } finally {

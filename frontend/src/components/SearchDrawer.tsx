@@ -4,6 +4,7 @@ import { Product } from "../types/shopify";
 import { getAllProducts } from "../lib/shopify";
 import { Link } from "react-router-dom";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
+import { sortProductsInStockFirst } from "../lib/product-order";
 
 interface SearchDrawerProps {
   isOpen: boolean;
@@ -42,11 +43,13 @@ export function SearchDrawer({ isOpen, onClose }: SearchDrawerProps) {
     }
 
     const query = searchQuery.toLowerCase();
-    const results = allProducts.filter(p =>
-      p.title.toLowerCase().includes(query) ||
-      p.description?.toLowerCase().includes(query) ||
-      p.productType.toLowerCase().includes(query) ||
-      p.sku?.toLowerCase().includes(query)
+    const results = sortProductsInStockFirst(
+      allProducts.filter((p) =>
+        p.title.toLowerCase().includes(query) ||
+        p.description?.toLowerCase().includes(query) ||
+        p.productType.toLowerCase().includes(query) ||
+        p.sku?.toLowerCase().includes(query),
+      ),
     ).slice(0, 20); // Limit to 20 results
 
     setFilteredProducts(results);

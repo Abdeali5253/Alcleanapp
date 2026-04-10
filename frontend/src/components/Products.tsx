@@ -19,6 +19,7 @@ import { QuickViewModal } from "./QuickViewModal";
 import { QuickFilters, FilterState, defaultFilters } from "./QuickFilters";
 import { Product } from "../types/shopify";
 import { categories } from "../lib/categories";
+import { sortProductsInStockFirst } from "../lib/product-order";
 
 import { ProductCardSkeleton } from "./ProductCardSkeleton";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
@@ -506,6 +507,7 @@ export function Products() {
         return 0;
     }
   });
+  const visibleProducts = sortProductsInStockFirst(sortedProducts);
 
   const currentCategoryInfo = categoryInfo[categoryFilter];
 
@@ -638,7 +640,7 @@ export function Products() {
         <QuickFilters
           currentFilters={filters}
           onFilterChange={setFilters}
-          productCount={sortedProducts.length}
+          productCount={visibleProducts.length}
         />
 
         {/* View Mode Toggle */}
@@ -731,7 +733,7 @@ export function Products() {
               <ProductCardSkeleton key={index} />
             ))}
           </div>
-        ) : sortedProducts.length === 0 ? (
+        ) : visibleProducts.length === 0 ? (
           <div className="text-center py-16">
             <div className="mb-4">
               <div className="w-24 h-24 bg-gray-100 rounded-full mx-auto flex items-center justify-center">
@@ -759,7 +761,7 @@ export function Products() {
                 : "grid-cols-3 gap-3 sm:gap-4 md:gap-6"
             }`}
           >
-            {sortedProducts.map((product) => (
+            {visibleProducts.map((product) => (
               <ProductCard
                 key={product.id}
                 product={product}
@@ -773,9 +775,9 @@ export function Products() {
         )}
 
         {/* Results Summary */}
-        {!loading && sortedProducts.length > 0 && (
+        {!loading && visibleProducts.length > 0 && (
           <div className="text-center py-8 text-gray-500">
-            Showing {sortedProducts.length} of {allProducts.length} products
+            Showing {visibleProducts.length} of {allProducts.length} products
           </div>
         )}
       </div>

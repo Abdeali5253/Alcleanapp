@@ -167,40 +167,13 @@ export function ContactUs() {
           ))}
         </div>
 
-        {/* Contact Form */}
         <div className="mt-8 bg-white rounded-2xl p-6 border border-gray-200">
-          <h2 className="text-gray-900 text-xl mb-4">Send us a Message</h2>
-          <form className="space-y-4">
-            <div>
-              <label className="block text-gray-700 text-sm mb-2">Name</label>
-              <input
-                type="text"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6DB33F]"
-                placeholder="Your name"
-              />
-            </div>
-            <div>
-              <label className="block text-gray-700 text-sm mb-2">Email</label>
-              <input
-                type="email"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6DB33F]"
-                placeholder="your@email.com"
-              />
-            </div>
-            <div>
-              <label className="block text-gray-700 text-sm mb-2">Message</label>
-              <textarea
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6DB33F] h-32 resize-none"
-                placeholder="Your message..."
-              ></textarea>
-            </div>
-            <button
-              type="submit"
-              className="w-full bg-[#6DB33F] hover:bg-[#5da035] text-white py-3 rounded-lg transition-colors"
-            >
-              Send Message
-            </button>
-          </form>
+          <h2 className="text-gray-900 text-xl mb-3">Need Quick Help?</h2>
+          <p className="text-gray-600 leading-relaxed">
+            Please contact us directly using the phone numbers, email address,
+            or WhatsApp option already available in the app. Our team will be
+            able to assist you faster there.
+          </p>
         </div>
       </main>
     </div>

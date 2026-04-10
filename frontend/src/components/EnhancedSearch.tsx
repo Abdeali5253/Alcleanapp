@@ -4,6 +4,7 @@ import { Product } from "../types/shopify";
 import { getAllProducts } from "../lib/api";
 import { Link, useNavigate } from "react-router-dom";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
+import { sortProductsInStockFirst } from "../lib/product-order";
 
 interface EnhancedSearchProps {
   isOpen: boolean;
@@ -80,15 +81,16 @@ export function EnhancedSearch({ isOpen, onClose }: EnhancedSearchProps) {
     }
 
     const query = searchQuery.toLowerCase();
-    const results = allProducts
-      .filter(
+    const results = sortProductsInStockFirst(
+      allProducts.filter(
         (p) =>
           p.title.toLowerCase().includes(query) ||
           p.description?.toLowerCase().includes(query) ||
           p.productType.toLowerCase().includes(query) ||
           p.category.toLowerCase().includes(query) ||
-          p.tags.some((t) => t.toLowerCase().includes(query))
-      )
+          p.tags.some((t) => t.toLowerCase().includes(query)),
+      ),
+    )
       .slice(0, 12);
 
     setFilteredProducts(results);

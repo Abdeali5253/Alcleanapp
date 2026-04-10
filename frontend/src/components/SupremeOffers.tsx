@@ -8,6 +8,7 @@ import { ProductCardSkeleton } from "./ProductCardSkeleton";
 import { toast } from "sonner";
 import { cartService } from "../lib/cart";
 import { wishlistService } from "../lib/wishlist";
+import { sortProductsInStockFirst } from "../lib/product-order";
 
 export function SupremeOffers() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -48,7 +49,7 @@ export function SupremeOffers() {
         // Sort by discount percentage
         offerProducts.sort((a, b) => b.discountPercent - a.discountPercent);
 
-        setProducts(offerProducts);
+        setProducts(sortProductsInStockFirst(offerProducts));
       } catch (error) {
         console.error("Failed to fetch supreme offers:", error);
         toast.error("Failed to load offers. Please refresh the page.", {

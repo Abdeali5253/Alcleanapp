@@ -25,6 +25,7 @@ import { getAllProducts, getProductsByCollection } from "../lib/shopify";
 import { ProductCardSkeleton } from "./ProductCardSkeleton";
 import { cartService } from "../lib/cart";
 import { wishlistService } from "../lib/wishlist";
+import { sortProductsInStockFirst } from "../lib/product-order";
 
 // Updated categories based on user's actual Shopify collections
 const topCategories = [
@@ -237,10 +238,10 @@ export function Home() {
         // Sort supreme offers by discount
         offers.sort((a, b) => b.discountPercent - a.discountPercent);
 
-        setSupremeOffers(offers);
-        setFabricProducts(fabric);
-        setMopBucketProducts(mopBuckets);
-        setCleaningChemicals(chemicals);
+        setSupremeOffers(sortProductsInStockFirst(offers));
+        setFabricProducts(sortProductsInStockFirst(fabric));
+        setMopBucketProducts(sortProductsInStockFirst(mopBuckets));
+        setCleaningChemicals(sortProductsInStockFirst(chemicals));
       } catch (error) {
         console.error("Failed to fetch products:", error);
         toast.error("Failed to load products. Please refresh the page.", {
