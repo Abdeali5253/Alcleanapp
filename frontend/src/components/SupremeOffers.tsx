@@ -54,7 +54,6 @@ export function SupremeOffers() {
         console.error("Failed to fetch supreme offers:", error);
         toast.error("Failed to load offers. Please refresh the page.", {
           duration: 4000,
-          position: "top-center",
         });
       } finally {
         setLoading(false);
@@ -68,7 +67,6 @@ export function SupremeOffers() {
     cartService.addToCart(product, quantity);
     toast.success(`${quantity}x ${product.title} added to cart!`, {
       duration: 2000,
-      position: "top-center",
     });
   };
 
@@ -77,12 +75,10 @@ export function SupremeOffers() {
     if (newState === true) {
       toast.success("Added to wishlist!", {
         duration: 1500,
-        position: "top-center",
       });
     } else if (newState === false) {
       toast.success("Removed from wishlist", {
         duration: 1500,
-        position: "top-center",
       });
     }
     // If undefined, do nothing (service handles the toast)

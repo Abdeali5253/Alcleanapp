@@ -391,7 +391,6 @@ export function Products() {
         console.error("Failed to fetch products:", error);
         toast.error("Failed to load products. Please refresh the page.", {
           duration: 4000,
-          position: "top-center",
         });
       } finally {
         setLoading(false);
@@ -405,7 +404,6 @@ export function Products() {
     cartService.addToCart(product, quantity);
     toast.success(`${quantity}x ${product.title} added to cart!`, {
       duration: 2000,
-      position: "top-center",
     });
   };
 
@@ -414,12 +412,10 @@ export function Products() {
     if (newState === true) {
       toast.success("Added to wishlist!", {
         duration: 1500,
-        position: "top-center",
       });
     } else if (newState === false) {
       toast.success("Removed from wishlist", {
         duration: 1500,
-        position: "top-center",
       });
     }
     // If undefined, do nothing (service handles the toast)
@@ -725,8 +721,8 @@ export function Products() {
           <div
             className={`grid ${
               viewMode === "2cols"
-                ? "grid-cols-3 gap-4 sm:gap-4 md:gap-6"
-                : "grid-cols-3 gap-3 sm:gap-4 md:gap-6"
+                ? "grid-cols-2 gap-3 sm:gap-4 md:gap-6"
+                : "grid-cols-3 gap-2 sm:gap-3 md:gap-4"
             }`}
           >
             {Array.from({ length: 12 }, (_, index) => (
@@ -758,7 +754,7 @@ export function Products() {
             className={`grid ${
               viewMode === "2cols"
                 ? "grid-cols-2 gap-3 sm:gap-4 md:gap-6"
-                : "grid-cols-3 gap-3 sm:gap-4 md:gap-6"
+                : "grid-cols-3 gap-2 sm:gap-3 md:gap-4"
             }`}
           >
             {visibleProducts.map((product) => (

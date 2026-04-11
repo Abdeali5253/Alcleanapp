@@ -71,6 +71,7 @@ class NativeNotificationService {
   private notificationIdCounter = 1;
   private pluginsLoaded = false;
   private readonly duplicateWindowMs = 10 * 60 * 1000;
+  private localListenersAttached = false;
 
   constructor() {
     log("NativeNotif", "Service constructor called");
@@ -390,35 +391,74 @@ class NativeNotificationService {
     log("LocalNotif", "Initializing local notifications...");
 
     try {
-      const permStatus = await LocalNotifications.requestPermissions();
-      log("LocalNotif", "Permission status", permStatus);
+      await this.attachLocalNotificationListeners();
 
-      // Listen for local notification actions
-      LocalNotifications.addListener(
-        "localNotificationActionPerformed",
-        (action: any) => {
-          try {
-            log("LocalNotif", "Action performed", action);
-            if (action.notification?.extra) {
-              this.handleNotificationData(action.notification.extra);
-            }
-          } catch (e) {
-            logError("LocalNotif", "Error in action listener", e);
-          }
-        },
-      );
-
-      // Listen for local notifications received
-      LocalNotifications.addListener(
-        "localNotificationReceived",
-        (notification: any) => {
-          log("LocalNotif", "Notification received", notification);
-        },
-      );
+      if (Capacitor.getPlatform() === "android") {
+        const permStatus = await LocalNotifications.requestPermissions();
+        log("LocalNotif", "Permission status", permStatus);
+      } else {
+        log(
+          "LocalNotif",
+          "Skipping eager local notification permission request on iOS",
+        );
+      }
 
       log("LocalNotif", "Local notifications initialized");
     } catch (error) {
       logError("LocalNotif", "Initialization failed", error);
+    }
+  }
+
+  private async attachLocalNotificationListeners(): Promise<void> {
+    if (!LocalNotifications || this.localListenersAttached) {
+      return;
+    }
+
+    LocalNotifications.addListener(
+      "localNotificationActionPerformed",
+      (action: any) => {
+        try {
+          log("LocalNotif", "Action performed", action);
+          if (action.notification?.extra) {
+            this.handleNotificationData(action.notification.extra);
+          }
+        } catch (e) {
+          logError("LocalNotif", "Error in action listener", e);
+        }
+      },
+    );
+
+    LocalNotifications.addListener(
+      "localNotificationReceived",
+      (notification: any) => {
+        log("LocalNotif", "Notification received", notification);
+      },
+    );
+
+    this.localListenersAttached = true;
+  }
+
+  private async requestLocalNotificationPermissionIfNeeded(): Promise<void> {
+    if (!LocalNotifications) return;
+
+    try {
+      await this.attachLocalNotificationListeners();
+
+      if (Capacitor.getPlatform() !== "ios") {
+        return;
+      }
+
+      const currentStatus = await LocalNotifications.checkPermissions();
+      log("LocalNotif", "Current iOS local notification permission", currentStatus);
+
+      if (currentStatus.display === "granted") {
+        return;
+      }
+
+      const updatedStatus = await LocalNotifications.requestPermissions();
+      log("LocalNotif", "Updated iOS local notification permission", updatedStatus);
+    } catch (error) {
+      logError("LocalNotif", "Failed requesting iOS local permission", error);
     }
   }
 
@@ -919,6 +959,9 @@ class NativeNotificationService {
 
       // Then register for push
       const result = await this.registerForPush();
+      if (result) {
+        await this.requestLocalNotificationPermissionIfNeeded();
+      }
       log("NativeNotif", "Permission request result", { result });
       return result;
     } catch (error) {

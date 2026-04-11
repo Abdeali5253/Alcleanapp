@@ -52,6 +52,49 @@ function AppContent() {
   const [showSplash, setShowSplash] = useState(true);
   const [showBackendStatus, setShowBackendStatus] = useState(true);
   const didRequestNativeNotifications = useRef(false);
+  const notificationRetryTimeoutRef = useRef<number | null>(null);
+
+  const attemptNativeNotificationSetup = async (trigger: string) => {
+    try {
+      const currentPermission = await notificationService.checkPermission();
+      console.log(`[App] Native notification setup from ${trigger}:`, currentPermission);
+
+      if (currentPermission === "granted") {
+        await notificationService.tryRegisterIfPermitted();
+
+        if (!notificationService.getFCMToken()) {
+          if (notificationRetryTimeoutRef.current) {
+            window.clearTimeout(notificationRetryTimeoutRef.current);
+          }
+
+          notificationRetryTimeoutRef.current = window.setTimeout(async () => {
+            try {
+              await notificationService.tryRegisterIfPermitted();
+            } catch (retryError) {
+              console.error("[App] Native notification retry failed:", retryError);
+            }
+          }, 2500);
+        }
+        return;
+      }
+
+      if (currentPermission === "default") {
+        const granted = await notificationService.requestPermission();
+        if (granted) {
+          window.setTimeout(() => {
+            const token = notificationService.getFCMToken();
+            if (!token) {
+              console.warn(
+                "[App] Push permission granted but FCM token is not available yet",
+              );
+            }
+          }, 1000);
+        }
+      }
+    } catch (e) {
+      console.error("[App] Push permission error:", e);
+    }
+  };
 
   const getBackFallbackRoute = (pathname: string) => {
     if (pathname.startsWith("/product/")) return "/products";
@@ -100,30 +143,29 @@ function AppContent() {
     didRequestNativeNotifications.current = true;
 
     const timer = window.setTimeout(async () => {
-      try {
-        const currentPermission = await notificationService.checkPermission();
-        if (currentPermission === "granted") {
-          await notificationService.tryRegisterIfPermitted();
-          return;
-        }
-
-        const granted = await notificationService.requestPermission();
-        if (granted) {
-          window.setTimeout(() => {
-            const token = notificationService.getFCMToken();
-            if (!token) {
-              console.warn(
-                "[App] Push permission granted but FCM token is not available yet",
-              );
-            }
-          }, 1000);
-        }
-      } catch (e) {
-        console.error("[App] Push permission error:", e);
-      }
+      await attemptNativeNotificationSetup("startup");
     }, 600);
 
-    return () => window.clearTimeout(timer);
+    let stateListener: any;
+
+    CapApp.addListener("appStateChange", async ({ isActive }) => {
+      if (!isActive) return;
+
+      // iOS can finish permission/token work when the app becomes active again.
+      if (Capacitor.getPlatform() === "ios") {
+        await attemptNativeNotificationSetup("appStateChange");
+      }
+    }).then((listener) => {
+      stateListener = listener;
+    });
+
+    return () => {
+      window.clearTimeout(timer);
+      if (notificationRetryTimeoutRef.current) {
+        window.clearTimeout(notificationRetryTimeoutRef.current);
+      }
+      stateListener?.remove?.();
+    };
   }, [showSplash]);
 
   useEffect(() => {

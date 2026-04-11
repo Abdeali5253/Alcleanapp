@@ -101,7 +101,6 @@ class WishlistService {
     if (!authService.isLoggedIn()) {
       toast.error("Please login to manage your wishlist", {
         duration: 3000,
-        position: "top-center",
       });
       return undefined;
     }

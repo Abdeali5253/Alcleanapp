@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from "react";
-import { Search, X, TrendingUp, Clock, Mic, MicOff, Tag } from "lucide-react";
+import { Search, X, TrendingUp, Clock, Tag } from "lucide-react";
 import { Product } from "../types/shopify";
 import { getAllProducts } from "../lib/api";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { sortProductsInStockFirst } from "../lib/product-order";
 
@@ -21,6 +21,7 @@ const popularSearches = [
 ];
 
 const recentSearchesKey = "alclean_recent_searches";
+const cachedSearchQueryKey = "alclean_cached_search_query";
 
 export function EnhancedSearch({ isOpen, onClose }: EnhancedSearchProps) {
   const [searchQuery, setSearchQuery] = useState("");
@@ -28,9 +29,9 @@ export function EnhancedSearch({ isOpen, onClose }: EnhancedSearchProps) {
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
-  const [isListening, setIsListening] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
+  const location = useLocation();
 
   // Load recent searches from localStorage
   useEffect(() => {
@@ -39,10 +40,25 @@ export function EnhancedSearch({ isOpen, onClose }: EnhancedSearchProps) {
       if (stored) {
         setRecentSearches(JSON.parse(stored));
       }
+
+      const cachedQuery = sessionStorage.getItem(cachedSearchQueryKey);
+      if (cachedQuery) {
+        setSearchQuery(cachedQuery);
+      }
     } catch (e) {
-      console.error("Failed to load recent searches");
+      console.error("Failed to load search state");
     }
   }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const searchFromUrl = params.get("search");
+
+    if (searchFromUrl) {
+      setSearchQuery(searchFromUrl);
+      sessionStorage.setItem(cachedSearchQueryKey, searchFromUrl);
+    }
+  }, [location.search]);
 
   // Load all products once
   useEffect(() => {
@@ -96,6 +112,16 @@ export function EnhancedSearch({ isOpen, onClose }: EnhancedSearchProps) {
     setFilteredProducts(results);
   }, [searchQuery, allProducts]);
 
+  useEffect(() => {
+    const trimmedQuery = searchQuery.trim();
+
+    if (trimmedQuery) {
+      sessionStorage.setItem(cachedSearchQueryKey, searchQuery);
+    } else {
+      sessionStorage.removeItem(cachedSearchQueryKey);
+    }
+  }, [searchQuery]);
+
   const saveRecentSearch = (query: string) => {
     if (!query.trim()) return;
     const updated = [query, ...recentSearches.filter((s) => s !== query)].slice(
@@ -109,46 +135,16 @@ export function EnhancedSearch({ isOpen, onClose }: EnhancedSearchProps) {
   const handleSearch = (query: string) => {
     if (!query.trim()) return;
     saveRecentSearch(query);
+    sessionStorage.setItem(cachedSearchQueryKey, query);
     onClose();
     navigate(`/products?search=${encodeURIComponent(query)}`);
   };
 
   const handleProductClick = (product: Product) => {
     saveRecentSearch(product.title);
+    sessionStorage.setItem(cachedSearchQueryKey, product.title);
     onClose();
     navigate(`/product/${encodeURIComponent(product.id)}`);
-  };
-
-  // Voice search (Web Speech API)
-  const toggleVoiceSearch = () => {
-    if (
-      !("webkitSpeechRecognition" in window || "SpeechRecognition" in window)
-    ) {
-      alert("Voice search is not supported in this browser");
-      return;
-    }
-
-    const SpeechRecognition =
-      (window as any).SpeechRecognition ||
-      (window as any).webkitSpeechRecognition;
-    const recognition = new SpeechRecognition();
-    recognition.continuous = false;
-    recognition.interimResults = false;
-    recognition.lang = "en-US";
-
-    recognition.onstart = () => setIsListening(true);
-    recognition.onend = () => setIsListening(false);
-    recognition.onerror = () => setIsListening(false);
-    recognition.onresult = (event: any) => {
-      const transcript = event.results[0][0].transcript;
-      setSearchQuery(transcript);
-    };
-
-    if (isListening) {
-      recognition.stop();
-    } else {
-      recognition.start();
-    }
   };
 
   if (!isOpen) return null;
@@ -181,22 +177,15 @@ export function EnhancedSearch({ isOpen, onClose }: EnhancedSearchProps) {
                     e.key === "Enter" && handleSearch(searchQuery)
                   }
                   placeholder="Search products, categories..."
-                  className="w-full pl-12 pr-24 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-[#6DB33F] focus:bg-white focus:outline-none transition-all text-base"
+                  className="w-full pl-12 pr-14 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-[#6DB33F] focus:bg-white focus:outline-none transition-all text-base"
                 />
                 <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                  <button
-                    onClick={toggleVoiceSearch}
-                    className={`p-2 rounded-xl transition-colors ${
-                      isListening
-                        ? "bg-red-100 text-red-600"
-                        : "hover:bg-gray-200 text-gray-400"
-                    }`}
-                  >
-                    {isListening ? <MicOff size={18} /> : <Mic size={18} />}
-                  </button>
                   {searchQuery && (
                     <button
-                      onClick={() => setSearchQuery("")}
+                      onClick={() => {
+                        setSearchQuery("");
+                        sessionStorage.removeItem(cachedSearchQueryKey);
+                      }}
                       className="p-2 hover:bg-gray-200 rounded-xl text-gray-400"
                     >
                       <X size={18} />

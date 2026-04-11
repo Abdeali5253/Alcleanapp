@@ -28,6 +28,17 @@
 				<string>com.googleusercontent.apps.310536726569-9tbf4u5g8ch2opo0pr53fl8u2tugaerl</string>
 			</array>
 		</dict>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>com.alclean.app</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>alclean</string>
+				<string>com.alclean.app</string>
+			</array>
+		</dict>
 	</array>
 	<key>CFBundleShortVersionString</key>
 	<string>$(MARKETING_VERSION)</string>

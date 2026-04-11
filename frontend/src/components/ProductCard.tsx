@@ -32,17 +32,17 @@ export function ProductCard({
   };
 
   return (
-    <div className="w-full max-w-sm flex-shrink-0 bg-white rounded-2xl overflow-hidden border border-gray-100 hover:shadow-xl hover:border-[#6DB33F]/20 transition-all duration-300 relative group">
+    <div className="w-full min-w-0 h-full bg-white rounded-2xl overflow-hidden border border-gray-100 hover:shadow-xl hover:border-[#6DB33F]/20 transition-all duration-300 relative group flex flex-col">
       {/* Wishlist Button */}
       <button
         onClick={(e) => {
           e.stopPropagation();
           onToggleWishlist(product.id);
         }}
-        className="absolute top-3 right-3 z-10 p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-lg hover:scale-110 transition-transform duration-200"
+        className="absolute top-2.5 right-2.5 z-10 p-1.5 sm:p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-lg hover:scale-110 transition-transform duration-200"
       >
         <Heart
-          size={18}
+          size={16}
           className={isInWishlist ? "fill-red-500 text-red-500" : "text-gray-400"}
         />
       </button>
@@ -86,12 +86,12 @@ export function ProductCard({
       </div>
 
       {/* Product Info */}
-      <div className="p-4" onClick={handleCardClick}>
-        <h3 className="text-gray-900 font-semibold text-base mb-2 line-clamp-2 min-h-[3rem] leading-snug cursor-pointer hover:text-[#6DB33F] transition-colors">
+      <div className="p-3 sm:p-4 flex flex-1 flex-col" onClick={handleCardClick}>
+        <h3 className="text-gray-900 font-semibold text-sm sm:text-base mb-2 line-clamp-2 min-h-[2.5rem] sm:min-h-[3rem] leading-snug cursor-pointer hover:text-[#6DB33F] transition-colors">
           {product.title}
         </h3>
 
-        <p className="text-xs text-gray-500 mb-3 font-medium">
+        <p className="text-[11px] sm:text-xs text-gray-500 mb-3 font-medium">
           {product.inStock ? `${product.quantityAvailable} in stock` : 'Out of stock'}
         </p>
 
@@ -99,27 +99,27 @@ export function ProductCard({
         <PriceDisplay
           price={product.price}
           // originalPrice={product.originalPrice} 
-          className="mb-4"
+          className="mb-3 sm:mb-4"
         />
 
         {/* Add to Cart Button */}
         {product.inStock ? (
           <Button
             size="sm"
-            className="w-full bg-gradient-to-r from-[#6DB33F] to-[#5da035] hover:from-[#5da035] hover:to-[#4d8f2e] text-white font-semibold h-10 rounded-xl shadow-md hover:shadow-lg transition-all duration-200"
+            className="w-full mt-auto bg-gradient-to-r from-[#6DB33F] to-[#5da035] hover:from-[#5da035] hover:to-[#4d8f2e] text-white font-semibold h-9 sm:h-10 rounded-xl shadow-md hover:shadow-lg transition-all duration-200 text-[11px] sm:text-sm px-2 sm:px-4"
             onClick={(e) => {
               e.stopPropagation();
               onAddToCart(product, 1);
             }}
           >
-            <ShoppingCart size={16} className="mr-2" />
+            <ShoppingCart size={14} className="mr-1.5 sm:mr-2 shrink-0" />
             Add to Cart
           </Button>
         ) : (
           <Button
             size="sm"
             disabled
-            className="w-full bg-gray-200 text-gray-500 h-10 rounded-xl cursor-not-allowed"
+            className="w-full mt-auto bg-gray-200 text-gray-500 h-9 sm:h-10 rounded-xl cursor-not-allowed text-[11px] sm:text-sm px-2 sm:px-4"
           >
             Out of Stock
           </Button>

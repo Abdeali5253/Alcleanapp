@@ -8,16 +8,18 @@ const Toaster = ({ ...props }: ToasterProps) => {
 
   return (
     <Sonner
+      position="bottom-center"
       theme={theme as ToasterProps["theme"]}
       className="toaster group"
       toastOptions={{
         style: {
-          background: '#ffffff',
-          color: '#1f2937',
-          border: '1px solid #e5e7eb',
-          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+          background: "#1f2937",
+          color: "#f9fafb",
+          border: "1px solid #6DB33F",
+          boxShadow:
+            "0 18px 40px rgba(15, 23, 42, 0.28)",
         },
-        className: 'font-medium',
+        className: "font-medium",
       }}
       {...props}
     />

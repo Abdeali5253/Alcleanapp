@@ -38,7 +38,6 @@ export function Cart() {
     cartService.removeFromCart(productId);
     toast.success("Item removed from cart", {
       duration: 1500,
-      position: "top-center",
     });
   };
 

@@ -133,6 +133,28 @@ export function Checkout() {
   const deliveryCharge = calculateDeliveryCharge();
   const total = subtotal + deliveryCharge;
 
+  const getCheckoutSuccessDeepLink = () => {
+    return "alclean://checkout/success";
+  };
+
+  const decorateCheckoutUrl = (rawUrl: string) => {
+    try {
+      const url = new URL(rawUrl);
+      const returnUrl = getCheckoutSuccessDeepLink();
+
+      // Different Shopify/payment flows may look at different redirect keys.
+      url.searchParams.set("return_to", returnUrl);
+      url.searchParams.set("redirect_url", returnUrl);
+      url.searchParams.set("checkout[return_url]", returnUrl);
+      url.searchParams.set("checkout[redirect_url]", returnUrl);
+
+      return url.toString();
+    } catch (error) {
+      console.warn("[Checkout] Failed to decorate checkout URL:", error);
+      return rawUrl;
+    }
+  };
+
   const completeCheckout = () => {
     cartService.clearCart();
     setPaymentCompleted(true);
@@ -141,7 +163,8 @@ export function Checkout() {
   };
 
   const openPaymentPage = async (url: string) => {
-    setCheckoutUrl(url);
+    const decoratedUrl = decorateCheckoutUrl(url);
+    setCheckoutUrl(decoratedUrl);
 
     const isCheckoutCompleteUrl = (targetUrl: string) => {
       const normalizedUrl = (targetUrl || "").toLowerCase();
@@ -149,6 +172,8 @@ export function Checkout() {
         normalizedUrl.includes("/thank-you") ||
         normalizedUrl.includes("thank-you") ||
         normalizedUrl.includes("thank_you") ||
+        normalizedUrl.includes("order_status") ||
+        normalizedUrl.includes("order-status") ||
         normalizedUrl.includes("/orders/") ||
         normalizedUrl.includes("/order-confirmation") ||
         normalizedUrl.includes("/checkout/success") ||
@@ -166,7 +191,7 @@ export function Checkout() {
       } catch {}
 
       const ref = inAppBrowser.open(
-        url,
+        decoratedUrl,
         "_blank",
         [
           "location=yes",
@@ -202,6 +227,52 @@ export function Checkout() {
 
       ref.addEventListener("loadstop", (event: any) => {
         handleBrowserUrl(event, "loadstop");
+
+        const currentUrl = event?.url || "";
+        if (isCheckoutCompleteUrl(currentUrl)) {
+          return;
+        }
+
+        try {
+          ref.executeScript(
+            {
+              code: `
+                (function() {
+                  var title = (document.title || "").toLowerCase();
+                  var body = ((document.body && document.body.innerText) || "")
+                    .toLowerCase()
+                    .slice(0, 4000);
+                  return JSON.stringify({ title: title, body: body });
+                })();
+              `,
+            },
+            (result: any[]) => {
+              try {
+                const payload = result?.[0] ? JSON.parse(result[0]) : null;
+                const text = `${payload?.title || ""} ${payload?.body || ""}`;
+                const looksCompleted =
+                  text.includes("thank you") ||
+                  text.includes("order confirmed") ||
+                  text.includes("order is confirmed") ||
+                  text.includes("your order is confirmed");
+
+                if (!looksCompleted) {
+                  return;
+                }
+
+                console.log("[IAB] checkout completion detected from page content");
+                try {
+                  ref.close();
+                } catch {}
+                completeCheckout();
+              } catch (scriptError) {
+                console.warn("[IAB] Failed to inspect checkout page:", scriptError);
+              }
+            },
+          );
+        } catch (scriptInjectError) {
+          console.warn("[IAB] executeScript failed:", scriptInjectError);
+        }
       });
 
       ref.addEventListener("exit", () => {
@@ -217,7 +288,7 @@ export function Checkout() {
     }
 
     console.log("[Checkout] Falling back to Capacitor Browser (no URL events)");
-    await Browser.open({ url, presentationStyle: "fullscreen" });
+    await Browser.open({ url: decoratedUrl, presentationStyle: "fullscreen" });
     toast.info("After payment, come back and tap 'I've Completed Payment'.");
   };
 
