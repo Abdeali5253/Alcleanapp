@@ -78,6 +78,51 @@ function getShopifyConfig() {
   return { domain, token, apiVersion, url };
 }
 
+function getShopifyAdminConfig() {
+  const domain = process.env.SHOPIFY_STORE_DOMAIN || "";
+  const token = process.env.SHOPIFY_ADMIN_API_TOKEN || "";
+  const apiVersion = process.env.SHOPIFY_ADMIN_API_VERSION || "2026-07";
+  const url = domain
+    ? `https://${domain}/admin/api/${apiVersion}/graphql.json`
+    : "";
+  return { domain, token, apiVersion, url };
+}
+
+async function shopifyAdminFetch<T>(
+  query: string,
+  variables?: Record<string, any>,
+): Promise<T> {
+  const { url, token } = getShopifyAdminConfig();
+  if (!url || !token) throw new Error("Shopify Admin API not configured");
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Shopify-Access-Token": token,
+    },
+    body: JSON.stringify({ query, variables }),
+  });
+  const json: any = await response.json();
+  if (!response.ok || json.errors?.length) {
+    throw new Error(
+      json.errors?.map((entry: any) => entry.message).join(", ") ||
+        `Shopify Admin API returned ${response.status}`,
+    );
+  }
+  return json.data;
+}
+
+function getCartToken(cartId?: string): string {
+  if (!cartId) return "";
+  try {
+    const decoded = decodeURIComponent(cartId);
+    return decoded.match(/Cart\/([^?]+)/i)?.[1] || "";
+  } catch {
+    return cartId.match(/Cart\/([^?]+)/i)?.[1] || "";
+  }
+}
+
 function getTrackingConfig() {
   return {
     assignmentsUrl:
@@ -790,6 +835,126 @@ async function enrichOrderTracking(
     courierTrackingError: courierResult.error,
   };
 }
+
+/**
+ * GET /api/orders/completion-check
+ * Lightweight checkout completion check used while the native checkout is open.
+ */
+router.get("/completion-check", async (req: Request, res: Response) => {
+  try {
+    const accessToken = req.headers.authorization?.replace("Bearer ", "");
+    const since = Number(req.query.since || 0);
+    const expectedTotal = Number(req.query.total || 0);
+    const cartToken = getCartToken(String(req.query.cartId || ""));
+    if (!Number.isFinite(since) || since <= 0) {
+      return res.status(400).json({ success: false, error: "Valid since timestamp required" });
+    }
+
+    // Works for both guest and authenticated checkout by correlating the exact
+    // Storefront Cart token with the order created from that cart.
+    if (cartToken && getShopifyAdminConfig().token) {
+      try {
+        const adminQuery = `
+          query checkoutCompletionByCart($query: String!) {
+            orders(first: 5, sortKey: CREATED_AT, reverse: true, query: $query) {
+              nodes {
+                id
+                name
+                createdAt
+                cartToken
+                checkoutToken
+                totalPriceSet { shopMoney { amount currencyCode } }
+              }
+            }
+          }
+        `;
+        const adminData = await shopifyAdminFetch<{ orders: { nodes: any[] } }>(
+          adminQuery,
+          { query: `cart_token:${cartToken}` },
+        );
+        const matchingOrder = (adminData.orders?.nodes || []).find((order: any) => {
+          const createdAt = new Date(order.createdAt).getTime();
+          const orderTotal = Number(order.totalPriceSet?.shopMoney?.amount || 0);
+          const tokenMatches =
+            order.cartToken === cartToken || order.checkoutToken === cartToken;
+          const isNew = Number.isFinite(createdAt) && createdAt >= since;
+          const totalMatches =
+            !expectedTotal || Math.abs(orderTotal - expectedTotal) < 0.01;
+          return tokenMatches && isNew && totalMatches;
+        });
+
+        return res.json({
+          success: true,
+          completed: !!matchingOrder,
+          order: matchingOrder
+            ? {
+                id: matchingOrder.id,
+                orderNumber: matchingOrder.name,
+                processedAt: matchingOrder.createdAt,
+              }
+            : null,
+        });
+      } catch (adminError) {
+        console.warn("[Orders] Admin completion check failed:", adminError);
+        // Fall through to customer Storefront API when the customer is logged in.
+      }
+    }
+
+    if (!accessToken) {
+      return res.json({ success: true, completed: false, order: null });
+    }
+
+    const query = `
+      query checkoutCompletion($customerAccessToken: String!) {
+        customer(customerAccessToken: $customerAccessToken) {
+          orders(first: 5, sortKey: PROCESSED_AT, reverse: true) {
+            edges {
+              node {
+                id
+                orderNumber
+                processedAt
+                totalPrice { amount currencyCode }
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    const data = await shopifyFetch<{ customer: any }>(query, {
+      customerAccessToken: accessToken,
+    });
+    const orders = data.customer?.orders?.edges || [];
+    const matchingOrder = orders
+      .map((edge: any) => edge.node)
+      .find((order: any) => {
+        const processedAt = new Date(order.processedAt).getTime();
+        const orderTotal = Number(order.totalPrice?.amount || 0);
+        const isNew = Number.isFinite(processedAt) && processedAt >= since;
+        const totalMatches =
+          !expectedTotal || Math.abs(orderTotal - expectedTotal) < 0.01;
+        return isNew && totalMatches;
+      });
+
+    return res.json({
+      success: true,
+      completed: !!matchingOrder,
+      order: matchingOrder
+        ? {
+            id: matchingOrder.id,
+            orderNumber: matchingOrder.orderNumber,
+            processedAt: matchingOrder.processedAt,
+          }
+        : null,
+    });
+  } catch (error: any) {
+    console.error("[Orders] Completion check error:", error);
+    return res.status(500).json({
+      success: false,
+      error: error.message || "Failed to check checkout completion",
+    });
+  }
+});
 
 router.get("/", async (req: Request, res: Response) => {
   try {

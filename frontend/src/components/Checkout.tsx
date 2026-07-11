@@ -18,13 +18,7 @@ import { authService, User } from "../lib/auth";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { Capacitor } from "@capacitor/core";
 import { Browser } from "@capacitor/browser";
-import {
-  DefaultWebViewOptions,
-  InAppBrowser,
-  ToolbarPosition,
-  iOSAnimation,
-  iOSViewStyle,
-} from "@capacitor/inappbrowser";
+import { BACKEND_URL } from "../lib/base-url";
 
 declare global {
   interface Window {
@@ -41,6 +35,7 @@ export function Checkout() {
   const [paymentCompleted, setPaymentCompleted] = useState(false);
   const inAppRef = useRef<any>(null);
   const checkoutCompletionHandledRef = useRef(false);
+  const checkoutPollingStoppedRef = useRef(true);
   const guestHintShownRef = useRef(false);
 
   const [firstName, setFirstName] = useState("");
@@ -62,6 +57,7 @@ export function Checkout() {
       try {
         inAppRef.current?.close?.();
       } catch {}
+      checkoutPollingStoppedRef.current = true;
     };
   }, []);
 
@@ -139,15 +135,68 @@ export function Checkout() {
   const completeCheckout = () => {
     if (checkoutCompletionHandledRef.current) return;
     checkoutCompletionHandledRef.current = true;
+    checkoutPollingStoppedRef.current = true;
     cartService.clearCart();
     setPaymentCompleted(true);
     toast.success("Order placed successfully!");
     navigate("/checkout/success", { replace: true });
   };
 
-  const openPaymentPage = async (url: string) => {
+  const pollForCompletedShopifyOrder = async (
+    startedAt: number,
+    expectedTotal: number,
+    checkoutId: string,
+  ) => {
+    const accessToken = authService.getUser()?.accessToken;
+    if (Capacitor.getPlatform() !== "ios") return;
+
+    checkoutPollingStoppedRef.current = false;
+    for (let attempt = 0; attempt < 120; attempt += 1) {
+      if (
+        checkoutPollingStoppedRef.current ||
+        checkoutCompletionHandledRef.current
+      ) {
+        return;
+      }
+
+      await new Promise((resolve) => window.setTimeout(resolve, 2000));
+      try {
+        const params = new URLSearchParams({
+          since: String(startedAt),
+          total: String(expectedTotal),
+          cartId: checkoutId,
+        });
+        const headers: Record<string, string> = {};
+        if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
+        const response = await fetch(
+          `${BACKEND_URL}/api/orders/completion-check?${params}`,
+          { headers },
+        );
+        if (!response.ok) continue;
+
+        const result = await response.json();
+        if (!result?.completed) continue;
+
+        console.log("[iOS Checkout] Shopify order confirmed by backend", result.order);
+        completeCheckout();
+        try {
+          inAppRef.current?.close?.();
+        } catch {}
+        return;
+      } catch (pollError) {
+        console.warn("[iOS Checkout] Completion poll failed:", pollError);
+      }
+    }
+  };
+
+  const openPaymentPage = async (
+    url: string,
+    startedAt: number,
+    checkoutId: string,
+  ) => {
     setCheckoutUrl(url);
     checkoutCompletionHandledRef.current = false;
+    void pollForCompletedShopifyOrder(startedAt, total, checkoutId);
 
     const isCheckoutCompleteUrl = (targetUrl: string) => {
       const normalizedUrl = (targetUrl || "").toLowerCase();
@@ -166,58 +215,16 @@ export function Checkout() {
     };
 
     const cordovaAny = (window as any).cordova;
-    const inAppBrowser = cordovaAny?.InAppBrowser;
+    let inAppBrowser = cordovaAny?.InAppBrowser;
 
-    if (Capacitor.getPlatform() === "ios") {
-      InAppBrowser.removeAllListeners();
-
-      await InAppBrowser.addListener(
-        "browserPageNavigationCompleted",
-        async ({ url: targetUrl }) => {
-          console.log("[iOS Checkout] navigation completed:", targetUrl);
-          if (!targetUrl || !isCheckoutCompleteUrl(targetUrl)) return;
-
-          completeCheckout();
-          await InAppBrowser.close();
-        },
-      );
-
-      await InAppBrowser.addListener("browserClosed", () => {
-        inAppRef.current = null;
-        if (!checkoutCompletionHandledRef.current) {
-          toast.info("Checkout closed. Your cart has been kept.");
-        }
-        InAppBrowser.removeAllListeners();
-      });
-
-      inAppRef.current = {
-        close: async () => {
-          await InAppBrowser.close();
-          InAppBrowser.removeAllListeners();
-        },
-      };
-
-      await InAppBrowser.openInWebView({
-        url,
-        options: {
-          ...DefaultWebViewOptions,
-          showURL: false,
-          showToolbar: true,
-          closeButtonText: "Back to AlClean",
-          toolbarPosition: ToolbarPosition.TOP,
-          showNavigationButtons: true,
-          clearCache: false,
-          clearSessionCache: false,
-          iOS: {
-            ...DefaultWebViewOptions.iOS,
-            viewStyle: iOSViewStyle.FULL_SCREEN,
-            animationEffect: iOSAnimation.COVER_VERTICAL,
-            allowOverScroll: true,
-            allowsBackForwardNavigationGestures: true,
-          },
-        },
-      });
-      return;
+    // Capacitor loads Cordova compatibility plugins asynchronously on iOS.
+    // Wait briefly so checkout never falls through to SafariViewController,
+    // which cannot expose the final Shopify page to the app.
+    if (Capacitor.getPlatform() === "ios" && !inAppBrowser) {
+      for (let attempt = 0; attempt < 30 && !inAppBrowser; attempt += 1) {
+        await new Promise((resolve) => window.setTimeout(resolve, 100));
+        inAppBrowser = (window as any).cordova?.InAppBrowser;
+      }
     }
 
     if (Capacitor.isNativePlatform() && inAppBrowser) {
@@ -241,6 +248,7 @@ export function Checkout() {
           "clearcache=yes",
           "clearsessioncache=yes",
           "hidden=no",
+          "hidespinner=yes",
           "zoom=no",
         ].join(","),
       );
@@ -279,46 +287,87 @@ export function Checkout() {
             {
               code: `
                 (function() {
-                  var title = (document.title || "").toLowerCase();
-                  var body = ((document.body && document.body.innerText) || "")
-                    .toLowerCase()
-                    .slice(0, 4000);
-                  return JSON.stringify({ title: title, body: body });
+                  if (window.__alcleanCheckoutObserverInstalled) {
+                    return "observer-already-installed";
+                  }
+                  window.__alcleanCheckoutObserverInstalled = true;
+
+                  function checkoutIsComplete() {
+                    var title = (document.title || "").toLowerCase();
+                    var body = ((document.body && document.body.innerText) || "")
+                      .toLowerCase()
+                      .slice(0, 12000);
+                    var text = title + " " + body;
+                    return text.includes("thank you") ||
+                      text.includes("order confirmed") ||
+                      text.includes("order is confirmed") ||
+                      text.includes("your order is confirmed") ||
+                      text.includes("confirmation email");
+                  }
+
+                  function notifyApp() {
+                    if (!checkoutIsComplete() || window.__alcleanCompletionSent) {
+                      return false;
+                    }
+                    window.__alcleanCompletionSent = true;
+                    var payload = JSON.stringify({ type: "alclean-checkout-complete" });
+                    if (window.webkit && window.webkit.messageHandlers &&
+                        window.webkit.messageHandlers.cordova_iab) {
+                      window.webkit.messageHandlers.cordova_iab.postMessage(payload);
+                    }
+                    // Independent fallback: this produces an InAppBrowser
+                    // loadstart event even when Shopify keeps the same HTTPS URL.
+                    window.setTimeout(function() {
+                      window.location.href = "alclean://checkout/success";
+                    }, 50);
+                    return true;
+                  }
+
+                  notifyApp();
+                  var observer = new MutationObserver(notifyApp);
+                  observer.observe(document.documentElement, {
+                    childList: true,
+                    subtree: true,
+                    characterData: true
+                  });
+                  var poller = window.setInterval(function() {
+                    if (notifyApp()) window.clearInterval(poller);
+                  }, 500);
+                  window.setTimeout(function() {
+                    window.clearInterval(poller);
+                    observer.disconnect();
+                  }, 10 * 60 * 1000);
+                  return "observer-installed";
                 })();
               `,
             },
-            (result: any[]) => {
-              try {
-                const payload = result?.[0] ? JSON.parse(result[0]) : null;
-                const text = `${payload?.title || ""} ${payload?.body || ""}`;
-                const looksCompleted =
-                  text.includes("thank you") ||
-                  text.includes("order confirmed") ||
-                  text.includes("order is confirmed") ||
-                  text.includes("your order is confirmed");
-
-                if (!looksCompleted) {
-                  return;
-                }
-
-                console.log("[IAB] checkout completion detected from page content");
-                completeCheckout();
-                try {
-                  ref.close();
-                } catch {}
-              } catch (scriptError) {
-                console.warn("[IAB] Failed to inspect checkout page:", scriptError);
-              }
-            },
+            () => {},
           );
         } catch (scriptInjectError) {
           console.warn("[IAB] executeScript failed:", scriptInjectError);
         }
       });
 
+      ref.addEventListener("message", (event: any) => {
+        try {
+          const payload =
+            typeof event?.data === "string"
+              ? JSON.parse(event.data)
+              : event?.data;
+          if (payload?.type !== "alclean-checkout-complete") return;
+
+          console.log("[IAB] checkout completion detected from page content");
+          completeCheckout();
+          ref.close();
+        } catch (messageError) {
+          console.warn("[IAB] Failed to process checkout message:", messageError);
+        }
+      });
+
       ref.addEventListener("exit", () => {
         console.log("[IAB] exit");
         inAppRef.current = null;
+        checkoutPollingStoppedRef.current = true;
 
         if (!checkoutCompletionHandledRef.current) {
           toast.info("Checkout closed. Your cart has been kept.");
@@ -341,7 +390,7 @@ export function Checkout() {
 
     setIsLoading(true);
     try {
-      const { checkoutUrl: url } = await cartService.createCheckout();
+      const { checkoutUrl: url, checkout } = await cartService.createCheckout();
       await cartService.updateShippingAddress({
         firstName,
         lastName,
@@ -353,7 +402,7 @@ export function Checkout() {
         phone,
       });
       toast.success("Opening secure payment page...");
-      await openPaymentPage(url);
+      await openPaymentPage(url, Date.now() - 10_000, checkout.id);
     } catch (error: any) {
       console.error("[Checkout] Error:", error);
       toast.error(
@@ -625,7 +674,13 @@ export function Checkout() {
               </p>
             </div>
             <button
-              onClick={() => openPaymentPage(checkoutUrl)}
+              onClick={() =>
+                openPaymentPage(
+                  checkoutUrl,
+                  Date.now() - 10_000,
+                  cartService.getCheckoutId() || "",
+                )
+              }
               className="flex items-center justify-center gap-2 w-full bg-blue-600 text-white py-3 rounded-lg font-medium"
             >
               <ExternalLink size={18} />
