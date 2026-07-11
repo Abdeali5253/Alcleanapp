@@ -18,6 +18,13 @@ import { authService, User } from "../lib/auth";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { Capacitor } from "@capacitor/core";
 import { Browser } from "@capacitor/browser";
+import {
+  DefaultWebViewOptions,
+  InAppBrowser,
+  ToolbarPosition,
+  iOSAnimation,
+  iOSViewStyle,
+} from "@capacitor/inappbrowser";
 
 declare global {
   interface Window {
@@ -160,6 +167,58 @@ export function Checkout() {
 
     const cordovaAny = (window as any).cordova;
     const inAppBrowser = cordovaAny?.InAppBrowser;
+
+    if (Capacitor.getPlatform() === "ios") {
+      InAppBrowser.removeAllListeners();
+
+      await InAppBrowser.addListener(
+        "browserPageNavigationCompleted",
+        async ({ url: targetUrl }) => {
+          console.log("[iOS Checkout] navigation completed:", targetUrl);
+          if (!targetUrl || !isCheckoutCompleteUrl(targetUrl)) return;
+
+          completeCheckout();
+          await InAppBrowser.close();
+        },
+      );
+
+      await InAppBrowser.addListener("browserClosed", () => {
+        inAppRef.current = null;
+        if (!checkoutCompletionHandledRef.current) {
+          toast.info("Checkout closed. Your cart has been kept.");
+        }
+        InAppBrowser.removeAllListeners();
+      });
+
+      inAppRef.current = {
+        close: async () => {
+          await InAppBrowser.close();
+          InAppBrowser.removeAllListeners();
+        },
+      };
+
+      await InAppBrowser.openInWebView({
+        url,
+        options: {
+          ...DefaultWebViewOptions,
+          showURL: false,
+          showToolbar: true,
+          closeButtonText: "Back to AlClean",
+          toolbarPosition: ToolbarPosition.TOP,
+          showNavigationButtons: true,
+          clearCache: false,
+          clearSessionCache: false,
+          iOS: {
+            ...DefaultWebViewOptions.iOS,
+            viewStyle: iOSViewStyle.FULL_SCREEN,
+            animationEffect: iOSAnimation.COVER_VERTICAL,
+            allowOverScroll: true,
+            allowsBackForwardNavigationGestures: true,
+          },
+        },
+      });
+      return;
+    }
 
     if (Capacitor.isNativePlatform() && inAppBrowser) {
       try {
