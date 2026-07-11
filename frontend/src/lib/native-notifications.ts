@@ -26,16 +26,16 @@ const logError = (tag: string, message: string, error?: any) => {
 };
 
 // Safe dynamic imports to prevent crashes if plugins are not available
-let PushNotifications: any = null;
+let FirebaseMessaging: any = null;
 let LocalNotifications: any = null;
 
 const loadPlugins = async () => {
   try {
-    const pushModule = await import("@capacitor/push-notifications");
-    PushNotifications = pushModule.PushNotifications;
-    log("NativeNotif", "PushNotifications plugin loaded");
+    const messagingModule = await import("@capacitor-firebase/messaging");
+    FirebaseMessaging = messagingModule.FirebaseMessaging;
+    log("NativeNotif", "FirebaseMessaging plugin loaded");
   } catch (e) {
-    logError("NativeNotif", "Failed to load PushNotifications plugin", e);
+    logError("NativeNotif", "Failed to load FirebaseMessaging plugin", e);
   }
 
   try {
@@ -122,7 +122,7 @@ class NativeNotificationService {
 
       // Load plugins first
       const pluginsOk = await this.ensurePluginsLoaded();
-      if (!pluginsOk || !PushNotifications) {
+      if (!pluginsOk || !FirebaseMessaging) {
         logError("NativeNotif", "Plugins not available");
         this.isInitialized = true;
         return false;
@@ -130,11 +130,11 @@ class NativeNotificationService {
 
       // Check current permission status
       try {
-        const currentStatus = await PushNotifications.checkPermissions();
+        const currentStatus = await FirebaseMessaging.checkPermissions();
         log("NativeNotif", "Current permission status", currentStatus);
 
         // Setup listeners BEFORE registering
-        this.setupPushListeners();
+        await this.setupPushListeners();
 
         if (currentStatus.receive === "granted") {
           // Already granted, register to get token
@@ -143,8 +143,8 @@ class NativeNotificationService {
             "Permission already granted, registering for push...",
           );
           try {
-            await PushNotifications.register();
-            log("NativeNotif", "Registration requested");
+            await this.refreshFCMToken();
+            log("NativeNotif", "FCM token requested");
           } catch (regError) {
             logError("NativeNotif", "Registration failed", regError);
           }
@@ -154,7 +154,7 @@ class NativeNotificationService {
         }
       } catch (e) {
         logError("NativeNotif", "Failed to check permissions", e);
-        this.setupPushListeners();
+        await this.setupPushListeners();
       }
 
       // Initialize local notifications (non-blocking)
@@ -185,12 +185,6 @@ class NativeNotificationService {
       return false;
     }
 
-    // If we already have a token, no need to register again
-    if (this.fcmToken) {
-      log("NativeNotif", "Already have FCM token, skipping registration");
-      return true;
-    }
-
     try {
       // Ensure plugins are loaded
       log("NativeNotif", "Ensuring plugins loaded...");
@@ -200,8 +194,8 @@ class NativeNotificationService {
         return false;
       }
 
-      if (!PushNotifications) {
-        logError("NativeNotif", "PushNotifications plugin not available");
+      if (!FirebaseMessaging) {
+        logError("NativeNotif", "FirebaseMessaging plugin not available");
         return false;
       }
 
@@ -211,7 +205,7 @@ class NativeNotificationService {
 
       try {
         // Create a promise that times out after 30 seconds
-        const permPromise = PushNotifications.requestPermissions();
+        const permPromise = FirebaseMessaging.requestPermissions();
         const timeoutPromise = new Promise((_, reject) => {
           setTimeout(
             () => reject(new Error("Permission request timeout")),
@@ -235,44 +229,11 @@ class NativeNotificationService {
         return false;
       }
 
-      // Step 2: Small delay to let the system settle
-      log("NativeNotif", "Step 2: Waiting before registration...");
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // Step 3: Register for push notifications
-      log("NativeNotif", "Step 3: Registering for push...");
+      // Step 2: Request the Firebase registration token.
+      log("NativeNotif", "Step 2: Requesting FCM token...");
       try {
-        // Ensure listeners are set up before registering
-        if (!this.isInitialized) {
-          this.setupPushListeners();
-        }
-
-        await PushNotifications.register();
-        log(
-          "NativeNotif",
-          "Registration call completed - waiting for token...",
-        );
-
-        // Wait for token to arrive via listener (up to 10 seconds)
-        const tokenWaitStart = Date.now();
-        while (!this.fcmToken && Date.now() - tokenWaitStart < 10000) {
-          await new Promise((resolve) => setTimeout(resolve, 500));
-          log("NativeNotif", "Waiting for FCM token...", {
-            hasToken: !!this.fcmToken,
-            elapsed: Date.now() - tokenWaitStart,
-          });
-        }
-
-        if (this.fcmToken) {
-          log("NativeNotif", "FCM Token received successfully!");
-          return true;
-        } else {
-          logError(
-            "NativeNotif",
-            "FCM Token not received within timeout. Check google-services.json and Firebase configuration.",
-          );
-          return false;
-        }
+        await this.setupPushListeners();
+        return await this.refreshFCMToken();
       } catch (regError: any) {
         logError(
           "NativeNotif",
@@ -294,8 +255,38 @@ class NativeNotificationService {
   // Setup push notification listeners
   private listenersAttached = false;
 
+  private async acceptFCMToken(token: string): Promise<void> {
+    this.fcmToken = token;
+    this.saveFCMToken(token);
+    await this.registerTokenWithBackend(token);
+    this.tokenListeners.forEach((listener) => {
+      try {
+        listener(token);
+      } catch (error) {
+        logError("NativeNotif", "Token listener error", error);
+      }
+    });
+  }
+
+  private async refreshFCMToken(): Promise<boolean> {
+    if (!FirebaseMessaging) return false;
+
+    try {
+      const result = await FirebaseMessaging.getToken();
+      if (!result?.token) {
+        logError("NativeNotif", "Firebase Messaging returned no FCM token");
+        return false;
+      }
+      await this.acceptFCMToken(result.token);
+      return true;
+    } catch (error) {
+      logError("NativeNotif", "Failed to retrieve FCM token", error);
+      return false;
+    }
+  }
+
   private async setupPushListeners(): Promise<void> {
-    if (!PushNotifications) {
+    if (!FirebaseMessaging) {
       log("NativeNotif", "Cannot setup listeners - plugin not loaded");
       return;
     }
@@ -309,42 +300,28 @@ class NativeNotificationService {
 
     try {
       // Remove all existing listeners first to be safe
-      await PushNotifications.removeAllListeners();
+      await FirebaseMessaging.removeAllListeners();
 
-      // On registration success - get FCM token
-      PushNotifications.addListener("registration", async (token: any) => {
+      FirebaseMessaging.addListener("tokenReceived", async (event: any) => {
         try {
+          const token = event?.token;
+          if (!token) return;
           log("NativeNotif", "FCM Token received", {
-            token: token.value ? token.value.substring(0, 50) + "..." : "null",
-            fullLength: token.value?.length || 0,
+            token: token.substring(0, 50) + "...",
+            fullLength: token.length,
           });
-          this.fcmToken = token.value;
-          this.saveFCMToken(token.value);
-          await this.registerTokenWithBackend(token.value);
-
-          // Notify token listeners
-          this.tokenListeners.forEach((listener) => {
-            try {
-              listener(token.value);
-            } catch (e) {
-              logError("NativeNotif", "Token listener error", e);
-            }
-          });
+          await this.acceptFCMToken(token);
         } catch (e) {
           logError("NativeNotif", "Error in registration listener", e);
         }
       });
 
-      // On registration error
-      PushNotifications.addListener("registrationError", (error: any) => {
-        logError("NativeNotif", "Registration error", error);
-      });
-
       // On push notification received (foreground)
-      PushNotifications.addListener(
-        "pushNotificationReceived",
-        (notification: any) => {
+      FirebaseMessaging.addListener(
+        "notificationReceived",
+        (event: any) => {
           try {
+            const notification = event?.notification || event;
             log("NativeNotif", "🔔 PUSH NOTIFICATION RECEIVED (foreground)", {
               title: notification?.title,
               body: notification?.body,
@@ -359,8 +336,8 @@ class NativeNotificationService {
       );
 
       // On push notification action performed (user tapped)
-      PushNotifications.addListener(
-        "pushNotificationActionPerformed",
+      FirebaseMessaging.addListener(
+        "notificationActionPerformed",
         (action: any) => {
           try {
             log("NativeNotif", "👆 NOTIFICATION ACTION PERFORMED (tapped)", {
@@ -932,9 +909,9 @@ class NativeNotificationService {
 
     try {
       await this.ensurePluginsLoaded();
-      if (!PushNotifications) return "denied";
+      if (!FirebaseMessaging) return "denied";
 
-      const status = await PushNotifications.checkPermissions();
+      const status = await FirebaseMessaging.checkPermissions();
       log("NativeNotif", "Check permission result", status);
       if (status.receive === "granted") return "granted";
       if (status.receive === "denied") return "denied";
@@ -978,23 +955,17 @@ class NativeNotificationService {
   // Try to register if permission is granted but no token
   async tryRegisterIfPermitted(): Promise<boolean> {
     if (!this.isNativePlatform()) return false;
-    if (this.fcmToken) {
-      log("NativeNotif", "Already have FCM token, skipping registration");
-      return true;
-    }
-
     try {
       await this.ensurePluginsLoaded();
-      if (!PushNotifications) return false;
+      if (!FirebaseMessaging) return false;
 
-      const status = await PushNotifications.checkPermissions();
+      const status = await FirebaseMessaging.checkPermissions();
       log("NativeNotif", "tryRegisterIfPermitted - Permission status:", status);
 
       if (status.receive === "granted") {
-        log("NativeNotif", "Permission is granted, registering now...");
-        await PushNotifications.register();
-        log("NativeNotif", "Registration call made");
-        return true;
+        log("NativeNotif", "Permission is granted, refreshing FCM token...");
+        await this.setupPushListeners();
+        return await this.refreshFCMToken();
       }
 
       return false;

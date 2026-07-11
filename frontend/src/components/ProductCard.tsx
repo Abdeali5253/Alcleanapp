@@ -11,6 +11,7 @@ interface ProductCardProps {
   onQuickView: (product: Product) => void;
   isInWishlist: boolean;
   onToggleWishlist: (productId: string) => void;
+  iconOnlyCart?: boolean;
 }
 
 export function ProductCard({
@@ -18,7 +19,8 @@ export function ProductCard({
   onAddToCart,
   onQuickView,
   isInWishlist,
-  onToggleWishlist
+  onToggleWishlist,
+  iconOnlyCart = false,
 }: ProductCardProps) {
   const navigate = useNavigate();
   const discount = product.originalPrice
@@ -106,14 +108,19 @@ export function ProductCard({
         {product.inStock ? (
           <Button
             size="sm"
+            aria-label="Add to cart"
+            title={iconOnlyCart ? "Add to cart" : undefined}
             className="w-full mt-auto bg-gradient-to-r from-[#6DB33F] to-[#5da035] hover:from-[#5da035] hover:to-[#4d8f2e] text-white font-semibold h-9 sm:h-10 rounded-xl shadow-md hover:shadow-lg transition-all duration-200 text-[11px] sm:text-sm px-2 sm:px-4"
             onClick={(e) => {
               e.stopPropagation();
               onAddToCart(product, 1);
             }}
           >
-            <ShoppingCart size={14} className="mr-1.5 sm:mr-2 shrink-0" />
-            Add to Cart
+            <ShoppingCart
+              size={iconOnlyCart ? 18 : 14}
+              className={iconOnlyCart ? "shrink-0" : "mr-1.5 sm:mr-2 shrink-0"}
+            />
+            {!iconOnlyCart && "Add to Cart"}
           </Button>
         ) : (
           <Button

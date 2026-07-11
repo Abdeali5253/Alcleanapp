@@ -33,7 +33,7 @@ export function Checkout() {
   const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
   const [paymentCompleted, setPaymentCompleted] = useState(false);
   const inAppRef = useRef<any>(null);
-  const paymentCompletedRef = useRef(false);
+  const checkoutCompletionHandledRef = useRef(false);
   const guestHintShownRef = useRef(false);
 
   const [firstName, setFirstName] = useState("");
@@ -65,10 +65,6 @@ export function Checkout() {
       setPhone(user.phone || "");
     }
   }, [user]);
-
-  useEffect(() => {
-    paymentCompletedRef.current = paymentCompleted;
-  }, [paymentCompleted]);
 
   useEffect(() => {
     if (user || guestHintShownRef.current) {
@@ -133,29 +129,9 @@ export function Checkout() {
   const deliveryCharge = calculateDeliveryCharge();
   const total = subtotal + deliveryCharge;
 
-  const getCheckoutSuccessDeepLink = () => {
-    return "alclean://checkout/success";
-  };
-
-  const decorateCheckoutUrl = (rawUrl: string) => {
-    try {
-      const url = new URL(rawUrl);
-      const returnUrl = getCheckoutSuccessDeepLink();
-
-      // Different Shopify/payment flows may look at different redirect keys.
-      url.searchParams.set("return_to", returnUrl);
-      url.searchParams.set("redirect_url", returnUrl);
-      url.searchParams.set("checkout[return_url]", returnUrl);
-      url.searchParams.set("checkout[redirect_url]", returnUrl);
-
-      return url.toString();
-    } catch (error) {
-      console.warn("[Checkout] Failed to decorate checkout URL:", error);
-      return rawUrl;
-    }
-  };
-
   const completeCheckout = () => {
+    if (checkoutCompletionHandledRef.current) return;
+    checkoutCompletionHandledRef.current = true;
     cartService.clearCart();
     setPaymentCompleted(true);
     toast.success("Order placed successfully!");
@@ -163,8 +139,8 @@ export function Checkout() {
   };
 
   const openPaymentPage = async (url: string) => {
-    const decoratedUrl = decorateCheckoutUrl(url);
-    setCheckoutUrl(decoratedUrl);
+    setCheckoutUrl(url);
+    checkoutCompletionHandledRef.current = false;
 
     const isCheckoutCompleteUrl = (targetUrl: string) => {
       const normalizedUrl = (targetUrl || "").toLowerCase();
@@ -191,11 +167,17 @@ export function Checkout() {
       } catch {}
 
       const ref = inAppBrowser.open(
-        decoratedUrl,
+        url,
         "_blank",
         [
           "location=yes",
           "toolbar=yes",
+          "toolbarposition=top",
+          "closebuttoncaption=Back to AlClean",
+          "hidenavigationbuttons=no",
+          "hideurlbar=yes",
+          "presentationstyle=fullscreen",
+          "transitionstyle=coververtical",
           "hardwareback=yes",
           "clearcache=yes",
           "clearsessioncache=yes",
@@ -215,10 +197,10 @@ export function Checkout() {
         }
 
         console.log(`[IAB] checkout completion detected on ${source} -> closing`);
+        completeCheckout();
         try {
           ref.close();
         } catch {}
-        completeCheckout();
       };
 
       ref.addEventListener("loadstart", (event: any) => {
@@ -261,10 +243,10 @@ export function Checkout() {
                 }
 
                 console.log("[IAB] checkout completion detected from page content");
+                completeCheckout();
                 try {
                   ref.close();
                 } catch {}
-                completeCheckout();
               } catch (scriptError) {
                 console.warn("[IAB] Failed to inspect checkout page:", scriptError);
               }
@@ -279,8 +261,8 @@ export function Checkout() {
         console.log("[IAB] exit");
         inAppRef.current = null;
 
-        if (!paymentCompletedRef.current) {
-          toast.info("If you completed payment, tap 'I've Completed Payment'.");
+        if (!checkoutCompletionHandledRef.current) {
+          toast.info("Checkout closed. Your cart has been kept.");
         }
       });
 
@@ -288,8 +270,8 @@ export function Checkout() {
     }
 
     console.log("[Checkout] Falling back to Capacitor Browser (no URL events)");
-    await Browser.open({ url: decoratedUrl, presentationStyle: "fullscreen" });
-    toast.info("After payment, come back and tap 'I've Completed Payment'.");
+    await Browser.open({ url, presentationStyle: "fullscreen" });
+    toast.info("Complete payment in the secure browser, then return to AlClean.");
   };
 
   const handleCheckout = async () => {
@@ -321,10 +303,6 @@ export function Checkout() {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handlePaymentComplete = () => {
-    completeCheckout();
   };
 
   if (paymentCompleted) {
@@ -594,18 +572,6 @@ export function Checkout() {
               <ExternalLink size={18} />
               Open Payment Page
             </button>
-            <div className="border-t border-blue-200 pt-4">
-              <p className="text-xs text-blue-600 mb-3">
-                If you paid but it didn't auto-close, tap:
-              </p>
-              <button
-                onClick={handlePaymentComplete}
-                className="flex items-center justify-center gap-2 w-full bg-green-600 text-white py-3 rounded-lg font-medium"
-              >
-                <CheckCircle size={18} />
-                I've Completed Payment
-              </button>
-            </div>
           </div>
         )}
 

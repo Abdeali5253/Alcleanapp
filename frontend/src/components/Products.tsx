@@ -765,6 +765,7 @@ export function Products() {
                 onQuickView={setQuickViewProduct}
                 isInWishlist={wishlist.includes(product.id)}
                 onToggleWishlist={toggleWishlist}
+                iconOnlyCart={viewMode === "3cols"}
               />
             ))}
           </div>
