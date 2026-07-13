@@ -11,6 +11,7 @@ import notificationRoutes from './routes/notifications.js';
 import orderRoutes from './routes/orders.js';
 import productRoutes from './routes/products.js';
 import shopifyRoutes from './routes/shopify.js';
+import { startTrackingNotificationScheduler } from './services/tracking-notifications.js';
 
 const app = express();
 const port: number = Number(process.env.PORT) || 3001;
@@ -107,6 +108,7 @@ app.listen(port, '0.0.0.0', () => {
   console.log('  GET  /api/products/:id');
   console.log('  GET  /api/products/collection/:handle');
   console.log('--------------------------------');
+  startTrackingNotificationScheduler();
 });
 
 export default app;

@@ -4,6 +4,7 @@ import {
   NativeNotification,
 } from "./native-notifications";
 import { BACKEND_URL } from "./base-url";
+import { authService } from "./auth";
 
 // Firebase modules will be lazy loaded
 let initializeFirebase: any = null;
@@ -217,6 +218,12 @@ class NotificationService {
     this.loadNotificationState();
     this.loadFCMToken();
     this.loadSettings();
+    authService.subscribe(() => {
+      const token = this.getFCMToken();
+      if (token) {
+        void this.registerTokenWithBackend(token);
+      }
+    });
   }
 
   // Initialize notification service (auto-detects platform)
@@ -299,7 +306,7 @@ class NotificationService {
               if (token) {
                 this.fcmToken = token;
                 this.saveFCMToken(token);
-                // For web, we don't have backend history, but could implement if needed
+                await this.registerTokenWithBackend(token);
               }
             } catch (e) {
               console.log("[Notifications] Could not get existing token:", e);
@@ -347,15 +354,22 @@ class NotificationService {
   // Register FCM token with backend
   private async registerTokenWithBackend(token: string): Promise<void> {
     try {
+      const user = authService.getUser();
       const response = await fetch(
         `${BACKEND_URL}/api/notifications/register`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            ...(user?.accessToken
+              ? { Authorization: `Bearer ${user.accessToken}` }
+              : {}),
+          },
           body: JSON.stringify({
             token,
             platform: Capacitor.getPlatform(),
             timestamp: new Date().toISOString(),
+            userId: user?.id,
           }),
         },
       );

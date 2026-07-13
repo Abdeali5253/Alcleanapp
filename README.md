@@ -41,9 +41,17 @@ SHOPIFY_STORE_DOMAIN=your-store.myshopify.com
 SHOPIFY_STOREFRONT_TOKEN=your-storefront-token
 SHOPIFY_ADMIN_API_TOKEN=your-admin-token
 SHOPIFY_API_VERSION=2025-07
+TRACKING_ASSIGNMENTS_URL=https://app.albizco.com/end_points/get_tracking.php?company_type=Alclean
+TRACKING_NOTIFICATIONS_ENABLED=true
+TRACKING_NOTIFICATION_INTERVAL_HOURS=24
 PORT=3001
 ALLOWED_ORIGINS=http://localhost:3000
 ```
+
+The backend checks open orders once shortly after startup and then every 24
+hours. Tracking pushes are skipped for Karachi, Lahore, Islamabad, and
+Rawalpindi. Keep the backend `data` directory on persistent storage because
+`tracking-notification-state.json` prevents duplicate status notifications.
 
 ### Installation
 

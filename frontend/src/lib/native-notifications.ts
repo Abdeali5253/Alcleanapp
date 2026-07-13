@@ -3,6 +3,7 @@
 
 import { Capacitor } from "@capacitor/core";
 import { BACKEND_URL } from "./base-url";
+import { authService } from "./auth";
 
 const shouldLog = import.meta.env.DEV;
 
@@ -585,10 +586,12 @@ class NativeNotificationService {
     log("NativeNotif", "Registering token with backend...");
 
     try {
+      const user = authService.getUser();
       const payload = {
         token,
         platform: Capacitor.getPlatform(),
         timestamp: new Date().toISOString(),
+        userId: user?.id,
       };
       log("NativeNotif", "Registration payload prepared", {
         platform: payload.platform,
@@ -599,7 +602,12 @@ class NativeNotificationService {
 
       const response = await fetch(`${backendUrl}/api/notifications/register`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(user?.accessToken
+            ? { Authorization: `Bearer ${user.accessToken}` }
+            : {}),
+        },
         body: JSON.stringify(payload),
       });
 

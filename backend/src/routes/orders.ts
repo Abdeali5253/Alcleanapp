@@ -38,6 +38,27 @@ interface LocalDeliveryContact {
   note: string;
 }
 
+export interface TrackingNotificationOrder {
+  id: string;
+  orderNumber: string;
+  createdAt: string;
+  city: string;
+  customerId?: string;
+  customerPhone?: string;
+  financialStatus?: string;
+  fulfillmentStatus?: string;
+}
+
+export interface TrackingNotificationSnapshot {
+  trackingNumber?: string;
+  courier?: string;
+  status: AppOrderStatus;
+  city: string;
+  trackingStatusText: string;
+  trackingLastUpdated?: string;
+  latestCheckpoint?: TrackingTimelineEvent;
+}
+
 const LOCAL_DELIVERY_CONTACTS: Record<string, LocalDeliveryContact> = {
   karachi: {
     city: "Karachi",
@@ -113,6 +134,50 @@ async function shopifyAdminFetch<T>(
   return json.data;
 }
 
+export async function getOpenOrdersForTrackingNotifications(): Promise<
+  TrackingNotificationOrder[]
+> {
+  const orders: TrackingNotificationOrder[] = [];
+  let cursor: string | null = null;
+  let hasNextPage = true;
+  const query = `
+    query trackingNotificationOrders($after: String) {
+      orders(first: 100, after: $after, query: "status:open", sortKey: CREATED_AT) {
+        nodes {
+          id
+          name
+          createdAt
+          displayFinancialStatus
+          displayFulfillmentStatus
+          customer { id }
+          shippingAddress { city phone }
+        }
+        pageInfo { hasNextPage endCursor }
+      }
+    }
+  `;
+
+  while (hasNextPage) {
+    const data: any = await shopifyAdminFetch(query, { after: cursor });
+    const connection = data.orders;
+    for (const order of connection?.nodes || []) {
+      orders.push({
+        id: order.id,
+        orderNumber: order.name,
+        createdAt: order.createdAt,
+        city: order.shippingAddress?.city || "",
+        customerId: order.customer?.id,
+        customerPhone: order.shippingAddress?.phone || "",
+        financialStatus: order.displayFinancialStatus,
+        fulfillmentStatus: order.displayFulfillmentStatus,
+      });
+    }
+    hasNextPage = !!connection?.pageInfo?.hasNextPage;
+    cursor = connection?.pageInfo?.endCursor || null;
+  }
+  return orders;
+}
+
 function getCartToken(cartId?: string): string {
   if (!cartId) return "";
   try {
@@ -127,7 +192,7 @@ function getTrackingConfig() {
   return {
     assignmentsUrl:
       process.env.TRACKING_ASSIGNMENTS_URL ||
-      "https://app.albizco.com/end_points/get_tracking.php?comapny_type=Alclean",
+      "https://app.albizco.com/end_points/get_tracking.php?company_type=Alclean",
     leopardUrl: process.env.LEOPARD_TRACKING_URL || "",
     leopardApiKey: process.env.LEOPARD_TRACKING_API_KEY || "",
     leopardApiPassword: process.env.LEOPARD_TRACKING_API_PASSWORD || "",
@@ -216,6 +281,12 @@ function getLocalDeliveryContact(
     return LOCAL_DELIVERY_CONTACTS.rawalpindi;
   }
   return null;
+}
+
+export function isTrackingNotificationExcludedCity(
+  city?: string | null,
+): boolean {
+  return !!getLocalDeliveryContact(city);
 }
 
 function buildTimestamp(value: any): string | undefined {
@@ -833,6 +904,43 @@ async function enrichOrderTracking(
     ratingEligible: status === "delivered",
     localDelivery,
     courierTrackingError: courierResult.error,
+  };
+}
+
+export async function getTrackingNotificationSnapshot(
+  order: TrackingNotificationOrder,
+): Promise<TrackingNotificationSnapshot> {
+  const assignments = await fetchTrackingAssignments(
+    normalizeTrackingOrderId(order.orderNumber),
+  );
+  const assignment = matchTrackingAssignment(
+    { orderNumber: order.orderNumber },
+    assignments,
+    order.customerPhone || "",
+  );
+  const enriched = await enrichOrderTracking(
+    {
+      id: order.id,
+      orderNumber: order.orderNumber,
+      createdAt: order.createdAt,
+      city: order.city,
+      status: mapShopifyStatus(
+        order.financialStatus || "",
+        order.fulfillmentStatus || "",
+      ),
+    },
+    assignment,
+  );
+
+  return {
+    trackingNumber: enriched.trackingNumber,
+    courier: enriched.courier,
+    status: enriched.status,
+    city: enriched.city,
+    trackingStatusText: enriched.trackingStatusText,
+    trackingLastUpdated: enriched.trackingLastUpdated,
+    latestCheckpoint:
+      enriched.trackingTimeline?.[enriched.trackingTimeline.length - 1],
   };
 }
 

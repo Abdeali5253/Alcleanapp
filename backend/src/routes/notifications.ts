@@ -4,6 +4,7 @@ import { initializeApp, cert } from "firebase-admin/app";
 import { getMessaging, Message } from "firebase-admin/messaging";
 import fs from "fs";
 import path from "path";
+import fetch from "node-fetch";
 
 dotenv.config();
 
@@ -362,6 +363,63 @@ async function sendFCMNotification(
   return { success: successCount, failure: failureCount };
 }
 
+export interface UserNotificationRequest {
+  userId: string;
+  title: string;
+  body: string;
+  type?: string;
+  data?: Record<string, string>;
+  imageUrl?: string;
+}
+
+export async function sendNotificationToUser(
+  request: UserNotificationRequest,
+): Promise<{ success: number; failure: number }> {
+  const tokens = Array.from(deviceTokens.entries())
+    .filter(([_, device]) => device.userId === request.userId)
+    .map(([token]) => token);
+  if (tokens.length === 0) return { success: 0, failure: 0 };
+  return sendFCMNotification(
+    tokens,
+    { title: request.title, body: request.body, image: request.imageUrl },
+    {
+      type: request.type || "general",
+      userId: request.userId,
+      ...request.data,
+    },
+  );
+}
+
+async function getCustomerIdFromAccessToken(
+  accessToken: string,
+): Promise<string | undefined> {
+  const domain = process.env.SHOPIFY_STORE_DOMAIN || "";
+  const storefrontToken = process.env.SHOPIFY_STOREFRONT_TOKEN || "";
+  const apiVersion = process.env.SHOPIFY_API_VERSION || "2025-01";
+  if (!domain || !storefrontToken) return undefined;
+  const response = await fetch(
+    `https://${domain}/api/${apiVersion}/graphql.json`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Shopify-Storefront-Access-Token": storefrontToken,
+      },
+      body: JSON.stringify({
+        query: `
+          query notificationCustomer($customerAccessToken: String!) {
+            customer(customerAccessToken: $customerAccessToken) { id }
+          }
+        `,
+        variables: { customerAccessToken: accessToken },
+      }),
+    },
+  );
+  if (!response.ok) return undefined;
+  const payload: any = await response.json();
+  return payload.data?.customer?.id;
+}
+
 /**
  * POST /api/notifications/register
  * Register a device FCM token for push notifications
@@ -377,12 +435,31 @@ router.post("/register", async (req: Request, res: Response) => {
       });
     }
 
+    let verifiedUserId: string | undefined;
+    const accessToken = req.headers.authorization?.replace("Bearer ", "");
+    if (accessToken) {
+      verifiedUserId = await getCustomerIdFromAccessToken(accessToken);
+      if (!verifiedUserId) {
+        return res.status(401).json({
+          success: false,
+          error: "Invalid or expired customer access token",
+        });
+      }
+      if (userId && userId !== verifiedUserId) {
+        return res.status(403).json({
+          success: false,
+          error: "Customer identity does not match access token",
+        });
+      }
+    }
+    const existingDevice = deviceTokens.get(token);
     const deviceInfo: DeviceToken = {
       token,
       platform: platform || "web",
-      registeredAt: timestamp || new Date().toISOString(),
+      registeredAt:
+        existingDevice?.registeredAt || timestamp || new Date().toISOString(),
       lastActive: new Date().toISOString(),
-      userId,
+      userId: verifiedUserId,
     };
 
     deviceTokens.set(token, deviceInfo);
@@ -473,23 +550,21 @@ router.post("/send-to-user", async (req: Request, res: Response) => {
       });
     }
 
-    const tokens = Array.from(deviceTokens.entries())
-      .filter(([_, device]) => device.userId === userId)
-      .map(([token, _]) => token);
-
-    if (tokens.length === 0) {
+    const result = await sendNotificationToUser({
+      userId,
+      title,
+      body,
+      type,
+      data,
+      imageUrl,
+    });
+    if (result.success === 0 && result.failure === 0) {
       return res.json({
         success: true,
         message: "User has no registered devices",
         sentCount: 0,
       });
     }
-
-    const result = await sendFCMNotification(
-      tokens,
-      { title, body, image: imageUrl },
-      { type: type || "general", userId, ...data },
-    );
 
     res.json({
       success: true,
