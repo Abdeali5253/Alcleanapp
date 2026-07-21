@@ -53,7 +53,7 @@ export function Cart() {
       let candidates: Product[] = [];
 
       try {
-        candidates = await getBestSellers(12);
+        candidates = await getBestSellers(18);
       } catch (error) {
         console.error("Failed to fetch best sellers:", error);
       }
@@ -62,7 +62,7 @@ export function Cart() {
         (product) => product.inStock && !excludedIds.has(product.id),
       );
 
-      if (eligibleProducts.length < 4) {
+      if (eligibleProducts.length < 6) {
         try {
           const catalog = await getAllProducts(250);
           const seenIds = new Set([
@@ -92,7 +92,7 @@ export function Cart() {
       }
 
       if (!cancelled) {
-        setBestSellers(eligibleProducts.slice(0, 4));
+        setBestSellers(eligibleProducts.slice(0, 6));
         setBestSellersLoading(false);
       }
     };
@@ -276,6 +276,8 @@ export function Cart() {
             subtitle="Popular choices customers are buying now"
             products={bestSellers}
             loading={bestSellersLoading}
+            variant="compact"
+            limit={6}
           />
         )}
       </main>

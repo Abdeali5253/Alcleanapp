@@ -19,13 +19,19 @@ const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
   .split(',')
   .map((origin) => origin.trim())
   .filter(Boolean);
+const nativeAppOrigins = [
+  'https://localhost',
+  'http://localhost',
+  'capacitor://localhost',
+];
+const trustedOrigins = new Set([...allowedOrigins, ...nativeAppOrigins]);
 
 app.use(
   cors({
     origin:
       allowedOrigins.length > 0
         ? (origin, callback) => {
-            if (!origin || allowedOrigins.includes(origin)) {
+            if (!origin || trustedOrigins.has(origin)) {
               callback(null, true);
               return;
             }

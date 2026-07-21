@@ -23,6 +23,7 @@ export function ProductDetail() {
   const [loading, setLoading] = useState(true);
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
   const [relatedLoading, setRelatedLoading] = useState(false);
+  const [catalogProducts, setCatalogProducts] = useState<Product[]>([]);
 
   useEffect(() => {
     const unsubscribe = wishlistService.subscribe((ids) => {
@@ -52,6 +53,7 @@ export function ProductDetail() {
         }
 
         const allProducts = response.products;
+        setCatalogProducts(allProducts);
         const productData = decodedParam.startsWith("gid://")
           ? allProducts.find((p: Product) => p.id === decodedParam)
           : allProducts.find((p: Product) => p.handle === decodedParam);
@@ -81,15 +83,37 @@ export function ProductDetail() {
     const fetchRelatedProducts = async () => {
       try {
         setRelatedLoading(true);
-        const products = await getRelatedProducts(product.id, 4);
-        if (!cancelled) {
-          setRelatedProducts(
-            products.filter(
-              (relatedProduct) =>
-                relatedProduct.id !== product.id && relatedProduct.inStock,
-            ),
+        let apiProducts: Product[] = [];
+
+        try {
+          apiProducts = await getRelatedProducts(product.id, 4);
+        } catch (error) {
+          console.warn(
+            "Related products API unavailable; using catalog fallback:",
+            error,
           );
         }
+
+        const seenIds = new Set([product.id]);
+        const uniqueInStock = (products: Product[]) =>
+          products.filter((candidate) => {
+            if (!candidate.inStock || seenIds.has(candidate.id)) return false;
+            seenIds.add(candidate.id);
+            return true;
+          });
+        const sameSubcategory = catalogProducts.filter(
+          (candidate) => candidate.subcategory === product.subcategory,
+        );
+        const sameCategory = catalogProducts.filter(
+          (candidate) => candidate.category === product.category,
+        );
+        const recommendations = [
+          ...uniqueInStock(apiProducts),
+          ...uniqueInStock(sameSubcategory),
+          ...uniqueInStock(sameCategory),
+        ].slice(0, 4);
+
+        if (!cancelled) setRelatedProducts(recommendations);
       } catch (error) {
         console.error("Failed to fetch related products:", error);
         if (!cancelled) setRelatedProducts([]);
@@ -103,7 +127,7 @@ export function ProductDetail() {
     return () => {
       cancelled = true;
     };
-  }, [product]);
+  }, [product, catalogProducts]);
 
   const handleAddToCart = () => {
     if (!product) return;
