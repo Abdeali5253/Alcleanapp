@@ -5,11 +5,13 @@ import { Button } from "./ui/button";
 import { UnifiedHeader } from "./UnifiedHeader";
 import { toast } from "sonner";
 import { getAllProducts } from "../lib/api";
+import { getRelatedProducts } from "../lib/shopify";
 import { Product } from "../types/shopify";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { cartService } from "../lib/cart";
 import { wishlistService } from "../lib/wishlist";
 import { ProductDescription } from "./ProductDescription";
+import { ProductRecommendations } from "./ProductRecommendations";
 
 export function ProductDetail() {
   const { id } = useParams<{ id: string }>();
@@ -19,6 +21,8 @@ export function ProductDetail() {
   const [isInWishlist, setIsInWishlist] = useState(false);
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
+  const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
+  const [relatedLoading, setRelatedLoading] = useState(false);
 
   useEffect(() => {
     const unsubscribe = wishlistService.subscribe((ids) => {
@@ -64,6 +68,42 @@ export function ProductDetail() {
 
     fetchProduct();
   }, [id]);
+
+  useEffect(() => {
+    if (!product) {
+      setRelatedProducts([]);
+      setRelatedLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    const fetchRelatedProducts = async () => {
+      try {
+        setRelatedLoading(true);
+        const products = await getRelatedProducts(product.id, 4);
+        if (!cancelled) {
+          setRelatedProducts(
+            products.filter(
+              (relatedProduct) =>
+                relatedProduct.id !== product.id && relatedProduct.inStock,
+            ),
+          );
+        }
+      } catch (error) {
+        console.error("Failed to fetch related products:", error);
+        if (!cancelled) setRelatedProducts([]);
+      } finally {
+        if (!cancelled) setRelatedLoading(false);
+      }
+    };
+
+    fetchRelatedProducts();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [product]);
 
   const handleAddToCart = () => {
     if (!product) return;
@@ -402,6 +442,13 @@ export function ProductDetail() {
             )}
           </div>
         </div>
+
+        <ProductRecommendations
+          title="Related Products"
+          subtitle="You may also like these products"
+          products={relatedProducts}
+          loading={relatedLoading}
+        />
       </div>
 
       {product.inStock && (

@@ -6,10 +6,15 @@ import { UnifiedHeader } from "./UnifiedHeader";
 import { authService } from "../lib/auth";
 import { toast } from "sonner";
 import { cartService, CartItem } from "../lib/cart";
+import { getAllProducts, getBestSellers } from "../lib/shopify";
+import { Product } from "../types/shopify";
+import { ProductRecommendations } from "./ProductRecommendations";
 
 export function Cart() {
   const navigate = useNavigate();
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [bestSellers, setBestSellers] = useState<Product[]>([]);
+  const [bestSellersLoading, setBestSellersLoading] = useState(false);
 
   // Load cart on mount and subscribe to changes
   useEffect(() => {
@@ -21,6 +26,83 @@ export function Cart() {
 
     return unsubscribe;
   }, []);
+
+  const cartProductKey = cartItems
+    .map((item) => item.product.id)
+    .sort()
+    .join("|");
+
+  useEffect(() => {
+    if (cartItems.length === 0) {
+      setBestSellers([]);
+      setBestSellersLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadBestSellers = async () => {
+      setBestSellersLoading(true);
+
+      const excludedIds = new Set(
+        cartItems.map((item) => item.product.id),
+      );
+      const cartCategories = new Set(
+        cartItems.map((item) => item.product.category).filter(Boolean),
+      );
+      let candidates: Product[] = [];
+
+      try {
+        candidates = await getBestSellers(12);
+      } catch (error) {
+        console.error("Failed to fetch best sellers:", error);
+      }
+
+      let eligibleProducts = candidates.filter(
+        (product) => product.inStock && !excludedIds.has(product.id),
+      );
+
+      if (eligibleProducts.length < 4) {
+        try {
+          const catalog = await getAllProducts(250);
+          const seenIds = new Set([
+            ...excludedIds,
+            ...eligibleProducts.map((product) => product.id),
+          ]);
+          const availableFallbacks = catalog.filter(
+            (product) =>
+              product.inStock &&
+              !seenIds.has(product.id),
+          );
+          const categoryMatches = availableFallbacks.filter((product) =>
+            cartCategories.has(product.category),
+          );
+          const otherProducts = availableFallbacks.filter(
+            (product) => !cartCategories.has(product.category),
+          );
+
+          eligibleProducts = [
+            ...eligibleProducts,
+            ...categoryMatches,
+            ...otherProducts,
+          ];
+        } catch (error) {
+          console.error("Failed to load best seller fallbacks:", error);
+        }
+      }
+
+      if (!cancelled) {
+        setBestSellers(eligibleProducts.slice(0, 4));
+        setBestSellersLoading(false);
+      }
+    };
+
+    loadBestSellers();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [cartProductKey]);
 
   const updateQuantity = (productId: string, newQuantity: number) => {
     if (newQuantity < 1) return;
@@ -186,6 +268,15 @@ export function Cart() {
               </div>
             </div>
           </div>
+        )}
+
+        {cartItems.length > 0 && (
+          <ProductRecommendations
+            title="Best Sellers"
+            subtitle="Popular choices customers are buying now"
+            products={bestSellers}
+            loading={bestSellersLoading}
+          />
         )}
       </main>
     </div>

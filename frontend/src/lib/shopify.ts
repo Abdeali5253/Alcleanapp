@@ -90,6 +90,42 @@ export async function getProductById(id: string): Promise<Product | null> {
   }
 }
 
+export async function getRelatedProducts(
+  productId: string,
+  limit: number = 4,
+): Promise<Product[]> {
+  const url = API_BASE_URL + '/api/products/recommendations/' + encodeURIComponent(productId) + '?limit=' + limit;
+  const response = await fetch(url);
+
+  if (!response.ok) {
+    throw new Error('HTTP error! status: ' + response.status);
+  }
+
+  const data: ApiResponse<Product[]> = await response.json();
+  if (!data.success || !data.products) {
+    throw new Error(data.error || 'Failed to fetch related products');
+  }
+
+  return data.products;
+}
+
+export async function getBestSellers(limit: number = 12): Promise<Product[]> {
+  const response = await fetch(
+    API_BASE_URL + '/api/products/best-sellers?limit=' + limit,
+  );
+
+  if (!response.ok) {
+    throw new Error('HTTP error! status: ' + response.status);
+  }
+
+  const data: ApiResponse<Product[]> = await response.json();
+  if (!data.success || !data.products) {
+    throw new Error(data.error || 'Failed to fetch best sellers');
+  }
+
+  return data.products;
+}
+
 // Additional functions that might be needed
 export async function getCustomer(accessToken: string): Promise<any> {
   // This would need backend implementation

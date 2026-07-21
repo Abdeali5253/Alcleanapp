@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   User,
@@ -79,6 +79,7 @@ export function Account() {
   const [showPassword, setShowPassword] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const googleLoginInFlightRef = useRef(false);
 
   // Form fields
   const [firstName, setFirstName] = useState("");
@@ -170,6 +171,9 @@ export function Account() {
   };
 
   const handleGoogleLogin = async () => {
+    if (googleLoginInFlightRef.current) return;
+
+    googleLoginInFlightRef.current = true;
     setIsLoggingIn(true);
     setIsGoogleLoading(true);
 
@@ -203,6 +207,7 @@ export function Account() {
     } catch (error: any) {
       toast.error(error.message || "Google login failed. Please try again.");
     } finally {
+      googleLoginInFlightRef.current = false;
       setIsGoogleLoading(false);
       setIsLoggingIn(false);
     }
@@ -221,22 +226,6 @@ export function Account() {
     return (
       <div className="min-h-screen bg-gray-50 pb-20">
         <UnifiedHeader />
-
-        {isGoogleLoading && (
-          <div className="fixed inset-0 z-[70] flex items-center justify-center bg-white/80 px-6 backdrop-blur-sm">
-            <div className="w-full max-w-sm rounded-2xl border border-gray-200 bg-white p-6 text-center shadow-xl">
-              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[#6DB33F]/10">
-                <Loader2 className="h-7 w-7 animate-spin text-[#6DB33F]" />
-              </div>
-              <h2 className="text-lg font-semibold text-gray-900">
-                Opening Google Sign-In
-              </h2>
-              <p className="mt-2 text-sm text-gray-600">
-                Please wait while we prepare the Google account picker.
-              </p>
-            </div>
-          </div>
-        )}
 
         <main className="max-w-md mx-auto px-4 py-6">
           <div className="bg-white rounded-2xl p-6 border border-gray-200">
@@ -298,6 +287,28 @@ export function Account() {
     return (
       <div className="min-h-screen bg-gray-50 pb-20">
         <UnifiedHeader />
+
+        {isGoogleLoading && (
+          <div
+            className="fixed inset-0 z-[70] flex items-center justify-center bg-white/85 px-6 backdrop-blur-sm"
+            role="status"
+            aria-live="polite"
+            aria-label="Google sign-in in progress"
+          >
+            <div className="w-full max-w-sm rounded-2xl border border-gray-200 bg-white p-6 text-center shadow-xl">
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[#6DB33F]/10">
+                <Loader2 className="h-7 w-7 animate-spin text-[#6DB33F]" />
+              </div>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Signing in with Google
+              </h2>
+              <p className="mt-2 text-sm text-gray-600">
+                After choosing your account, please wait 5–10 seconds while we
+                finish signing you in. Do not press the button again.
+              </p>
+            </div>
+          </div>
+        )}
 
         <main className="max-w-md mx-auto px-4 py-6">
           <div className="bg-white rounded-2xl p-6 border border-gray-200">
@@ -491,8 +502,12 @@ export function Account() {
               type="button"
               onClick={handleGoogleLogin}
               disabled={isLoggingIn}
+              aria-busy={isGoogleLoading}
               className="w-full mt-4 bg-white hover:bg-gray-50 text-gray-700 border border-gray-300"
             >
+              {isGoogleLoading ? (
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+              ) : (
               <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
                 <path
                   fill="#4285F4"
@@ -511,7 +526,8 @@ export function Account() {
                   d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
                 />
               </svg>
-              Continue with Google
+              )}
+              {isGoogleLoading ? "Signing in..." : "Continue with Google"}
             </Button>
 
             <div className="mt-6 text-center text-gray-600">
