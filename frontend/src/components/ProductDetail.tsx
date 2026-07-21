@@ -472,6 +472,7 @@ export function ProductDetail() {
           subtitle="You may also like these products"
           products={relatedProducts}
           loading={relatedLoading}
+          variant="compact"
         />
       </div>
 
