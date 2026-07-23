@@ -9,4 +9,5 @@ dist/
 .idea/
 .emergent/
 .DS_Store
+IOS_APP_STORE_TESTFLIGHT_RELEASE.md
 IOS_NOTIFICATION_TESTING.md
