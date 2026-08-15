@@ -5,7 +5,6 @@ import { getFirebaseAuth } from "./firebase-config";
 import {
   signInWithPopup,
   GoogleAuthProvider,
-  signOut as firebaseSignOut,
 } from "firebase/auth";
 import { Capacitor } from "@capacitor/core";
 import { FirebaseAuthentication } from "@capacitor-firebase/authentication";
@@ -97,19 +96,12 @@ class AuthService {
     return this.user?.accessToken || null;
   }
 
-  private async clearNativeGoogleSession(auth?: any | null): Promise<void> {
+  private async clearNativeGoogleSession(): Promise<void> {
     try {
       await FirebaseAuthentication.signOut();
+      console.log("[Auth] Native Google session cleared");
     } catch (error) {
       console.log("[Auth] Native signOut skipped:", error);
-    }
-
-    if (auth) {
-      try {
-        await firebaseSignOut(auth);
-      } catch (error) {
-        console.log("[Auth] Firebase signOut skipped:", error);
-      }
     }
   }
 
@@ -139,7 +131,6 @@ class AuthService {
   }
 
   private async finishSocialLogin(
-    auth: any | null,
     endpoint: string,
     payload: Record<string, any>,
   ): Promise<SocialLoginResult> {
@@ -164,7 +155,7 @@ class AuthService {
         data?.error || `Social login failed (HTTP ${response.status})`;
 
       if (Capacitor.isNativePlatform()) {
-        await this.clearNativeGoogleSession(auth);
+        await this.clearNativeGoogleSession();
       }
 
       if (data?.code === "ACCOUNT_EXISTS_PASSWORD_LOGIN") {
@@ -263,7 +254,7 @@ class AuthService {
     console.log("[Auth] Starting Google login");
     try {
       const isNative = Capacitor.isNativePlatform();
-      const auth = getFirebaseAuth();
+      const auth = isNative ? null : getFirebaseAuth();
       if (!isNative && !auth) {
         console.error("[Auth] Firebase Auth not available");
         throw new Error("Firebase Auth not available");
@@ -278,10 +269,12 @@ class AuthService {
 
         try {
           // Force account picker instead of silently reusing last Google account.
-          await this.clearNativeGoogleSession(auth);
+          await this.clearNativeGoogleSession();
+          console.log("[Auth] Native session cleanup complete");
 
           // Sign in with Google using native SDK
           const platform = Capacitor.getPlatform();
+          console.log("[Auth] Calling native Google sign-in", { platform });
           const nativeSignIn = FirebaseAuthentication.signInWithGoogle(
             platform === "android"
               ? {
@@ -291,15 +284,28 @@ class AuthService {
                 }
               : undefined,
           );
-          const result = await Promise.race([
-            nativeSignIn,
-            new Promise<never>((_, reject) => {
-              window.setTimeout(
-                () => reject(new Error("Google Sign-In could not open. Please close and reopen the app, then try again.")),
-                NATIVE_GOOGLE_SIGN_IN_TIMEOUT_MS,
-              );
-            }),
-          ]);
+          let timeoutId: number | undefined;
+          let result;
+          try {
+            result = await Promise.race([
+              nativeSignIn,
+              new Promise<never>((_, reject) => {
+                timeoutId = window.setTimeout(
+                  () =>
+                    reject(
+                      new Error(
+                        "Google Sign-In could not open. Please close and reopen the app, then try again.",
+                      ),
+                    ),
+                  NATIVE_GOOGLE_SIGN_IN_TIMEOUT_MS,
+                );
+              }),
+            ]);
+          } finally {
+            if (timeoutId !== undefined) {
+              window.clearTimeout(timeoutId);
+            }
+          }
           console.log("[Auth] Native Google sign-in result:", result);
 
           if (!result.credential?.idToken) {
@@ -358,7 +364,7 @@ class AuthService {
         }
       }
 
-      const result = await this.finishSocialLogin(auth ?? null, "/api/auth/google-login", {
+      const result = await this.finishSocialLogin("/api/auth/google-login", {
         idToken,
         forceOverride,
       });
