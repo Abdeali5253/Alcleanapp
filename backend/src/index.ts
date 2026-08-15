@@ -15,6 +15,11 @@ import { startTrackingNotificationScheduler } from './services/tracking-notifica
 
 const app = express();
 const port: number = Number(process.env.PORT) || 3001;
+// Trust forwarded client addresses only from the configured proxy network.
+// The loopback default is safe for Nginx running on the same host and avoids
+// accepting spoofed X-Forwarded-* headers on direct network connections.
+const trustProxy = process.env.TRUST_PROXY?.trim() || 'loopback';
+app.set('trust proxy', trustProxy);
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
   .split(',')
   .map((origin) => origin.trim())
@@ -143,6 +148,7 @@ app.listen(port, '0.0.0.0', () => {
   console.log('--------------------------------');
   console.log(`Port: ${port}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`Trust proxy: ${trustProxy}`);
   console.log(
     `Firebase: ${process.env.FCM_SERVER_KEY ? 'Configured' : 'Not configured'}`,
   );

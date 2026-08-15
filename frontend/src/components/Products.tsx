@@ -319,7 +319,7 @@ export function Products() {
         }
 
         // Try to get cached products first
-        allProducts = productCacheService.getCachedProducts(cacheKey);
+        allProducts = await productCacheService.getCachedProducts(cacheKey);
 
         if (allProducts.length === 0) {
           console.log(`[Products] No cache found for ${cacheKey}, fetching...`);
@@ -343,10 +343,10 @@ export function Products() {
           }
 
           // Cache the results
-          productCacheService.setCachedProducts(allProducts, cacheKey);
+          await productCacheService.setCachedProducts(allProducts, cacheKey);
 
           // Background refresh if needed
-          if (productCacheService.shouldRefresh(cacheKey)) {
+          if (await productCacheService.shouldRefresh(cacheKey)) {
             console.log(
               `[Products] Cache is stale for ${cacheKey}, refreshing in background...`,
             );
@@ -368,7 +368,7 @@ export function Products() {
                     return true;
                   });
                 }
-                productCacheService.setCachedProducts(freshProducts, cacheKey);
+                await productCacheService.setCachedProducts(freshProducts, cacheKey);
                 console.log("[Products] Background refresh complete");
               } catch (err) {
                 console.error("[Products] Background refresh failed:", err);

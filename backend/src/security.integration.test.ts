@@ -8,10 +8,15 @@ let validateProductionConfiguration: (env: NodeJS.ProcessEnv) => void;
 beforeAll(async () => {
   process.env.NODE_ENV = 'test';
   process.env.ALLOWED_ORIGINS = 'https://alclean.pk';
+  process.env.TRUST_PROXY = 'loopback';
   ({ default: app, validateProductionConfiguration } = await import('./index.js'));
 });
 
 describe('security regression routes', () => {
+  it('trusts only the configured reverse-proxy network', () => {
+    expect(app.get('trust proxy')).toBe('loopback');
+  });
+
   it('fails closed when production configuration is incomplete', () => {
     expect(() => validateProductionConfiguration({})).toThrow(/ALLOWED_ORIGINS/);
     expect(() =>

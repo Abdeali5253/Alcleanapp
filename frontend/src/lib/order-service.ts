@@ -46,14 +46,35 @@ export interface Order {
 
 class OrderService {
   private orders: Order[] = [];
+  private cacheOwnerId: string | null = null;
+  private cacheTimestamp = 0;
   private listeners: Set<() => void> = new Set();
 
   constructor() {
     localStorage.removeItem('alclean_orders');
     window.addEventListener("alclean-before-logout", () => {
       this.orders = [];
+      this.cacheOwnerId = null;
+      this.cacheTimestamp = 0;
       this.notifyListeners();
     });
+  }
+
+  getCachedUserOrders(userId: string, maxAgeMs = 5 * 60 * 1000): Order[] | null {
+    if (
+      this.cacheOwnerId !== userId ||
+      Date.now() - this.cacheTimestamp > maxAgeMs
+    ) {
+      return null;
+    }
+    return [...this.orders];
+  }
+
+  setCachedUserOrders(userId: string, orders: Order[]): void {
+    this.cacheOwnerId = userId;
+    this.cacheTimestamp = Date.now();
+    this.orders = [...orders];
+    this.notifyListeners();
   }
 
   /**
@@ -153,8 +174,7 @@ class OrderService {
 
     const orders = await this.fetchShopifyOrders();
     orders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    this.orders = orders;
-    this.notifyListeners();
+    this.setCachedUserOrders(user.id, orders);
     return orders;
   }
 

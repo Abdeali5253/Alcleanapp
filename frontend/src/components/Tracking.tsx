@@ -11,7 +11,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { authService } from "../lib/auth";
 import { BACKEND_URL } from "../lib/base-url";
-import { Order } from "../lib/order-service";
+import { Order, orderService } from "../lib/order-service";
 import { OrderRating, orderRatingService } from "../lib/order-rating";
 import { UnifiedHeader } from "./UnifiedHeader";
 import { Button } from "./ui/button";
@@ -62,13 +62,20 @@ export function Tracking() {
         return;
       }
 
-      loadOrders(user.accessToken);
+      const cachedOrders = orderService.getCachedUserOrders(user.id);
+      if (cachedOrders) {
+        setOrders(cachedOrders);
+        setIsLoading(false);
+        return;
+      }
+
+      loadOrders(user.id, user.accessToken);
     });
 
     return () => unsubscribe();
   }, []);
 
-  const loadOrders = async (accessToken?: string) => {
+  const loadOrders = async (userId: string, accessToken?: string) => {
     const resolvedToken = accessToken || authService.getAccessToken();
     if (!resolvedToken) {
       setIsLoading(false);
@@ -96,7 +103,9 @@ export function Tracking() {
         toast.error(data.error || "Unable to load your orders right now.");
         setOrders([]);
       } else {
-        setOrders(data.orders || []);
+        const fetchedOrders = data.orders || [];
+        orderService.setCachedUserOrders(userId, fetchedOrders);
+        setOrders(fetchedOrders);
       }
     } catch (error) {
       console.error("[Tracking] Error loading orders:", error);

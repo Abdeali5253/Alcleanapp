@@ -1,215 +1,213 @@
-// Product Caching Service for AlClean App
-// Caches Shopify products locally with automatic midnight refresh
-
 import { Product } from "../types/shopify";
 
-const CACHE_DURATION_HOURS = 24; // Cache validity duration
+const CACHE_DURATION_MS = 24 * 60 * 60 * 1000;
+const REFRESH_AFTER_MS = 6 * 60 * 60 * 1000;
+const DATABASE_NAME = "alclean-public-cache";
+const STORE_NAME = "products";
 
 interface CacheData {
+  key: string;
   products: Product[];
   timestamp: number;
   version: string;
 }
 
 class ProductCacheService {
-  private readonly CACHE_VERSION = "1.0.0";
+  private readonly CACHE_VERSION = "2.0.0";
+  private readonly memoryCache = new Map<string, CacheData>();
+  private databasePromise: Promise<IDBDatabase | null> | null = null;
   private midnightRefreshScheduled = false;
 
   constructor() {
-    // Schedule midnight refresh when service is initialized
     this.scheduleMidnightRefresh();
   }
 
-  private getCacheKey(key: string): string {
+  private getLegacyCacheKey(key: string): string {
     return `alclean_products_cache_${key}`;
   }
 
-  private getTimestampKey(key: string): string {
+  private getLegacyTimestampKey(key: string): string {
     return `alclean_products_cache_timestamp_${key}`;
   }
 
-  /**
-   * Get cached products if available and not expired
-   */
-  getCachedProducts(key: string = "all"): Product[] {
+  private openDatabase(): Promise<IDBDatabase | null> {
+    if (this.databasePromise) return this.databasePromise;
+    if (typeof indexedDB === "undefined") return Promise.resolve(null);
+
+    this.databasePromise = new Promise((resolve) => {
+      const request = indexedDB.open(DATABASE_NAME, 1);
+      request.onupgradeneeded = () => {
+        const database = request.result;
+        if (!database.objectStoreNames.contains(STORE_NAME)) {
+          database.createObjectStore(STORE_NAME, { keyPath: "key" });
+        }
+      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => {
+        console.error("[ProductCache] IndexedDB unavailable:", request.error);
+        resolve(null);
+      };
+      request.onblocked = () => resolve(null);
+    });
+    return this.databasePromise;
+  }
+
+  private async readFromDatabase(key: string): Promise<CacheData | null> {
+    const database = await this.openDatabase();
+    if (!database) return null;
+    return new Promise((resolve) => {
+      const request = database
+        .transaction(STORE_NAME, "readonly")
+        .objectStore(STORE_NAME)
+        .get(key);
+      request.onsuccess = () => resolve((request.result as CacheData) || null);
+      request.onerror = () => resolve(null);
+    });
+  }
+
+  private async writeToDatabase(data: CacheData): Promise<boolean> {
+    const database = await this.openDatabase();
+    if (!database) return false;
+    return new Promise((resolve) => {
+      const transaction = database.transaction(STORE_NAME, "readwrite");
+      transaction.objectStore(STORE_NAME).put(data);
+      transaction.oncomplete = () => resolve(true);
+      transaction.onerror = () => {
+        console.error("[ProductCache] IndexedDB write failed:", transaction.error);
+        resolve(false);
+      };
+      transaction.onabort = () => resolve(false);
+    });
+  }
+
+  private async readCacheData(key: string): Promise<CacheData | null> {
+    const memoryData = this.memoryCache.get(key);
+    if (memoryData) return memoryData;
+
+    const databaseData = await this.readFromDatabase(key);
+    if (databaseData) {
+      this.memoryCache.set(key, databaseData);
+      return databaseData;
+    }
+
+    // Migrate a valid legacy localStorage entry once, then remove the large
+    // payload so it no longer competes with app preferences for quota.
     try {
-      const cacheKey = this.getCacheKey(key);
-      const cachedData = localStorage.getItem(cacheKey);
-      if (!cachedData) {
-        console.log(`[ProductCache] No cache found for ${key}`);
-        return [];
-      }
+      const serialized = localStorage.getItem(this.getLegacyCacheKey(key));
+      if (!serialized) return null;
+      const legacy = JSON.parse(serialized) as Omit<CacheData, "key">;
+      const data: CacheData = { ...legacy, key };
+      this.memoryCache.set(key, data);
+      await this.writeToDatabase(data);
+      localStorage.removeItem(this.getLegacyCacheKey(key));
+      localStorage.removeItem(this.getLegacyTimestampKey(key));
+      return data;
+    } catch {
+      localStorage.removeItem(this.getLegacyCacheKey(key));
+      localStorage.removeItem(this.getLegacyTimestampKey(key));
+      return null;
+    }
+  }
 
-      const data: CacheData = JSON.parse(cachedData);
-
-      // Check version compatibility
-      if (data.version !== this.CACHE_VERSION) {
-        console.log(`[ProductCache] Cache version mismatch for ${key}, clearing cache`);
-        this.clearCache(key);
-        return [];
-      }
-
-      // Check if cache is expired (older than CACHE_DURATION_HOURS)
-      const cacheAge = Date.now() - data.timestamp;
-      const maxAge = CACHE_DURATION_HOURS * 60 * 60 * 1000;
-
-      if (cacheAge > maxAge) {
-        console.log(`[ProductCache] Cache expired for ${key}, clearing`);
-        this.clearCache(key);
-        return [];
-      }
-
-      console.log(`[ProductCache] Returning ${data.products.length} cached products for ${key} (age: ${Math.round(cacheAge / 60000)} minutes)`);
-      return data.products;
-    } catch (error) {
-      console.error(`[ProductCache] Error reading cache for ${key}:`, error);
-      this.clearCache(key);
+  async getCachedProducts(key = "all"): Promise<Product[]> {
+    const data = await this.readCacheData(key);
+    if (!data) return [];
+    const cacheAge = Date.now() - data.timestamp;
+    if (
+      data.version !== this.CACHE_VERSION ||
+      !Array.isArray(data.products) ||
+      cacheAge < 0 ||
+      cacheAge > CACHE_DURATION_MS
+    ) {
+      await this.clearCache(key);
       return [];
     }
+    return data.products;
   }
 
-  /**
-   * Save products to cache
-   */
-  setCachedProducts(products: Product[], key: string = "all"): void {
-    try {
-      const cacheKey = this.getCacheKey(key);
-      const timestampKey = this.getTimestampKey(key);
-      const data: CacheData = {
-        products,
-        timestamp: Date.now(),
-        version: this.CACHE_VERSION,
-      };
+  async setCachedProducts(products: Product[], key = "all"): Promise<void> {
+    const data: CacheData = {
+      key,
+      products,
+      timestamp: Date.now(),
+      version: this.CACHE_VERSION,
+    };
+    this.memoryCache.set(key, data);
+    await this.writeToDatabase(data);
+    localStorage.removeItem(this.getLegacyCacheKey(key));
+    localStorage.removeItem(this.getLegacyTimestampKey(key));
+  }
 
-      localStorage.setItem(cacheKey, JSON.stringify(data));
-      localStorage.setItem(timestampKey, data.timestamp.toString());
+  async shouldRefresh(key = "all"): Promise<boolean> {
+    const data = await this.readCacheData(key);
+    return !data || Date.now() - data.timestamp > REFRESH_AFTER_MS;
+  }
 
-      console.log(`[ProductCache] Cached ${products.length} products for ${key} at ${new Date().toISOString()}`);
-    } catch (error) {
-      console.error(`[ProductCache] Error saving cache for ${key}:`, error);
-      // If storage is full, clear old cache and try again
-      if (error instanceof DOMException && error.name === "QuotaExceededError") {
-        console.log(`[ProductCache] Storage full for ${key}, clearing and retrying...`);
-        this.clearCache(key);
-        try {
-          const cacheKey = this.getCacheKey(key);
-          const timestampKey = this.getTimestampKey(key);
-          const data: CacheData = {
-            products,
-            timestamp: Date.now(),
-            version: this.CACHE_VERSION,
-          };
-          localStorage.setItem(cacheKey, JSON.stringify(data));
-          localStorage.setItem(timestampKey, data.timestamp.toString());
-        } catch (retryError) {
-          console.error(`[ProductCache] Retry failed for ${key}:`, retryError);
-        }
-      }
+  async clearCache(key?: string): Promise<void> {
+    if (key) this.memoryCache.delete(key);
+    else this.memoryCache.clear();
+
+    const database = await this.openDatabase();
+    if (database) {
+      await new Promise<void>((resolve) => {
+        const transaction = database.transaction(STORE_NAME, "readwrite");
+        const store = transaction.objectStore(STORE_NAME);
+        if (key) store.delete(key);
+        else store.clear();
+        transaction.oncomplete = () => resolve();
+        transaction.onerror = () => resolve();
+        transaction.onabort = () => resolve();
+      });
+    }
+
+    if (key) {
+      localStorage.removeItem(this.getLegacyCacheKey(key));
+      localStorage.removeItem(this.getLegacyTimestampKey(key));
+    } else {
+      Object.keys(localStorage)
+        .filter((entry) => entry.startsWith("alclean_products_cache"))
+        .forEach((entry) => localStorage.removeItem(entry));
     }
   }
 
-  /**
-   * Check if cache should be refreshed (for background refresh)
-   */
-  shouldRefresh(key: string = "all"): boolean {
-    const timestampKey = this.getTimestampKey(key);
-    const timestamp = localStorage.getItem(timestampKey);
-    if (!timestamp) return true;
-
-    const cacheAge = Date.now() - parseInt(timestamp, 10);
-    // Refresh if cache is older than 6 hours
-    const refreshThreshold = 6 * 60 * 60 * 1000;
-    return cacheAge > refreshThreshold;
-  }
-
-  /**
-   * Clear the cache
-   */
-  clearCache(key?: string): void {
-    try {
-      if (key) {
-        localStorage.removeItem(this.getCacheKey(key));
-        localStorage.removeItem(this.getTimestampKey(key));
-        console.log(`[ProductCache] Cache cleared for ${key}`);
-      } else {
-        // Clear all caches
-        const keys = Object.keys(localStorage).filter(k => k.startsWith('alclean_products_cache'));
-        keys.forEach(k => localStorage.removeItem(k));
-        console.log("[ProductCache] All caches cleared");
-      }
-    } catch (error) {
-      console.error("[ProductCache] Error clearing cache:", error);
+  async getCacheInfo(key = "all"): Promise<{
+    hasCache: boolean;
+    productCount: number;
+    ageMinutes: number;
+    lastRefresh: string;
+  }> {
+    const data = await this.readCacheData(key);
+    if (!data) {
+      return { hasCache: false, productCount: 0, ageMinutes: 0, lastRefresh: "Never" };
     }
+    const age = Date.now() - data.timestamp;
+    return {
+      hasCache: true,
+      productCount: data.products.length,
+      ageMinutes: Math.round(age / 60_000),
+      lastRefresh: new Date(data.timestamp).toLocaleString(),
+    };
   }
 
-  /**
-   * Get cache info for debugging
-   */
-  getCacheInfo(key: string = "all"): { hasCache: boolean; productCount: number; ageMinutes: number; lastRefresh: string } {
-    try {
-      const cacheKey = this.getCacheKey(key);
-      const timestampKey = this.getTimestampKey(key);
-      const cachedData = localStorage.getItem(cacheKey);
-      const timestamp = localStorage.getItem(timestampKey);
-
-      if (!cachedData || !timestamp) {
-        return { hasCache: false, productCount: 0, ageMinutes: 0, lastRefresh: "Never" };
-      }
-
-      const data: CacheData = JSON.parse(cachedData);
-      const cacheAge = Date.now() - parseInt(timestamp, 10);
-
-      return {
-        hasCache: true,
-        productCount: data.products.length,
-        ageMinutes: Math.round(cacheAge / 60000),
-        lastRefresh: new Date(parseInt(timestamp, 10)).toLocaleString(),
-      };
-    } catch {
-      return { hasCache: false, productCount: 0, ageMinutes: 0, lastRefresh: "Error" };
-    }
-  }
-
-  /**
-   * Schedule automatic refresh at midnight
-   */
   private scheduleMidnightRefresh(): void {
-    if (this.midnightRefreshScheduled) return;
-
-    const now = new Date();
+    if (this.midnightRefreshScheduled || typeof window === "undefined") return;
     const midnight = new Date();
-    midnight.setHours(24, 0, 0, 0); // Next midnight
-
-    const msUntilMidnight = midnight.getTime() - now.getTime();
-
-    console.log(`[ProductCache] Scheduling midnight refresh in ${Math.round(msUntilMidnight / 60000)} minutes`);
-
-    // Schedule the midnight refresh
-    setTimeout(() => {
-      console.log("[ProductCache] Midnight refresh triggered");
-      this.clearCache();
-
-      // Emit event for UI to know cache was cleared
-      window.dispatchEvent(new CustomEvent("alclean-cache-cleared"));
-
-      // Schedule next midnight refresh
-      this.midnightRefreshScheduled = false;
-      this.scheduleMidnightRefresh();
-    }, msUntilMidnight);
-
+    midnight.setHours(24, 0, 0, 0);
     this.midnightRefreshScheduled = true;
+    window.setTimeout(() => {
+      void this.clearCache().then(() => {
+        window.dispatchEvent(new CustomEvent("alclean-cache-cleared"));
+        this.midnightRefreshScheduled = false;
+        this.scheduleMidnightRefresh();
+      });
+    }, midnight.getTime() - Date.now());
   }
 
-  /**
-   * Force refresh - clears cache and triggers event
-   */
   forceRefresh(): void {
-    console.log("[ProductCache] Force refresh requested");
-    this.clearCache();
-
-    window.dispatchEvent(new CustomEvent("alclean-cache-cleared"));
+    void this.clearCache().then(() => {
+      window.dispatchEvent(new CustomEvent("alclean-cache-cleared"));
+    });
   }
 }
 
-// Export singleton instance
 export const productCacheService = new ProductCacheService();

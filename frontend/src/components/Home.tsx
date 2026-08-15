@@ -111,7 +111,7 @@ export function Home() {
         const { productCacheService } = await import("../lib/product-cache");
 
         // Try to get cached products first
-        let allProducts = productCacheService.getCachedProducts();
+        let allProducts = await productCacheService.getCachedProducts();
 
         if (allProducts.length === 0) {
           // No cache, fetch from Shopify
@@ -120,18 +120,18 @@ export function Home() {
           allProducts = await getAllProducts(700);
 
           // Save to cache
-          productCacheService.setCachedProducts(allProducts);
+          await productCacheService.setCachedProducts(allProducts);
         } else {
           console.log("[Home] Using cached products:", allProducts.length);
 
           // Check if cache needs background refresh
-          if (productCacheService.shouldRefresh()) {
+          if (await productCacheService.shouldRefresh()) {
             console.log("[Home] Cache is stale, refreshing in background...");
             // Refresh in background
             import("../lib/shopify")
               .then(async ({ getAllProducts }) => {
                 const freshProducts = await getAllProducts(700);
-                productCacheService.setCachedProducts(freshProducts);
+                await productCacheService.setCachedProducts(freshProducts);
                 console.log("[Home] Background refresh complete");
               })
               .catch((err) =>
