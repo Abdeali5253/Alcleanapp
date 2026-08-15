@@ -1,0 +1,15 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["REPLACE_WITH_APPLE_TEAM_ID.com.alclean.app"],
+        "components": [
+          {
+            "/": "/account",
+            "comment": "Only the account screen is an allowed universal-link destination."
+          }
+        ]
+      }
+    ]
+  }
+}

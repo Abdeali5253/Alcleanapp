@@ -189,17 +189,6 @@ class ProductCacheService {
       console.log("[ProductCache] Midnight refresh triggered");
       this.clearCache();
 
-      // Also clear order cache at midnight
-      try {
-        // Import order cache service dynamically to avoid circular dependency
-        import('./order-cache').then(({ orderCacheService }) => {
-          orderCacheService.clearCache();
-          console.log("[ProductCache] Order cache also cleared at midnight");
-        }).catch(err => console.error("[ProductCache] Error clearing order cache:", err));
-      } catch (error) {
-        console.error("[ProductCache] Error importing order cache:", error);
-      }
-
       // Emit event for UI to know cache was cleared
       window.dispatchEvent(new CustomEvent("alclean-cache-cleared"));
 
@@ -217,16 +206,6 @@ class ProductCacheService {
   forceRefresh(): void {
     console.log("[ProductCache] Force refresh requested");
     this.clearCache();
-
-    // Also clear order cache
-    try {
-      import('./order-cache').then(({ orderCacheService }) => {
-        orderCacheService.clearCache();
-        console.log("[ProductCache] Order cache also cleared on force refresh");
-      }).catch(err => console.error("[ProductCache] Error clearing order cache:", err));
-    } catch (error) {
-      console.error("[ProductCache] Error importing order cache:", error);
-    }
 
     window.dispatchEvent(new CustomEvent("alclean-cache-cleared"));
   }

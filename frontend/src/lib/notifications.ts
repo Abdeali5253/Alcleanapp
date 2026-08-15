@@ -218,12 +218,17 @@ class NotificationService {
     this.loadNotificationState();
     this.loadFCMToken();
     this.loadSettings();
-    authService.subscribe(() => {
+    authService.subscribe((user) => {
       const token = this.getFCMToken();
       if (token) {
         void this.registerTokenWithBackend(token);
       }
+      if (user) void this.fetchNotificationHistory();
     });
+    window.addEventListener("alclean-before-logout", ((event: CustomEvent) => {
+      const task = this.unregisterCurrentDevice(event.detail?.accessToken);
+      event.detail?.tasks?.push(task);
+    }) as EventListener);
   }
 
   // Initialize notification service (auto-detects platform)
@@ -255,7 +260,7 @@ class NotificationService {
             if (this.fcmToken) {
               this.saveFCMToken(this.fcmToken);
               // Fetch recent notifications from backend
-              await this.fetchNotificationHistory(this.fcmToken);
+              await this.fetchNotificationHistory();
             }
 
             // Subscribe to native notification changes
@@ -264,11 +269,11 @@ class NotificationService {
             });
 
             // Subscribe to token changes to fetch notification history
-            nativeNotificationService.subscribeToToken(async (token) => {
+            nativeNotificationService.subscribeToToken(async () => {
               console.log(
                 "[Notifications] Token received, fetching notification history",
               );
-              await this.fetchNotificationHistory(token);
+              await this.fetchNotificationHistory();
             });
           }
         } catch (e) {
@@ -812,12 +817,13 @@ class NotificationService {
   }
 
   // Fetch notification history from backend
-  private async fetchNotificationHistory(token: string): Promise<void> {
+  private async fetchNotificationHistory(): Promise<void> {
     try {
-      const url = `${BACKEND_URL}/api/notifications/history?token=${encodeURIComponent(
-        token,
-      )}`;
-      const response = await fetch(url);
+      const accessToken = authService.getAccessToken();
+      if (!accessToken) return;
+      const response = await fetch(`${BACKEND_URL}/api/notifications/history`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
       if (response.ok) {
         const data = await response.json();
         console.log("[Notifications] History data:", data);
@@ -867,49 +873,43 @@ class NotificationService {
 
   // Private methods
   private loadNotifications(): void {
-    if (isNativePlatform()) return;
+    this.notifications = [];
+    localStorage.removeItem(NOTIFICATIONS_STORAGE_KEY);
+  }
 
+  async unregisterCurrentDevice(accessToken?: string | null): Promise<void> {
+    const token = this.fcmToken ?? nativeNotificationService.getFCMToken();
+    if (!token) return;
     try {
-      const stored = localStorage.getItem(NOTIFICATIONS_STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        this.notifications = parsed.map((n: any) => ({
-          ...n,
-          timestamp: new Date(n.timestamp),
-        }));
-      }
-    } catch (error) {
-      console.error("[Notifications] Failed to load:", error);
+      await fetch(`${BACKEND_URL}/api/notifications/unregister`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
+        body: JSON.stringify({ token }),
+      });
+    } finally {
+      this.fcmToken = null;
+      this.notifications = [];
+      localStorage.removeItem(FCM_TOKEN_STORAGE_KEY);
+      localStorage.removeItem(NOTIFICATIONS_STORAGE_KEY);
+      this.notifyListeners();
     }
   }
 
   private saveNotifications(): void {
-    if (isNativePlatform()) return;
-
-    try {
-      localStorage.setItem(
-        NOTIFICATIONS_STORAGE_KEY,
-        JSON.stringify(this.notifications),
-      );
-    } catch (error) {
-      console.error("[Notifications] Failed to save:", error);
-    }
+    localStorage.removeItem(NOTIFICATIONS_STORAGE_KEY);
   }
 
   private loadFCMToken(): void {
-    try {
-      this.fcmToken = localStorage.getItem(FCM_TOKEN_STORAGE_KEY);
-    } catch (error) {
-      console.error("[Notifications] Failed to load FCM token:", error);
-    }
+    this.fcmToken = null;
+    localStorage.removeItem(FCM_TOKEN_STORAGE_KEY);
   }
 
   private saveFCMToken(token: string): void {
-    try {
-      localStorage.setItem(FCM_TOKEN_STORAGE_KEY, token);
-    } catch (error) {
-      console.error("[Notifications] Failed to save FCM token:", error);
-    }
+    this.fcmToken = token;
+    localStorage.removeItem(FCM_TOKEN_STORAGE_KEY);
   }
 
   private loadSettings(): void {

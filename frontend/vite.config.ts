@@ -4,6 +4,9 @@ import path from 'path';
 
 export default defineConfig({
   plugins: [react()],
+  esbuild: {
+    drop: ['console', 'debugger'],
+  },
   resolve: {
     extensions: ['.js', '.jsx', '.ts', '.tsx', '.json'],
     alias: {
@@ -13,6 +16,8 @@ export default defineConfig({
   build: {
     target: 'esnext',
     outDir: 'dist',
+    sourcemap: false,
+    minify: 'esbuild',
   },
   server: {
     port: 3000,

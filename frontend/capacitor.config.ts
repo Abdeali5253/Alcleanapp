@@ -41,11 +41,11 @@ const config: CapacitorConfig = {
     },
   },
   android: {
-    allowMixedContent: true,
-    webContentsDebuggingEnabled: true,
+    allowMixedContent: false,
+    webContentsDebuggingEnabled: false,
   },
   ios: {
-    webContentsDebuggingEnabled: true,
+    webContentsDebuggingEnabled: false,
   },
 };
 

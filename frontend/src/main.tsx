@@ -1,12 +1,11 @@
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
+import { authService } from "./lib/auth";
 
-if (import.meta.env.PROD) {
-  console.log = () => {};
-  console.info = () => {};
-  console.debug = () => {};
-  console.warn = () => {};
+async function bootstrap(): Promise<void> {
+  await authService.whenReady();
+  createRoot(document.getElementById("root")!).render(<App />);
 }
 
-createRoot(document.getElementById("root")!).render(<App />);
+void bootstrap();

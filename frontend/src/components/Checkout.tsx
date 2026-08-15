@@ -139,7 +139,10 @@ export function Checkout() {
     cartService.clearCart();
     setPaymentCompleted(true);
     toast.success("Order placed successfully!");
-    navigate("/checkout/success", { replace: true });
+    navigate("/checkout/success", {
+      replace: true,
+      state: { verified: true },
+    });
   };
 
   const pollForCompletedShopifyOrder = async (
@@ -148,7 +151,6 @@ export function Checkout() {
     checkoutId: string,
   ) => {
     const accessToken = authService.getUser()?.accessToken;
-    if (Capacitor.getPlatform() !== "ios") return;
 
     checkoutPollingStoppedRef.current = false;
     for (let attempt = 0; attempt < 120; attempt += 1) {
@@ -172,19 +174,20 @@ export function Checkout() {
           `${BACKEND_URL}/api/orders/completion-check?${params}`,
           { headers },
         );
+        if (await authService.handleUnauthorizedResponse(response)) return;
         if (!response.ok) continue;
 
         const result = await response.json();
         if (!result?.completed) continue;
 
-        console.log("[iOS Checkout] Shopify order confirmed by backend", result.order);
+        console.log("[Checkout] Shopify order confirmed by backend", result.order);
         completeCheckout();
         try {
           inAppRef.current?.close?.();
         } catch {}
         return;
       } catch (pollError) {
-        console.warn("[iOS Checkout] Completion poll failed:", pollError);
+        console.warn("[Checkout] Completion poll failed:", pollError);
       }
     }
   };
@@ -197,22 +200,6 @@ export function Checkout() {
     setCheckoutUrl(url);
     checkoutCompletionHandledRef.current = false;
     void pollForCompletedShopifyOrder(startedAt, total, checkoutId);
-
-    const isCheckoutCompleteUrl = (targetUrl: string) => {
-      const normalizedUrl = (targetUrl || "").toLowerCase();
-      return (
-        normalizedUrl.includes("/thank-you") ||
-        normalizedUrl.includes("thank-you") ||
-        normalizedUrl.includes("thank_you") ||
-        normalizedUrl.includes("order_status") ||
-        normalizedUrl.includes("order-status") ||
-        normalizedUrl.includes("/orders/") ||
-        normalizedUrl.includes("/order-confirmation") ||
-        normalizedUrl.includes("/checkout/success") ||
-        normalizedUrl.includes("alclean://checkout/success") ||
-        normalizedUrl.includes("com.alclean.app://checkout/success")
-      );
-    };
 
     const cordovaAny = (window as any).cordova;
     let inAppBrowser = cordovaAny?.InAppBrowser;
@@ -254,115 +241,6 @@ export function Checkout() {
       );
 
       inAppRef.current = ref;
-
-      const handleBrowserUrl = (event: any, source: string) => {
-        const targetUrl = event?.url || "";
-        console.log(`[IAB] ${source}:`, targetUrl);
-
-        if (!isCheckoutCompleteUrl(targetUrl)) {
-          return;
-        }
-
-        console.log(`[IAB] checkout completion detected on ${source} -> closing`);
-        completeCheckout();
-        try {
-          ref.close();
-        } catch {}
-      };
-
-      ref.addEventListener("loadstart", (event: any) => {
-        handleBrowserUrl(event, "loadstart");
-      });
-
-      ref.addEventListener("loadstop", (event: any) => {
-        handleBrowserUrl(event, "loadstop");
-
-        const currentUrl = event?.url || "";
-        if (isCheckoutCompleteUrl(currentUrl)) {
-          return;
-        }
-
-        try {
-          ref.executeScript(
-            {
-              code: `
-                (function() {
-                  if (window.__alcleanCheckoutObserverInstalled) {
-                    return "observer-already-installed";
-                  }
-                  window.__alcleanCheckoutObserverInstalled = true;
-
-                  function checkoutIsComplete() {
-                    var title = (document.title || "").toLowerCase();
-                    var body = ((document.body && document.body.innerText) || "")
-                      .toLowerCase()
-                      .slice(0, 12000);
-                    var text = title + " " + body;
-                    return text.includes("thank you") ||
-                      text.includes("order confirmed") ||
-                      text.includes("order is confirmed") ||
-                      text.includes("your order is confirmed") ||
-                      text.includes("confirmation email");
-                  }
-
-                  function notifyApp() {
-                    if (!checkoutIsComplete() || window.__alcleanCompletionSent) {
-                      return false;
-                    }
-                    window.__alcleanCompletionSent = true;
-                    var payload = JSON.stringify({ type: "alclean-checkout-complete" });
-                    if (window.webkit && window.webkit.messageHandlers &&
-                        window.webkit.messageHandlers.cordova_iab) {
-                      window.webkit.messageHandlers.cordova_iab.postMessage(payload);
-                    }
-                    // Independent fallback: this produces an InAppBrowser
-                    // loadstart event even when Shopify keeps the same HTTPS URL.
-                    window.setTimeout(function() {
-                      window.location.href = "alclean://checkout/success";
-                    }, 50);
-                    return true;
-                  }
-
-                  notifyApp();
-                  var observer = new MutationObserver(notifyApp);
-                  observer.observe(document.documentElement, {
-                    childList: true,
-                    subtree: true,
-                    characterData: true
-                  });
-                  var poller = window.setInterval(function() {
-                    if (notifyApp()) window.clearInterval(poller);
-                  }, 500);
-                  window.setTimeout(function() {
-                    window.clearInterval(poller);
-                    observer.disconnect();
-                  }, 10 * 60 * 1000);
-                  return "observer-installed";
-                })();
-              `,
-            },
-            () => {},
-          );
-        } catch (scriptInjectError) {
-          console.warn("[IAB] executeScript failed:", scriptInjectError);
-        }
-      });
-
-      ref.addEventListener("message", (event: any) => {
-        try {
-          const payload =
-            typeof event?.data === "string"
-              ? JSON.parse(event.data)
-              : event?.data;
-          if (payload?.type !== "alclean-checkout-complete") return;
-
-          console.log("[IAB] checkout completion detected from page content");
-          completeCheckout();
-          ref.close();
-        } catch (messageError) {
-          console.warn("[IAB] Failed to process checkout message:", messageError);
-        }
-      });
 
       ref.addEventListener("exit", () => {
         console.log("[IAB] exit");

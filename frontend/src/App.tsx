@@ -21,21 +21,19 @@ import { ContactUs } from "./components/ContactUs";
 import { AboutUs } from "./components/AboutUs";
 import { NotificationInbox } from "./components/NotificationInbox";
 import { NotificationSettings } from "./components/NotificationSettings";
-import { NotificationAdmin } from "./components/NotificationAdmin";
 import { NotificationPrompt } from "./components/NotificationPrompt";
 import { SplashScreen } from "./components/SplashScreen";
 import { BottomNav } from "./components/BottomNav";
 import { SupremeOffers } from "./components/SupremeOffers";
 import { BackendStatus } from "./components/BackendStatus";
-import { BackendTestPage } from "./components/BackendTestPage";
 import { Toaster } from "./components/ui/sonner";
 import { notificationService } from "./lib/notifications";
 import { Home } from "./components/Home";
 import { Capacitor, registerPlugin } from "@capacitor/core";
 import { App as CapApp } from "@capacitor/app";
-import { Browser } from "@capacitor/browser";
 import { toast } from "sonner";
 import { authService } from "./lib/auth";
+import { getAllowedDeepLinkPath } from "./lib/deep-links";
 
 type StatusBarStyle = "DARK" | "LIGHT" | "DEFAULT";
 interface StatusBarPlugin {
@@ -205,8 +203,7 @@ function AppContent() {
     };
   }, [location.pathname, navigate, showSplash]);
 
-  // Deep-link handler: alclean://checkout/success, com.alclean.app://checkout/success,
-  // or https://alclean.pk/checkout/success
+  // Deep links are navigation hints only and never signal checkout completion.
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
 
@@ -214,32 +211,8 @@ function AppContent() {
       try {
         if (!url) return;
 
-        const u = new URL(url);
-        const host = (u.host || "").toLowerCase();
-        const protocol = (u.protocol || "").toLowerCase();
-        const path =
-          protocol === "alclean:" || protocol === "com.alclean.app:"
-            ? `/${host}${u.pathname || ""}`
-            : u.pathname || "/";
-        const query = u.search || "";
-
-        if (path.startsWith("/checkout/success")) {
-          try {
-            await Browser.close();
-          } catch {}
-
-          navigate(path + query, { replace: true });
-          return;
-        }
-
-        if (
-          protocol === "alclean:" ||
-          protocol === "com.alclean.app:" ||
-          path === "/account"
-        ) {
-          navigate("/account", { replace: true });
-          return;
-        }
+        const path = getAllowedDeepLinkPath(url);
+        if (path) navigate(path, { replace: true });
       } catch (e) {
         console.log("[DeepLink] Failed to parse url:", url, e);
       }
@@ -318,9 +291,7 @@ function AppContent() {
           path="/notifications/settings"
           element={<NotificationSettings />}
         />
-        <Route path="/notifications/admin" element={<NotificationAdmin />} />
         <Route path="/supreme-offers" element={<SupremeOffers />} />
-        <Route path="/backend-test" element={<BackendTestPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       <BottomNav />

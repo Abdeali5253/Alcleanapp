@@ -8,6 +8,7 @@ import {
 } from "firebase/auth";
 import { Capacitor } from "@capacitor/core";
 import { FirebaseAuthentication } from "@capacitor-firebase/authentication";
+import { KeychainAccess, SecureStorage } from "@aparajita/capacitor-secure-storage";
 
 export interface User {
   id: string;
@@ -17,6 +18,7 @@ export interface User {
   lastName: string;
   phone: string;
   accessToken: string;
+  expiresAt: string;
 }
 
 export interface Order {
@@ -36,39 +38,196 @@ export interface SocialLoginResult {
 }
 
 const AUTH_STORAGE_KEY = "alclean_auth";
+const SECURE_SESSION_KEY = "session";
+const SESSION_MIGRATION_KEY = "alclean_secure_session_migrated_v1";
 const REDIRECT_STORAGE_KEY = "alclean_redirect";
 const NATIVE_GOOGLE_SIGN_IN_TIMEOUT_MS = 30_000;
+const RENEW_BEFORE_EXPIRY_MS = 24 * 60 * 60 * 1000;
+const SENSITIVE_LOCAL_KEYS = [
+  AUTH_STORAGE_KEY,
+  "alclean_orders",
+  "alclean_orders_cache",
+  "alclean_orders_cache_timestamp",
+  "alclean_notifications",
+  "alclean_fcm_token",
+  REDIRECT_STORAGE_KEY,
+  "alclean_wishlist",
+  "alclean_cart",
+  "alclean_checkout",
+];
+
+type SessionProfile = Omit<User, "accessToken" | "expiresAt">;
+interface StoredSession {
+  [key: string]: unknown;
+  user: SessionProfile;
+  accessToken: string;
+  expiresAt: string;
+}
 
 class AuthService {
   private user: User | null = null;
   private listeners: ((user: User | null) => void)[] = [];
+  private hydrated = false;
+  private hydrationPromise: Promise<void>;
+  private renewTimer: number | undefined;
 
   constructor() {
-    this.loadUser();
+    this.hydrationPromise = this.initialize();
   }
 
-  private loadUser(): void {
-    try {
-      const stored = localStorage.getItem(AUTH_STORAGE_KEY);
-      if (stored) {
-        this.user = JSON.parse(stored);
-      }
-    } catch (error) {
-      console.error("[Auth] Failed to load user:", error);
+  private assertSupportedPlatform(): void {
+    if (import.meta.env.PROD && !Capacitor.isNativePlatform()) {
+      throw new Error("Authentication is only available in the Android and iOS apps.");
     }
   }
 
-  private saveUser(user: User | null): void {
+  private async initialize(): Promise<void> {
     try {
-      if (user) {
-        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(user));
-      } else {
-        localStorage.removeItem(AUTH_STORAGE_KEY);
+      await SecureStorage.setKeyPrefix("alclean_");
+      await SecureStorage.setSynchronize(false);
+      await SecureStorage.setDefaultKeychainAccess(KeychainAccess.whenUnlockedThisDeviceOnly);
+      if (import.meta.env.PROD && !Capacitor.isNativePlatform()) {
+        await SecureStorage.remove(SECURE_SESSION_KEY);
+        this.clearSensitiveLocalData();
+        return;
       }
-      this.user = user;
-      this.notifyListeners();
+      if (localStorage.getItem(SESSION_MIGRATION_KEY) !== "complete") {
+        await SecureStorage.remove(SECURE_SESSION_KEY);
+        this.clearSensitiveLocalData();
+        localStorage.setItem(SESSION_MIGRATION_KEY, "complete");
+        return;
+      }
+      const stored = (await SecureStorage.get(SECURE_SESSION_KEY)) as StoredSession | null;
+      if (!stored?.user || !stored.accessToken || !stored.expiresAt) return;
+      this.user = { ...stored.user, accessToken: stored.accessToken, expiresAt: stored.expiresAt };
+      if (this.isExpired(stored.expiresAt)) {
+        await this.clearSession(false);
+      } else if (this.shouldRenew(stored.expiresAt)) {
+        await this.renewSession();
+      } else {
+        this.scheduleRenewal();
+      }
     } catch (error) {
-      console.error("[Auth] Failed to save user:", error);
+      console.error("[Auth] Failed to hydrate secure session:", error);
+      await this.clearSession(false);
+    } finally {
+      this.hydrated = true;
+      this.notifyListeners();
+    }
+  }
+
+  whenReady(): Promise<void> {
+    return this.hydrationPromise;
+  }
+
+  isHydrated(): boolean {
+    return this.hydrated;
+  }
+
+  private clearSensitiveLocalData(): void {
+    SENSITIVE_LOCAL_KEYS.forEach((key) => localStorage.removeItem(key));
+    Object.keys(localStorage)
+      .filter(
+        (key) =>
+          key.startsWith("alclean_order") ||
+          key.startsWith("alclean_notification") ||
+          key.startsWith("alclean_checkout") ||
+          key.startsWith("alclean_wishlist"),
+      )
+      .forEach((key) => localStorage.removeItem(key));
+  }
+
+  private toStoredSession(user: User): StoredSession {
+    const { accessToken, expiresAt, ...profile } = user;
+    return { user: profile, accessToken, expiresAt };
+  }
+
+  private getExpiryTime(expiresAt: string | Date | undefined): number {
+    if (expiresAt instanceof Date) return expiresAt.getTime();
+    if (typeof expiresAt !== "string") return Number.NaN;
+    return Date.parse(expiresAt);
+  }
+
+  private normalizeExpiry(expiresAt: string | Date | undefined): string | null {
+    const expiry = this.getExpiryTime(expiresAt);
+    return Number.isFinite(expiry) ? new Date(expiry).toISOString() : null;
+  }
+
+  private isExpired(expiresAt: string | Date): boolean {
+    const expiry = this.getExpiryTime(expiresAt);
+    return !Number.isFinite(expiry) || expiry <= Date.now();
+  }
+
+  private shouldRenew(expiresAt: string | Date): boolean {
+    return this.getExpiryTime(expiresAt) - Date.now() <= RENEW_BEFORE_EXPIRY_MS;
+  }
+
+  private scheduleRenewal(): void {
+    if (this.renewTimer !== undefined) window.clearTimeout(this.renewTimer);
+    if (!this.user) return;
+    const delay = Math.max(
+      0,
+      this.getExpiryTime(this.user.expiresAt) -
+        Date.now() -
+        RENEW_BEFORE_EXPIRY_MS,
+    );
+    this.renewTimer = window.setTimeout(
+      () => {
+        if (this.user && this.shouldRenew(this.user.expiresAt)) {
+          void this.renewSession();
+        } else {
+          this.scheduleRenewal();
+        }
+      },
+      Math.min(delay, 2_147_483_647),
+    );
+  }
+
+  private async saveUser(user: User | null): Promise<void> {
+    if (user) {
+      const expiresAt = this.normalizeExpiry(user.expiresAt);
+      if (!user.accessToken || !expiresAt) {
+        throw new Error(
+          "The authentication server returned a session without a valid expiry. Deploy the updated backend and try again.",
+        );
+      }
+      this.user = { ...user, expiresAt };
+      await SecureStorage.set(
+        SECURE_SESSION_KEY,
+        this.toStoredSession(this.user),
+      );
+      this.scheduleRenewal();
+    } else {
+      this.user = null;
+      await SecureStorage.remove(SECURE_SESSION_KEY);
+      if (this.renewTimer !== undefined) window.clearTimeout(this.renewTimer);
+      this.renewTimer = undefined;
+    }
+    this.notifyListeners();
+  }
+
+  private async clearSession(clearLocalData = true): Promise<void> {
+    if (clearLocalData) this.clearSensitiveLocalData();
+    await this.saveUser(null);
+  }
+
+  private async renewSession(): Promise<void> {
+    const token = this.user?.accessToken;
+    if (!token) return;
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/auth/renew`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) throw new Error(`Session renewal failed (${response.status})`);
+      const data = await response.json();
+      if (!data?.success || !data.user?.accessToken || !data.user?.expiresAt) {
+        throw new Error("Session renewal returned invalid data");
+      }
+      await this.saveUser(data.user as User);
+    } catch (error) {
+      console.error("[Auth] Session renewal failed:", error);
+      await this.invalidateSession();
     }
   }
 
@@ -93,7 +252,8 @@ class AuthService {
   }
 
   getAccessToken(): string | null {
-    return this.user?.accessToken || null;
+    if (!this.user || this.isExpired(this.user.expiresAt)) return null;
+    return this.user.accessToken;
   }
 
   private async clearNativeGoogleSession(): Promise<void> {
@@ -171,7 +331,7 @@ class AuthService {
     }
 
     if (data?.success) {
-      authService.updateUser(data.user);
+      await this.updateUser(data.user);
       return { success: true };
     }
 
@@ -188,6 +348,7 @@ class AuthService {
     lastName: string,
     phone?: string,
   ): Promise<User> {
+    this.assertSupportedPlatform();
     try {
       const response = await fetch(`${BACKEND_URL}/api/auth/signup`, {
         method: "POST",
@@ -220,6 +381,7 @@ class AuthService {
 
   // Log in with backend API
   async logIn(email: string, password: string): Promise<User> {
+    this.assertSupportedPlatform();
     try {
       const response = await fetch(`${BACKEND_URL}/api/auth/login`, {
         method: "POST",
@@ -240,7 +402,7 @@ class AuthService {
 
       const user: User = data.user;
 
-      this.saveUser(user);
+      await this.saveUser(user);
       toast.success("Logged in successfully!");
       return user;
     } catch (error: any) {
@@ -251,6 +413,7 @@ class AuthService {
 
   // Google login with Firebase
   async googleLogin(forceOverride = false): Promise<SocialLoginResult> {
+    this.assertSupportedPlatform();
     console.log("[Auth] Starting Google login");
     try {
       const isNative = Capacitor.isNativePlatform();
@@ -385,9 +548,27 @@ class AuthService {
   }
 
   // Log out
-  logOut(): void {
-    this.saveUser(null);
+  private async invalidateSession(): Promise<void> {
+    const accessToken = this.user?.accessToken ?? null;
+    const detail: { accessToken: string | null; tasks: Promise<unknown>[] } = {
+      accessToken,
+      tasks: [],
+    };
+    window.dispatchEvent(new CustomEvent("alclean-before-logout", { detail }));
+    await Promise.allSettled(detail.tasks);
+    await this.clearNativeGoogleSession();
+    await this.clearSession();
+  }
+
+  async logOut(): Promise<void> {
+    await this.invalidateSession();
     toast.success("Logged out successfully");
+  }
+
+  async handleUnauthorizedResponse(response: Response): Promise<boolean> {
+    if (response.status !== 401) return false;
+    await this.invalidateSession();
+    return true;
   }
 
   // Get order history
@@ -406,6 +587,10 @@ class AuthService {
 
       const data = await response.json();
 
+      if (await this.handleUnauthorizedResponse(response)) {
+        return [];
+      }
+
       if (!data.success) {
         console.error("[Auth] Get orders error:", data.error);
         return [];
@@ -420,6 +605,7 @@ class AuthService {
 
   // Password reset
   async requestPasswordReset(email: string): Promise<void> {
+    this.assertSupportedPlatform();
     try {
       const response = await fetch(`${BACKEND_URL}/api/auth/recover`, {
         method: "POST",
@@ -450,10 +636,8 @@ class AuthService {
   }
 
   // Update user profile
-  updateUser(updatedUser: User): void {
-    this.user = updatedUser;
-    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(updatedUser));
-    this.notifyListeners();
+  async updateUser(updatedUser: User): Promise<void> {
+    await this.saveUser(updatedUser);
   }
 
   // Redirect management

@@ -66,7 +66,7 @@ export function EditProfile() {
         phone
       };
       
-      authService.updateUser(updatedUser);
+      await authService.updateUser(updatedUser);
       toast.success("Profile updated successfully!");
       
       setTimeout(() => {

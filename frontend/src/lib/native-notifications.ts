@@ -461,15 +461,6 @@ class NativeNotificationService {
 
     this.addNotification(nativeNotif);
 
-    // Store in backend for history
-    this.storeReceivedNotificationInBackend(nativeNotif).catch((e) => {
-      logError(
-        "NativeNotif",
-        "Failed to store received notification in backend",
-        e,
-      );
-    });
-
     // Show local notification for foreground push (Android popup)
     this.showLocalNotification({
       title: nativeNotif.title,
@@ -535,15 +526,6 @@ class NativeNotificationService {
       };
 
       this.addNotification(nativeNotif);
-
-      // Store in backend for history
-      this.storeReceivedNotificationInBackend(nativeNotif).catch((e) => {
-        logError(
-          "NativeNotif",
-          "Failed to store tapped notification in backend",
-          e,
-        );
-      });
 
       log("NativeNotif", "Added tapped notification to inbox", { title, body });
     }
@@ -1032,90 +1014,24 @@ class NativeNotificationService {
     log("NativeNotif", "Test notification sent");
   }
 
-  // Store received notification in backend for history
-  private async storeReceivedNotificationInBackend(
-    notification: NativeNotification,
-  ): Promise<void> {
-    if (!this.fcmToken) {
-      log("NativeNotif", "No FCM token available, skipping backend storage");
-      return;
-    }
-
-    try {
-      const backendUrl = BACKEND_URL;
-      const response = await fetch(
-        `${backendUrl}/api/notifications/store-received`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            token: this.fcmToken,
-            title: notification.title,
-            body: notification.body,
-            data: notification.data,
-            timestamp: new Date(notification.timestamp).toISOString(),
-          }),
-        },
-      );
-
-      if (response.ok) {
-        log("NativeNotif", "Notification stored in backend successfully");
-      } else {
-        logError(
-          "NativeNotif",
-          `Failed to store notification in backend: ${response.status}`,
-        );
-      }
-    } catch (error: any) {
-      logError(
-        "NativeNotif",
-        "Error storing notification in backend",
-        error?.message || error,
-      );
-    }
-  }
-
   // Private methods
   private loadNotifications(): void {
-    try {
-      const stored = localStorage.getItem(NOTIFICATIONS_STORAGE_KEY);
-      if (stored) {
-        this.notifications = JSON.parse(stored);
-        log(
-          "NativeNotif",
-          `Loaded ${this.notifications.length} notifications from storage`,
-        );
-      }
-    } catch (error) {
-      logError("NativeNotif", "Failed to load notifications", error);
-    }
+    this.notifications = [];
+    localStorage.removeItem(NOTIFICATIONS_STORAGE_KEY);
   }
 
   private saveNotifications(): void {
-    try {
-      localStorage.setItem(
-        NOTIFICATIONS_STORAGE_KEY,
-        JSON.stringify(this.notifications),
-      );
-    } catch (error) {
-      logError("NativeNotif", "Failed to save notifications", error);
-    }
+    localStorage.removeItem(NOTIFICATIONS_STORAGE_KEY);
   }
 
   private loadFCMToken(): void {
-    try {
-      this.fcmToken = localStorage.getItem(FCM_TOKEN_STORAGE_KEY);
-      if (this.fcmToken) {
-        log("NativeNotif", "Loaded FCM token from storage");
-      }
-    } catch {}
+    this.fcmToken = null;
+    localStorage.removeItem(FCM_TOKEN_STORAGE_KEY);
   }
 
   private saveFCMToken(token: string): void {
-    try {
-      localStorage.setItem(FCM_TOKEN_STORAGE_KEY, token);
-      log("NativeNotif", "FCM token saved to storage");
-    } catch {}
+    this.fcmToken = token;
+    localStorage.removeItem(FCM_TOKEN_STORAGE_KEY);
   }
 
   private notifyListeners(): void {

@@ -85,6 +85,10 @@ export function Tracking() {
         },
       });
 
+      if (await authService.handleUnauthorizedResponse(response)) {
+        setOrders([]);
+        return;
+      }
       const data = await response.json();
 
       if (!data.success) {

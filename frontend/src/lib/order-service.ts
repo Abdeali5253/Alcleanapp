@@ -1,8 +1,6 @@
 import { CartItem } from "./cart";
 import { authService } from "./auth";
-import { notificationService } from "./notifications";
 import { BACKEND_URL } from "./base-url";
-import { orderCacheService } from "./order-cache";
 
 export interface Order {
   id: string;
@@ -46,40 +44,23 @@ export interface Order {
   shopifyDraftOrderId?: string; // Shopify draft order ID
 }
 
-const ORDERS_STORAGE_KEY = 'alclean_orders';
-
 class OrderService {
   private orders: Order[] = [];
   private listeners: Set<() => void> = new Set();
 
   constructor() {
-    this.loadOrders();
+    localStorage.removeItem('alclean_orders');
+    window.addEventListener("alclean-before-logout", () => {
+      this.orders = [];
+      this.notifyListeners();
+    });
   }
 
   /**
-   * Load orders from localStorage
-   */
-  private loadOrders() {
-    try {
-      const stored = localStorage.getItem(ORDERS_STORAGE_KEY);
-      if (stored) {
-        this.orders = JSON.parse(stored);
-      }
-    } catch (error) {
-      console.error('Error loading orders:', error);
-    }
-  }
-
-  /**
-   * Save orders to localStorage
+   * Notify consumers after an in-memory order update.
    */
   private saveOrders() {
-    try {
-      localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(this.orders));
-      this.notifyListeners();
-    } catch (error) {
-      console.error('Error saving orders:', error);
-    }
+    this.notifyListeners();
   }
 
   /**
@@ -87,206 +68,6 @@ class OrderService {
    */
   private notifyListeners() {
     this.listeners.forEach(listener => listener());
-  }
-
-  /**
-   * Subscribe to order changes
-   */
-  subscribe(listener: () => void): () => void {
-    this.listeners.add(listener);
-    return () => {
-      this.listeners.delete(listener);
-    };
-  }
-
-  /**
-   * Generate order number
-   */
-  private generateOrderNumber(): string {
-    const timestamp = Date.now().toString();
-    const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-    return `AC${timestamp.slice(-6)}${random}`;
-  }
-
-  /**
-   * Create Shopify draft order via backend API
-   */
-  private async createShopifyDraftOrder(order: Order): Promise<{ draftOrderId: string; orderId?: string } | null> {
-    try {
-      // Use relative path - Kubernetes ingress routes /api/* to backend
-      const endpoint = `${BACKEND_URL}/api/shopify/create-order`;
-      
-      console.log('[Shopify] Creating order via backend:', endpoint);
-      console.log('[Shopify] Order data:', {
-        orderNumber: order.orderNumber,
-        customer: order.customerName,
-        items: order.items.length,
-        total: order.total
-      });
-
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          orderNumber: order.orderNumber,
-          customerName: order.customerName,
-          customerEmail: order.customerEmail,
-          customerPhone: order.customerPhone,
-          customerAddress: order.customerAddress,
-          city: order.city,
-          items: order.items.map(item => ({
-            variantId: item.product.variantId,
-            quantity: item.quantity,
-            title: item.product.title,
-            price: item.product.price,
-          })),
-          subtotal: order.subtotal,
-          deliveryCharge: order.deliveryCharge,
-          total: order.total,
-          paymentMethod: order.paymentMethod,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        console.error('[Shopify] Backend error:', response.status, errorData);
-        throw new Error(errorData.error || `Backend returned ${response.status}`);
-      }
-
-      const result = await response.json();
-
-      if (result.success) {
-        console.log('✅ [Shopify] Order created successfully:', result);
-        return {
-          draftOrderId: result.draftOrderId || '',
-          orderId: result.orderId || '',
-        };
-      } else {
-        console.error('[Shopify] Backend reported error:', result.error);
-        throw new Error(result.error || 'Failed to create order');
-      }
-    } catch (error) {
-      console.error('❌ [Shopify] Error creating draft order:', error);
-      
-      // Show helpful debugging info
-      if (error instanceof TypeError && error.message.includes('fetch')) {
-        console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-        console.error('🚨 BACKEND CONNECTION ERROR');
-        console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-        console.error('');
-        console.error('❌ Cannot connect to backend server');
-        console.error(`📍 Endpoint: /api/shopify/create-order`);
-        console.error('');
-        console.error('📋 TO FIX THIS:');
-        console.error('1. Make sure backend server is running on port 8001');
-        console.error('2. Verify backend service status');
-        console.error('3. Check backend logs for errors');
-        console.error('');
-        console.error('💡 The order is saved locally and will sync once backend is ready');
-        console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      }
-      
-      // Don't fail the entire order if Shopify creation fails
-      return null;
-    }
-  }
-
-  /**
-   * Complete draft order (now handled by backend)
-   */
-  private async completeDraftOrder(draftOrderId: string): Promise<{ orderId: string } | null> {
-    // Now handled by backend automatically
-    return null;
-  }
-
-  /**
-   * Create new order
-   */
-  async createOrder(
-    cartItems: CartItem[],
-    customerInfo: {
-      name: string;
-      email: string;
-      phone: string;
-      address: string;
-      city: string;
-    },
-    deliveryCharge: number,
-    paymentMethod: 'cod' | 'bank-transfer'
-  ): Promise<Order> {
-    const subtotal = cartItems.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
-    const total = subtotal + deliveryCharge;
-    const orderNumber = this.generateOrderNumber();
-
-    try {
-      // Create order via backend
-      const response = await fetch(`${BACKEND_URL}/api/shopify/create-order`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          orderNumber,
-          customerName: customerInfo.name,
-          customerEmail: customerInfo.email,
-          customerPhone: customerInfo.phone,
-          customerAddress: customerInfo.address,
-          city: customerInfo.city,
-          items: cartItems.map(item => ({
-            variantId: item.product.variantId,
-            quantity: item.quantity,
-            price: item.product.price,
-            title: item.product.title,
-          })),
-          subtotal,
-          deliveryCharge,
-          total,
-          paymentMethod,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!data.success) {
-        throw new Error(data.error || 'Failed to create order');
-      }
-
-      const order: Order = {
-        id: Date.now().toString(),
-        orderNumber,
-        customerName: customerInfo.name,
-        customerEmail: customerInfo.email,
-        customerPhone: customerInfo.phone,
-        customerAddress: customerInfo.address,
-        city: customerInfo.city,
-        items: cartItems,
-        subtotal,
-        deliveryCharge,
-        total,
-        paymentMethod,
-        status: data.orderId ? 'processing' : 'pending',
-        createdAt: new Date().toISOString(),
-        companyType: 'alclean',
-        shopifyDraftOrderId: data.draftOrderId,
-        shopifyOrderId: data.orderId,
-      };
-
-      console.log('[Order] Created via backend:', data);
-
-      // Add to local storage for backward compatibility
-      this.orders.unshift(order);
-      this.saveOrders();
-
-      // Add to cache
-      orderCacheService.addOrderToCache(order, customerInfo.email);
-
-      return order;
-    } catch (error) {
-      console.error('[Order] Backend creation failed:', error);
-      throw error;
-    }
   }
 
   /**
@@ -364,78 +145,17 @@ class OrderService {
   }
 
   /**
-   * Get all orders for current user (combines cached, local and Shopify)
+   * Get all orders for current user from Shopify.
    */
   async getUserOrders(): Promise<Order[]> {
     const user = authService.getCurrentUser();
     if (!user) return [];
 
-    // Try to get cached orders first
-    let cachedOrders = orderCacheService.getCachedOrders(user.email);
-
-    if (cachedOrders.length === 0) {
-      console.log('[Orders] No cache found, fetching from APIs...');
-
-      // Get local orders (for backward compatibility)
-      const localOrders = this.orders.filter(order => order.customerEmail === user.email);
-
-      // Fetch Shopify orders
-      const shopifyOrders = await this.fetchShopifyOrders();
-
-      // Combine and deduplicate (prefer Shopify orders)
-      const allOrders = [...shopifyOrders, ...localOrders];
-      const uniqueOrders = allOrders.filter((order, index, self) =>
-        index === self.findIndex(o => o.orderNumber === order.orderNumber)
-      );
-
-      // Sort by date (newest first)
-      uniqueOrders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-
-      // Cache the orders
-      orderCacheService.setCachedOrders(uniqueOrders, user.email);
-      cachedOrders = uniqueOrders;
-    } else {
-      console.log('[Orders] Using cached orders:', cachedOrders.length);
-
-      // Check if cache needs background refresh
-      if (orderCacheService.shouldRefresh()) {
-        console.log('[Orders] Cache is stale, refreshing in background...');
-        // Refresh in background
-        this.refreshOrdersInBackground(user.email).catch(err =>
-          console.error('[Orders] Background refresh failed:', err)
-        );
-      }
-    }
-
-    return cachedOrders;
-  }
-
-  /**
-   * Refresh orders in background and update cache
-   */
-  private async refreshOrdersInBackground(userEmail: string): Promise<void> {
-    try {
-      // Get local orders (for backward compatibility)
-      const localOrders = this.orders.filter(order => order.customerEmail === userEmail);
-
-      // Fetch Shopify orders
-      const shopifyOrders = await this.fetchShopifyOrders();
-
-      // Combine and deduplicate (prefer Shopify orders)
-      const allOrders = [...shopifyOrders, ...localOrders];
-      const uniqueOrders = allOrders.filter((order, index, self) =>
-        index === self.findIndex(o => o.orderNumber === order.orderNumber)
-      );
-
-      // Sort by date (newest first)
-      uniqueOrders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-
-      // Update cache
-      orderCacheService.setCachedOrders(uniqueOrders, userEmail);
-      console.log('[Orders] Background refresh complete');
-    } catch (error) {
-      console.error('[Orders] Background refresh error:', error);
-    }
+    const orders = await this.fetchShopifyOrders();
+    orders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    this.orders = orders;
+    this.notifyListeners();
+    return orders;
   }
 
   /**
@@ -480,9 +200,6 @@ class OrderService {
       order.status = 'in-transit';
       this.saveOrders();
 
-      // Update in cache
-      orderCacheService.updateOrderInCache(order, order.customerEmail);
-
       // Notifications are handled by backend
     }
   }
@@ -526,8 +243,6 @@ class OrderService {
             // Notifications handled by backend
           }
 
-          // Update in cache
-          orderCacheService.updateOrderInCache(order, user.email);
         }
       }
     });

@@ -10,17 +10,20 @@
     "ios:build": "npm run build && npx cap sync ios",
     "ios:open": "npx cap open ios",
     "android:build": "npm run build && npx cap sync android",
-    "android:open": "npx cap open android"
+    "android:open": "npx cap open android",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
+    "@aparajita/capacitor-secure-storage": "^8.0.0",
     "@capacitor-firebase/authentication": "^8.0.1",
     "@capacitor-firebase/messaging": "^8.3.0",
-    "@capacitor/android": "^8.0.0",
-    "@capacitor/app": "^8.0.0",
-    "@capacitor/browser": "^8.0.0",
-    "@capacitor/core": "8.0.1",
-    "@capacitor/ios": "8.0.1",
-    "@capacitor/local-notifications": "^8.0.0",
+    "@capacitor/android": "^8.5.0",
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/browser": "^8.0.4",
+    "@capacitor/core": "^8.5.0",
+    "@capacitor/ios": "^8.5.0",
+    "@capacitor/local-notifications": "^8.3.0",
     "@radix-ui/react-accordion": "^1.2.3",
     "@radix-ui/react-alert-dialog": "^1.1.6",
     "@radix-ui/react-aspect-ratio": "^1.1.2",
@@ -62,7 +65,7 @@
     "react-dom": "^18.3.1",
     "react-hook-form": "^7.55.0",
     "react-resizable-panels": "^2.1.7",
-    "react-router-dom": "^6.22.0",
+    "react-router-dom": "^7.18.2",
     "recharts": "^2.15.2",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.4.0",
@@ -70,17 +73,19 @@
     "vaul": "^1.1.2"
   },
   "devDependencies": {
-    "@capacitor/cli": "^8.1.0",
+    "@capacitor/cli": "^8.5.0",
     "@react-native-community/cli": "^20.2.0",
     "@types/node": "^20.10.0",
     "@types/react": "^18.2.45",
     "@types/react-dom": "^18.2.18",
     "@vitejs/plugin-react-swc": "^3.10.2",
     "autoprefixer": "^10.4.23",
+    "jsdom": "^29.1.1",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.0",
     "typescript": "^5.9.3",
-    "vite": "^6.3.5"
+    "vite": "^6.3.5",
+    "vitest": "^4.1.10"
   },
   "allowScripts": {
     "esbuild@0.25.12": true,
@@ -88,5 +93,8 @@
     "@firebase/util@1.13.0": true,
     "@swc/core@1.15.7": true,
     "fsevents@2.3.3": true
+  },
+  "overrides": {
+    "uuid": "11.1.1"
   }
 }

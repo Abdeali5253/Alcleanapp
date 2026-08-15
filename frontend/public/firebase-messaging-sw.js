@@ -16,8 +16,6 @@ const messaging = firebase.messaging();
 
 // Handle background messages
 messaging.onBackgroundMessage((payload) => {
-  console.log('[SW] Background message:', payload);
-
   const title = payload.notification?.title || 'AlClean';
   const options = {
     body: payload.notification?.body || 'You have a new notification',
@@ -60,5 +58,3 @@ self.addEventListener('notificationclick', (event) => {
 
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (event) => event.waitUntil(clients.claim()));
-
-console.log('[SW] Firebase messaging service worker loaded');

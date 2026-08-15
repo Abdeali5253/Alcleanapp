@@ -80,6 +80,20 @@ interface SentNotification {
   read: boolean;
 }
 
+function parseBearerToken(header?: string): string | undefined {
+  const match = header?.match(/^Bearer ([^\s]{20,4096})$/);
+  return match?.[1];
+}
+
+export function notificationHistoryForUser(
+  entries: SentNotification[],
+  userId: string,
+): Omit<SentNotification, "token">[] {
+  return dedupeNotifications(
+    entries.filter((entry) => entry.userId === userId),
+  ).map(({ token: _token, ...entry }) => entry);
+}
+
 const NOTIFICATION_DEDUPE_WINDOW_MS = 10 * 60 * 1000;
 
 // File paths for persistent storage
@@ -426,17 +440,20 @@ async function getCustomerIdFromAccessToken(
  */
 router.post("/register", async (req: Request, res: Response) => {
   try {
-    const { token, platform, timestamp, userId } = req.body;
+    const { token, platform, userId } = req.body;
 
-    if (!token) {
+    if (typeof token !== "string" || token.length < 20 || token.length > 4096) {
       return res.status(400).json({
         success: false,
-        error: "FCM token is required",
+        error: "Valid FCM token is required",
       });
+    }
+    if (!['android', 'ios'].includes(platform)) {
+      return res.status(400).json({ success: false, error: "Invalid platform" });
     }
 
     let verifiedUserId: string | undefined;
-    const accessToken = req.headers.authorization?.replace("Bearer ", "");
+    const accessToken = parseBearerToken(req.headers.authorization);
     if (accessToken) {
       verifiedUserId = await getCustomerIdFromAccessToken(accessToken);
       if (!verifiedUserId) {
@@ -455,9 +472,9 @@ router.post("/register", async (req: Request, res: Response) => {
     const existingDevice = deviceTokens.get(token);
     const deviceInfo: DeviceToken = {
       token,
-      platform: platform || "web",
+      platform,
       registeredAt:
-        existingDevice?.registeredAt || timestamp || new Date().toISOString(),
+        existingDevice?.registeredAt || new Date().toISOString(),
       lastActive: new Date().toISOString(),
       userId: verifiedUserId,
     };
@@ -481,162 +498,6 @@ router.post("/register", async (req: Request, res: Response) => {
   }
 });
 
-/**
- * POST /api/notifications/send
- * Send push notification to all registered devices
- */
-router.post("/send", async (req: Request, res: Response) => {
-  try {
-    const { title, body, type, data, imageUrl, userId } = req.body;
-
-    if (!title || !body) {
-      return res.status(400).json({
-        success: false,
-        error: "Title and body are required",
-      });
-    }
-
-    let tokens: string[];
-    if (userId) {
-      tokens = Array.from(deviceTokens.entries())
-        .filter(([_, device]) => device.userId === userId)
-        .map(([token, _]) => token);
-    } else {
-      tokens = Array.from(deviceTokens.keys());
-    }
-
-    if (tokens.length === 0) {
-      return res.json({
-        success: true,
-        message: "No devices registered",
-        sentCount: 0,
-      });
-    }
-
-    const result = await sendFCMNotification(
-      tokens,
-      { title, body, image: imageUrl },
-      { type: type || "general", ...data },
-    );
-
-    res.json({
-      success: true,
-      message: `Notification sent to ${result.success} devices (${result.failure} failed)`,
-      sentCount: result.success,
-      failedCount: result.failure,
-      notification: { title, body, type },
-    });
-  } catch (error: any) {
-    console.error("[Notifications] Send error:", error);
-    res.status(500).json({
-      success: false,
-      error: error.message || "Failed to send notification",
-    });
-  }
-});
-
-/**
- * POST /api/notifications/send-to-user
- * Send push notification to a specific user
- */
-router.post("/send-to-user", async (req: Request, res: Response) => {
-  try {
-    const { userId, title, body, type, data, imageUrl } = req.body;
-
-    if (!userId || !title || !body) {
-      return res.status(400).json({
-        success: false,
-        error: "userId, title, and body are required",
-      });
-    }
-
-    const result = await sendNotificationToUser({
-      userId,
-      title,
-      body,
-      type,
-      data,
-      imageUrl,
-    });
-    if (result.success === 0 && result.failure === 0) {
-      return res.json({
-        success: true,
-        message: "User has no registered devices",
-        sentCount: 0,
-      });
-    }
-
-    res.json({
-      success: true,
-      message: `Notification sent to user's ${result.success} devices`,
-      sentCount: result.success,
-      failedCount: result.failure,
-    });
-  } catch (error: any) {
-    console.error("[Notifications] Send to user error:", error);
-    res.status(500).json({
-      success: false,
-      error: error.message || "Failed to send notification",
-    });
-  }
-});
-
-/**
- * POST /api/notifications/send-to-token
- * Send push notification to a specific FCM token (for testing)
- */
-router.post("/send-to-token", async (req: Request, res: Response) => {
-  try {
-    const { token, title, body, type, data, imageUrl } = req.body;
-
-    if (!token || !title || !body) {
-      return res.status(400).json({
-        success: false,
-        error: "token, title, and body are required",
-      });
-    }
-
-    const result = await sendFCMNotification(
-      [token],
-      { title, body, image: imageUrl },
-      { type: type || "general", ...data },
-    );
-
-    res.json({
-      success: result.success > 0,
-      message:
-        result.success > 0
-          ? "Notification sent!"
-          : "Failed to send notification",
-      result,
-    });
-  } catch (error: any) {
-    console.error("[Notifications] Send to token error:", error);
-    res.status(500).json({
-      success: false,
-      error: error.message || "Failed to send notification",
-    });
-  }
-});
-
-const FCM_SERVER_KEY = process.env.FCM_SERVER_KEY || "";
-
-router.get("/devices", async (req: Request, res: Response) => {
-  const devices = Array.from(deviceTokens.values()).map((d) => ({
-    platform: d.platform,
-    registeredAt: d.registeredAt,
-    lastActive: d.lastActive,
-    userId: d.userId,
-    tokenPreview: d.token.substring(0, 20) + "...",
-  }));
-
-  res.json({
-    success: true,
-    count: devices.length,
-    devices,
-  });
-});
-
 router.delete("/unregister", async (req: Request, res: Response) => {
   try {
     const { token } = req.body;
@@ -644,6 +505,16 @@ router.delete("/unregister", async (req: Request, res: Response) => {
       return res
         .status(400)
         .json({ success: false, error: "Token is required" });
+    const device = deviceTokens.get(token);
+    if (device?.userId) {
+      const accessToken = parseBearerToken(req.headers.authorization);
+      const verifiedUserId = accessToken
+        ? await getCustomerIdFromAccessToken(accessToken)
+        : undefined;
+      if (!verifiedUserId || verifiedUserId !== device.userId) {
+        return res.status(403).json({ success: false, error: "Not allowed" });
+      }
+    }
     const deleted = deviceTokens.delete(token);
     res.json({
       success: true,
@@ -659,104 +530,25 @@ router.delete("/unregister", async (req: Request, res: Response) => {
   }
 });
 
-router.post("/store-received", async (req: Request, res: Response) => {
-  try {
-    const { token, title, body, data, timestamp } = req.body;
-    if (!token || !title || !body)
-      return res
-        .status(400)
-        .json({ success: false, error: "Required fields missing" });
-
-    const device = deviceTokens.get(token);
-    const userId = device?.userId;
-
-    const notificationId = `received_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    upsertStoredNotification({
-      id: notificationId,
-      userId,
-      token,
-      title,
-      body,
-      data: data || {},
-      timestamp: timestamp || new Date().toISOString(),
-      delivered: true,
-      read: false,
-    });
-
-    res.json({ success: true, message: "Notification stored successfully" });
-  } catch (error: any) {
-    res
-      .status(500)
-      .json({
-        success: false,
-        error: error.message || "Failed to store notification",
-      });
-  }
-});
-
 router.get("/history", async (req: Request, res: Response) => {
   try {
-    const { token } = req.query;
-    if (!token || typeof token !== "string")
-      return res
-        .status(400)
-        .json({ success: false, error: "Token is required" });
+    const accessToken = parseBearerToken(req.headers.authorization);
+    const userId = accessToken
+      ? await getCustomerIdFromAccessToken(accessToken)
+      : undefined;
+    if (!userId) {
+      return res.status(401).json({ success: false, error: "Valid access token required" });
+    }
 
-    const userNotifications = dedupeNotifications(
-      Array.from(sentNotifications.values()).filter((n) => n.token === token),
+    const notifications = notificationHistoryForUser(
+      Array.from(sentNotifications.values()),
+      userId,
     );
-
-    res.json({
-      success: true,
-      notifications: userNotifications,
-      count: userNotifications.length,
-    });
+    return res.json({ success: true, notifications, count: notifications.length });
   } catch (error: any) {
-    res
-      .status(500)
-      .json({
-        success: false,
-        error: error.message || "Failed to fetch history",
-      });
+    console.error("[Notifications] History error:", error?.message || error);
+    return res.status(500).json({ success: false, error: "Failed to fetch history" });
   }
-});
-
-router.get("/user-notifications", async (req: Request, res: Response) => {
-  try {
-    const { userId } = req.query;
-    if (!userId || typeof userId !== "string")
-      return res
-        .status(400)
-        .json({ success: false, error: "userId is required" });
-
-    const userNotifications = dedupeNotifications(
-      Array.from(sentNotifications.values()).filter((n) => n.userId === userId),
-    );
-
-    res.json({
-      success: true,
-      notifications: userNotifications,
-      count: userNotifications.length,
-    });
-  } catch (error: any) {
-    res
-      .status(500)
-      .json({
-        success: false,
-        error: error.message || "Failed to fetch user notifications",
-      });
-  }
-});
-
-router.get("/status", async (req: Request, res: Response) => {
-  res.json({
-    success: true,
-    status: {
-      fcmConfigured: !!process.env.FIREBASE_PROJECT_ID,
-      registeredDevices: deviceTokens.size,
-      storedNotifications: sentNotifications.size,
-    },
-  });
 });
 
 export default router;

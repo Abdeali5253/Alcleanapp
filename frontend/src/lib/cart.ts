@@ -19,6 +19,7 @@ class CartService {
   constructor() {
     this.loadCart();
     this.loadCheckoutId();
+    window.addEventListener("alclean-before-logout", () => this.clearCart());
   }
 
   private loadCart(): void {

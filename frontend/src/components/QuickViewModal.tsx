@@ -111,7 +111,7 @@ export function QuickViewModal({
               <div className="pt-4 border-t border-gray-100 mb-8">
                 <PriceDisplay 
                   price={product.price} 
-                  originalPrice={product.originalPrice} 
+                  originalPrice={product.originalPrice ?? undefined}
                   size="xl"
                 />
               </div>

@@ -5,12 +5,12 @@ dotenv.config();
 
 import cors from 'cors';
 import express from 'express';
+import rateLimit from 'express-rate-limit';
 import authRoutes from './routes/auth.js';
 import cartRoutes from './routes/cart.js';
 import notificationRoutes from './routes/notifications.js';
 import orderRoutes from './routes/orders.js';
 import productRoutes from './routes/products.js';
-import shopifyRoutes from './routes/shopify.js';
 import { startTrackingNotificationScheduler } from './services/tracking-notifications.js';
 
 const app = express();
@@ -19,12 +19,47 @@ const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
   .split(',')
   .map((origin) => origin.trim())
   .filter(Boolean);
-const nativeAppOrigins = [
-  'https://localhost',
-  'http://localhost',
-  'capacitor://localhost',
-];
+const isProduction = process.env.NODE_ENV === 'production';
+export function validateProductionConfiguration(env: NodeJS.ProcessEnv): void {
+  if (!env.ALLOWED_ORIGINS?.split(',').some((origin) => origin.trim())) {
+    throw new Error('ALLOWED_ORIGINS is required in production');
+  }
+  if (!(env.GOOGLE_CLIENT_IDS || env.GOOGLE_CLIENT_ID)) {
+    throw new Error('GOOGLE_CLIENT_IDS is required in production');
+  }
+  if (
+    !env.SHOPIFY_STORE_DOMAIN ||
+    !env.SHOPIFY_STOREFRONT_TOKEN ||
+    !env.SHOPIFY_ADMIN_API_TOKEN
+  ) {
+    throw new Error('Shopify storefront and Admin credentials are required in production');
+  }
+  if (
+    !env.FIREBASE_PROJECT_ID ||
+    !env.FIREBASE_PRIVATE_KEY ||
+    !env.FIREBASE_CLIENT_EMAIL
+  ) {
+    throw new Error('Firebase credentials are required in production');
+  }
+}
+if (isProduction) validateProductionConfiguration(process.env);
+
+const nativeAppOrigins = ['https://localhost', 'capacitor://localhost'];
+if (!isProduction) nativeAppOrigins.push('http://localhost');
 const trustedOrigins = new Set([...allowedOrigins, ...nativeAppOrigins]);
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 20,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+});
+const registrationLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 30,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+});
 
 app.use(
   cors({
@@ -38,13 +73,13 @@ app.use(
 
             callback(new Error(`Origin not allowed by CORS: ${origin}`));
           }
-        : true,
+        : !isProduction,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
   }),
 );
-app.use(express.json());
+app.use(express.json({ limit: '32kb' }));
 
 const healthCheck = (_req: express.Request, res: express.Response) => {
   res.json({
@@ -70,12 +105,17 @@ const healthCheck = (_req: express.Request, res: express.Response) => {
 
 app.get('/health', healthCheck);
 
+app.use(
+  ['/api/auth/login', '/api/auth/signup', '/api/auth/recover', '/api/auth/google-login', '/api/auth/renew'],
+  authLimiter,
+);
+app.use('/api/notifications/register', registrationLimiter);
+
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/cart', cartRoutes);
 app.use('/api/orders', orderRoutes);
-app.use('/api/shopify', shopifyRoutes);
 
 app.use((_req, res) => {
   res.status(404).json({ error: 'Not found' });
@@ -89,10 +129,14 @@ app.use(
     _next: express.NextFunction,
   ) => {
     console.error('[Error]', err);
-    res.status(500).json({ error: err.message || 'Internal server error' });
+    const status = Number(err.status || err.statusCode);
+    res
+      .status(status >= 400 && status < 600 ? status : 500)
+      .json({ error: err.message || 'Internal server error' });
   },
 );
 
+if (process.env.NODE_ENV !== 'test') {
 app.listen(port, '0.0.0.0', () => {
   console.log('--------------------------------');
   console.log('AlClean Backend Server');
@@ -108,13 +152,12 @@ app.listen(port, '0.0.0.0', () => {
   console.log('Available routes:');
   console.log('  GET  /health');
   console.log('  POST /api/notifications/register');
-  console.log('  POST /api/notifications/send');
-  console.log('  GET  /api/notifications/devices');
   console.log('  GET  /api/products');
   console.log('  GET  /api/products/:id');
   console.log('  GET  /api/products/collection/:handle');
   console.log('--------------------------------');
   startTrackingNotificationScheduler();
 });
+}
 
 export default app;

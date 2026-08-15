@@ -174,7 +174,7 @@ function buildSocialPassword(provider: string, providerUserId: string): string {
 async function createCustomerAccessToken(
   email: string,
   password: string,
-): Promise<{ accessToken?: string; errors?: string }> {
+): Promise<{ accessToken?: string; expiresAt?: string; errors?: string }> {
   const mutation = `
     mutation customerAccessTokenCreate($input: CustomerAccessTokenCreateInput!) {
       customerAccessTokenCreate(input: $input) {
@@ -214,10 +214,14 @@ async function createCustomerAccessToken(
 
   return {
     accessToken: data.customerAccessTokenCreate.customerAccessToken.accessToken,
+    expiresAt: data.customerAccessTokenCreate.customerAccessToken.expiresAt,
   };
 }
 
-async function getUserByCustomerAccessToken(accessToken: string): Promise<any> {
+async function getUserByCustomerAccessToken(
+  accessToken: string,
+  expiresAt?: string,
+): Promise<any> {
   const customerQuery = `
     query getCustomer($customerAccessToken: String!) {
       customer(customerAccessToken: $customerAccessToken) {
@@ -237,6 +241,7 @@ async function getUserByCustomerAccessToken(accessToken: string): Promise<any> {
   const customer = customerData.customer;
   const user = transformCustomer(customer);
   user.accessToken = accessToken;
+  if (expiresAt) user.expiresAt = expiresAt;
   return user;
 }
 
@@ -370,6 +375,8 @@ router.post("/login", async (req: Request, res: Response) => {
 
     const accessToken =
       data.customerAccessTokenCreate.customerAccessToken.accessToken;
+    const expiresAt =
+      data.customerAccessTokenCreate.customerAccessToken.expiresAt;
 
     // Get customer details
     const customerQuery = `
@@ -390,6 +397,7 @@ router.post("/login", async (req: Request, res: Response) => {
     const customer = customerData.customer;
     const user = transformCustomer(customer);
     user.accessToken = accessToken;
+    user.expiresAt = expiresAt;
 
     console.log(`[Auth] Customer logged in: ${user.email}`);
     res.json({
@@ -402,6 +410,51 @@ router.post("/login", async (req: Request, res: Response) => {
       success: false,
       error: error.message || "Failed to login",
     });
+  }
+});
+
+/**
+ * POST /api/auth/renew
+ * Renew a valid Shopify customer access token before it expires.
+ */
+router.post("/renew", async (req: Request, res: Response) => {
+  try {
+    const accessToken = req.headers.authorization?.replace(/^Bearer\s+/i, "");
+    if (!accessToken) {
+      return res.status(401).json({ success: false, error: "Access token required" });
+    }
+
+    const mutation = `
+      mutation customerAccessTokenRenew($customerAccessToken: String!) {
+        customerAccessTokenRenew(customerAccessToken: $customerAccessToken) {
+          customerAccessToken { accessToken expiresAt }
+          userErrors { field message }
+        }
+      }
+    `;
+    const data = await shopifyFetch<{
+      customerAccessTokenRenew: {
+        customerAccessToken: { accessToken: string; expiresAt: string } | null;
+        userErrors: Array<{ message: string }>;
+      };
+    }>(mutation, { customerAccessToken: accessToken });
+
+    const renewed = data.customerAccessTokenRenew;
+    if (!renewed.customerAccessToken || renewed.userErrors?.length) {
+      return res.status(401).json({
+        success: false,
+        error: renewed.userErrors?.map((entry) => entry.message).join(", ") || "Session cannot be renewed",
+      });
+    }
+
+    const user = await getUserByCustomerAccessToken(
+      renewed.customerAccessToken.accessToken,
+      renewed.customerAccessToken.expiresAt,
+    );
+    return res.json({ success: true, user });
+  } catch (error: any) {
+    console.error("[Auth] Token renewal failed:", error?.message || error);
+    return res.status(401).json({ success: false, error: "Session expired" });
   }
 });
 
@@ -689,7 +742,10 @@ router.post("/google-login", async (req: Request, res: Response) => {
           });
         }
 
-        const user = await getUserByCustomerAccessToken(retry.accessToken);
+        const user = await getUserByCustomerAccessToken(
+          retry.accessToken,
+          retry.expiresAt,
+        );
 
         const duration = Date.now() - startTime;
         console.log(
@@ -700,7 +756,10 @@ router.post("/google-login", async (req: Request, res: Response) => {
           user,
         });
       }
-      const user = await getUserByCustomerAccessToken(firstTry.accessToken);
+      const user = await getUserByCustomerAccessToken(
+        firstTry.accessToken,
+        firstTry.expiresAt,
+      );
 
       const duration = Date.now() - startTime;
       console.log(
@@ -740,6 +799,7 @@ router.post("/google-login", async (req: Request, res: Response) => {
 
       const user = transformCustomer(newCustomer);
       user.accessToken = login.accessToken;
+      user.expiresAt = login.expiresAt;
 
       const duration = Date.now() - startTime;
       console.log(

@@ -1,4 +1,11 @@
 # Add project specific ProGuard rules here.
+# Firebase Authentication contains optional Facebook provider handlers, but this
+# app enables only Google. Suppress references to the intentionally absent SDK.
+-dontwarn com.facebook.CallbackManager$Factory
+-dontwarn com.facebook.CallbackManager
+-dontwarn com.facebook.FacebookCallback
+-dontwarn com.facebook.login.LoginManager
+-dontwarn com.facebook.login.widget.LoginButton
 # You can control the set of applied configuration files using the
 # proguardFiles setting in build.gradle.
 #

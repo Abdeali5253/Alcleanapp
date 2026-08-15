@@ -25,12 +25,16 @@ public class MainActivity extends BridgeActivity {
                 new WindowInsetsControllerCompat(getWindow(), getWindow().getDecorView());
         insetsController.setAppearanceLightStatusBars(true);
 
-        Log.d(TAG, "MainActivity onCreate");
+        if (BuildConfig.DEBUG) {
+            Log.d(TAG, "MainActivity onCreate");
+        }
     }
 
     @Override
     public void onResume() {
         super.onResume();
-        Log.d(TAG, "MainActivity onResume");
+        if (BuildConfig.DEBUG) {
+            Log.d(TAG, "MainActivity onResume");
+        }
     }
 }

@@ -12,6 +12,9 @@ if (keystorePropertiesFile.exists()) {
 android {
     namespace = "com.alclean.app"
     compileSdk = rootProject.ext.compileSdkVersion
+    buildFeatures {
+        buildConfig = true
+    }
     defaultConfig {
         applicationId "com.alclean.app"
         minSdkVersion rootProject.ext.minSdkVersion
@@ -35,10 +38,10 @@ android {
     }
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("debug")
             signingConfig = signingConfigs.getByName("release")
-            minifyEnabled false
-            shrinkResources false
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             ndk {
                 debugSymbolLevel 'SYMBOL_TABLE'
             }
@@ -66,7 +69,6 @@ dependencies {
     // Firebase Cloud Messaging for Push Notifications
     implementation platform('com.google.firebase:firebase-bom:34.8.0')
     implementation 'com.google.firebase:firebase-messaging'
-    implementation 'com.google.firebase:firebase-analytics'
     
     // Firebase Authentication for Google Sign-In
     implementation 'com.google.firebase:firebase-auth'

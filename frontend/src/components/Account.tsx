@@ -218,8 +218,8 @@ export function Account() {
     navigate("/checkout");
   };
 
-  const handleLogout = () => {
-    authService.logOut();
+  const handleLogout = async () => {
+    await authService.logOut();
   };
 
   // Forgot Password Form
