@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { Capacitor } from "@capacitor/core";
 import {
   User,
   LogOut,
@@ -288,7 +289,10 @@ export function Account() {
       <div className="min-h-screen bg-gray-50 pb-20">
         <UnifiedHeader />
 
-        {isGoogleLoading && (
+        {/* A WebView overlay can race the native iOS presentation context and
+            prevent the Google account sheet from appearing. The button still
+            shows progress while the native sheet owns the screen. */}
+        {isGoogleLoading && !Capacitor.isNativePlatform() && (
           <div
             className="fixed inset-0 z-[70] flex items-center justify-center bg-white/85 px-6 backdrop-blur-sm"
             role="status"

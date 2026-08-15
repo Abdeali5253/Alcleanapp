@@ -38,6 +38,7 @@ export interface SocialLoginResult {
 
 const AUTH_STORAGE_KEY = "alclean_auth";
 const REDIRECT_STORAGE_KEY = "alclean_redirect";
+const NATIVE_GOOGLE_SIGN_IN_TIMEOUT_MS = 30_000;
 
 class AuthService {
   private user: User | null = null;
@@ -280,11 +281,25 @@ class AuthService {
           await this.clearNativeGoogleSession(auth);
 
           // Sign in with Google using native SDK
-          const result = await FirebaseAuthentication.signInWithGoogle({
-            // Credential Manager can fail on some emulators with
-            // "no credentials available". Fallback to legacy API.
-            useCredentialManager: false,
-          });
+          const platform = Capacitor.getPlatform();
+          const nativeSignIn = FirebaseAuthentication.signInWithGoogle(
+            platform === "android"
+              ? {
+                  // Credential Manager can fail on some emulators with
+                  // "no credentials available". Fallback to legacy API.
+                  useCredentialManager: false,
+                }
+              : undefined,
+          );
+          const result = await Promise.race([
+            nativeSignIn,
+            new Promise<never>((_, reject) => {
+              window.setTimeout(
+                () => reject(new Error("Google Sign-In could not open. Please close and reopen the app, then try again.")),
+                NATIVE_GOOGLE_SIGN_IN_TIMEOUT_MS,
+              );
+            }),
+          ]);
           console.log("[Auth] Native Google sign-in result:", result);
 
           if (!result.credential?.idToken) {
