@@ -307,10 +307,7 @@ class NativeNotificationService {
         try {
           const token = event?.token;
           if (!token) return;
-          log("NativeNotif", "FCM Token received", {
-            token: token.substring(0, 50) + "...",
-            fullLength: token.length,
-          });
+          log("NativeNotif", "FCM token received");
           await this.acceptFCMToken(token);
         } catch (e) {
           logError("NativeNotif", "Error in registration listener", e);

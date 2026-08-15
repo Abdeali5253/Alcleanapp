@@ -4,6 +4,9 @@ const config: CapacitorConfig = {
   appId: "com.alclean.app",
   appName: "AlClean",
   webDir: "dist",
+  // Native bridge responses can contain credentials such as FCM tokens.
+  // Never serialize plugin payloads to device logs in any build configuration.
+  loggingBehavior: "none",
   server: {
     androidScheme: "https", // Changed to HTTPS to allow secure deep links
     iosScheme: "https",
