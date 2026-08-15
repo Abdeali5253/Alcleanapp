@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => {
   return {
     secure,
     signOut: vi.fn(async () => undefined),
+    signInWithGoogle: vi.fn(),
     remove: vi.fn(async (key: string) => void secure.delete(key)),
   };
 });
@@ -30,7 +31,7 @@ vi.mock("@capacitor/core", () => ({
 vi.mock("@capacitor-firebase/authentication", () => ({
   FirebaseAuthentication: {
     signOut: mocks.signOut,
-    signInWithGoogle: vi.fn(),
+    signInWithGoogle: mocks.signInWithGoogle,
   },
 }));
 vi.mock("firebase/auth", () => ({
@@ -51,10 +52,46 @@ beforeEach(() => {
   mocks.secure.clear();
   mocks.remove.mockClear();
   mocks.signOut.mockClear();
+  mocks.signInWithGoogle.mockReset();
   localStorage.clear();
 });
 
 describe("secure authentication lifecycle", () => {
+  it("starts native Google sign-in without clearing the provider session first", async () => {
+    localStorage.setItem("alclean_secure_session_migrated_v1", "complete");
+    mocks.signInWithGoogle.mockResolvedValue({
+      credential: { idToken: "google-id-token" },
+    });
+    vi.stubGlobal("fetch", vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      text: async () =>
+        JSON.stringify({
+          success: true,
+          user: {
+            id: "1",
+            email: "person@example.com",
+            name: "Test Person",
+            firstName: "Test",
+            lastName: "Person",
+            phone: "",
+            accessToken: "shopify-token",
+            expiresAt: new Date(Date.now() + 7 * 86_400_000).toISOString(),
+          },
+        }),
+    })));
+
+    const { authService } = await import("./auth");
+    await authService.whenReady();
+    const result = await authService.googleLogin();
+
+    expect(result.success).toBe(true);
+    expect(mocks.signOut).not.toHaveBeenCalled();
+    expect(mocks.signInWithGoogle).toHaveBeenCalledWith({
+      useCredentialManager: false,
+    });
+  });
+
   it("never commits a session that is missing trustworthy expiry metadata", async () => {
     localStorage.setItem("alclean_secure_session_migrated_v1", "complete");
     const { authService } = await import("./auth");

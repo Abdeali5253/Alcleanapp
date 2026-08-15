@@ -41,7 +41,6 @@ const AUTH_STORAGE_KEY = "alclean_auth";
 const SECURE_SESSION_KEY = "session";
 const SESSION_MIGRATION_KEY = "alclean_secure_session_migrated_v1";
 const REDIRECT_STORAGE_KEY = "alclean_redirect";
-const NATIVE_GOOGLE_SIGN_IN_TIMEOUT_MS = 30_000;
 const RENEW_BEFORE_EXPIRY_MS = 24 * 60 * 60 * 1000;
 const SENSITIVE_LOCAL_KEYS = [
   AUTH_STORAGE_KEY,
@@ -431,14 +430,10 @@ class AuthService {
         console.log("[Auth] Starting native Google sign-in");
 
         try {
-          // Force account picker instead of silently reusing last Google account.
-          await this.clearNativeGoogleSession();
-          console.log("[Auth] Native session cleanup complete");
-
           // Sign in with Google using native SDK
           const platform = Capacitor.getPlatform();
           console.log("[Auth] Calling native Google sign-in", { platform });
-          const nativeSignIn = FirebaseAuthentication.signInWithGoogle(
+          const result = await FirebaseAuthentication.signInWithGoogle(
             platform === "android"
               ? {
                   // Credential Manager can fail on some emulators with
@@ -447,28 +442,6 @@ class AuthService {
                 }
               : undefined,
           );
-          let timeoutId: number | undefined;
-          let result;
-          try {
-            result = await Promise.race([
-              nativeSignIn,
-              new Promise<never>((_, reject) => {
-                timeoutId = window.setTimeout(
-                  () =>
-                    reject(
-                      new Error(
-                        "Google Sign-In could not open. Please close and reopen the app, then try again.",
-                      ),
-                    ),
-                  NATIVE_GOOGLE_SIGN_IN_TIMEOUT_MS,
-                );
-              }),
-            ]);
-          } finally {
-            if (timeoutId !== undefined) {
-              window.clearTimeout(timeoutId);
-            }
-          }
           console.log("[Auth] Native Google sign-in result:", result);
 
           if (!result.credential?.idToken) {
