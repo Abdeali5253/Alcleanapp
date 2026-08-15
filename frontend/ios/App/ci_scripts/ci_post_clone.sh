@@ -29,6 +29,7 @@ npm run build
 npx cap sync ios
 
 for package_dir in \
+  node_modules/@aparajita/capacitor-secure-storage \
   node_modules/@capacitor-firebase/authentication \
   node_modules/@capacitor-firebase/messaging \
   node_modules/@capacitor/app \
@@ -41,3 +42,10 @@ do
     exit 1
   fi
 done
+
+# The archive action intentionally disables automatic package resolution.
+# Resolve explicitly after Capacitor regenerates CapApp-SPM so the resolved
+# graph always includes transitive packages such as KeychainSwift.
+xcodebuild -resolvePackageDependencies \
+  -project "$FRONTEND_DIR/ios/App/App.xcodeproj" \
+  -scheme App
