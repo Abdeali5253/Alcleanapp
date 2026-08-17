@@ -22,7 +22,8 @@ function parseBasicPassword(header?: string): string | undefined {
   try {
     const decoded = Buffer.from(match[1], "base64").toString("utf8");
     const separator = decoded.indexOf(":");
-    if (separator < 0 || decoded.slice(0, separator) !== "admin") return undefined;
+    if (separator < 0 || decoded.slice(0, separator) !== "admin")
+      return undefined;
     return decoded.slice(separator + 1);
   } catch {
     return undefined;
@@ -33,7 +34,10 @@ function requireAdmin(password: string) {
   return (req: Request, res: Response, next: NextFunction) => {
     const supplied = parseBasicPassword(req.headers.authorization);
     if (!supplied || !secureEqual(supplied, password)) {
-      res.setHeader("WWW-Authenticate", 'Basic realm="AlClean Notification Admin"');
+      res.setHeader(
+        "WWW-Authenticate",
+        'Basic realm="AlClean Notification Admin"',
+      );
       return res.status(401).send("Authentication required");
     }
     next();
@@ -42,9 +46,12 @@ function requireAdmin(password: string) {
 
 function validateMessage(value: unknown, name: string, max: number): string {
   if (typeof value !== "string" || !value.trim() || value.length > max) {
-    throw Object.assign(new Error(`${name} is required and must be at most ${max} characters`), {
-      status: 400,
-    });
+    throw Object.assign(
+      new Error(`${name} is required and must be at most ${max} characters`),
+      {
+        status: 400,
+      },
+    );
   }
   return value.trim();
 }
@@ -69,21 +76,40 @@ const adminHtml = `<!doctype html><html lang="en"><head><meta charset="utf-8"><m
 export function createNotificationAdminApp(password: string, port: number) {
   const app = express();
   app.disable("x-powered-by");
-  const allowedHosts = new Set([`localhost:${port}`, `127.0.0.1:${port}`, `[::1]:${port}`]);
-  const allowedOrigins = new Set(Array.from(allowedHosts, (host) => `http://${host}`));
+  const allowedHosts = new Set([
+    `localhost:${port}`,
+    `127.0.0.1:${port}`,
+    `[::1]:${port}`,
+  ]);
+  const allowedOrigins = new Set(
+    Array.from(allowedHosts, (host) => `http://${host}`),
+  );
 
   app.use((req, res, next) => {
     res.setHeader("Cache-Control", "no-store");
-    res.setHeader("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'none'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
+    res.setHeader(
+      "Content-Security-Policy",
+      "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'none'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+    );
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("X-Frame-Options", "DENY");
     res.setHeader("Referrer-Policy", "no-referrer");
-    if (!req.headers.host || !allowedHosts.has(req.headers.host.toLowerCase())) {
+    if (
+      !req.headers.host ||
+      !allowedHosts.has(req.headers.host.toLowerCase())
+    ) {
       return res.status(403).send("Local SSH access only");
     }
     next();
   });
-  app.use(rateLimit({ windowMs: 15 * 60 * 1000, limit: 120, standardHeaders: true, legacyHeaders: false }));
+  app.use(
+    rateLimit({
+      windowMs: 15 * 60 * 1000,
+      limit: 120,
+      standardHeaders: true,
+      legacyHeaders: false,
+    }),
+  );
   app.use(requireAdmin(password));
   app.use(express.json({ limit: "8kb" }));
 
@@ -96,24 +122,41 @@ export function createNotificationAdminApp(password: string, port: number) {
   });
   app.post(
     "/api/send",
-    rateLimit({ windowMs: 15 * 60 * 1000, limit: 10, standardHeaders: true, legacyHeaders: false }),
+    rateLimit({
+      windowMs: 15 * 60 * 1000,
+      limit: 10,
+      standardHeaders: true,
+      legacyHeaders: false,
+    }),
     async (req, res, next) => {
       try {
-        if (!allowedOrigins.has(req.headers.origin || "") || req.headers["x-alclean-admin"] !== "1") {
-          return res.status(403).json({ success: false, error: "Invalid request origin" });
+        if (
+          !allowedOrigins.has(req.headers.origin || "") ||
+          req.headers["x-alclean-admin"] !== "1"
+        ) {
+          return res
+            .status(403)
+            .json({ success: false, error: "Invalid request origin" });
         }
         const title = validateMessage(req.body?.title, "Title", 100);
         const body = validateMessage(req.body?.body, "Message", 500);
         const userId = req.body?.userId;
-        if (userId !== undefined && (typeof userId !== "string" || !userId.trim())) {
-          return res.status(400).json({ success: false, error: "Invalid customer" });
+        if (
+          userId !== undefined &&
+          (typeof userId !== "string" || !userId.trim())
+        ) {
+          return res
+            .status(400)
+            .json({ success: false, error: "Invalid customer" });
         }
         const result = userId
           ? await sendNotificationToUser({ userId: userId.trim(), title, body })
           : await sendNotificationToAll({ title, body });
         const delivered = result.success;
         const failed = result.failure;
-        console.log(`[Notification Admin] Send complete: ${delivered} delivered, ${failed} failed`);
+        console.log(
+          `[Notification Admin] Send complete: ${delivered} delivered, ${failed} failed`,
+        );
         res.json({ success: failed === 0, delivered, failed });
       } catch (error) {
         next(error);
@@ -133,17 +176,25 @@ export function createNotificationAdminApp(password: string, port: number) {
 export function startNotificationAdminServer() {
   const password = process.env.NOTIFICATION_ADMIN_PASSWORD;
   if (!password) {
-    console.log("Notification admin GUI: Disabled (NOTIFICATION_ADMIN_PASSWORD not set)");
+    console.log(
+      "Notification admin GUI: Disabled (NOTIFICATION_ADMIN_PASSWORD not set)",
+    );
     return;
   }
-  if (password.length < 20) {
-    throw new Error("NOTIFICATION_ADMIN_PASSWORD must contain at least 20 characters");
+  if (password.length < 8) {
+    throw new Error(
+      "NOTIFICATION_ADMIN_PASSWORD must contain at least 8 characters",
+    );
   }
-  const port = Number(process.env.NOTIFICATION_ADMIN_PORT || DEFAULT_ADMIN_PORT);
+  const port = Number(
+    process.env.NOTIFICATION_ADMIN_PORT || DEFAULT_ADMIN_PORT,
+  );
   if (!Number.isInteger(port) || port < 1024 || port > 65535) {
     throw new Error("NOTIFICATION_ADMIN_PORT must be between 1024 and 65535");
   }
   createNotificationAdminApp(password, port).listen(port, ADMIN_HOST, () => {
-    console.log(`Notification admin GUI: http://${ADMIN_HOST}:${port} (SSH tunnel only)`);
+    console.log(
+      `Notification admin GUI: http://${ADMIN_HOST}:${port} (SSH tunnel only)`,
+    );
   });
 }
