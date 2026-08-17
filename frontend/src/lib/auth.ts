@@ -108,7 +108,18 @@ class AuthService {
       }
     } catch (error) {
       console.error("[Auth] Failed to hydrate secure session:", error);
-      await this.clearSession(false);
+      // Fail closed without depending on the plugin that just failed. Calling
+      // clearSession() here would invoke SecureStorage again and could reject
+      // the hydration promise, preventing the application from rendering.
+      this.user = null;
+      this.clearSensitiveLocalData();
+      if (this.renewTimer !== undefined) window.clearTimeout(this.renewTimer);
+      this.renewTimer = undefined;
+      try {
+        await SecureStorage.remove(SECURE_SESSION_KEY);
+      } catch (cleanupError) {
+        console.error("[Auth] Secure session cleanup skipped:", cleanupError);
+      }
     } finally {
       this.hydrated = true;
       this.notifyListeners();

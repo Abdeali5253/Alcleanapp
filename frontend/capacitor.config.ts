@@ -47,6 +47,17 @@ const config: CapacitorConfig = {
   ios: {
     webContentsDebuggingEnabled: false,
   },
+  experimental: {
+    ios: {
+      spm: {
+        packageOptions: {
+          "@capacitor-firebase/authentication": {
+            symlink: true,
+          },
+        },
+      },
+    },
+  },
 };
 
 export default config;

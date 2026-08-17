@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => {
     secure,
     signOut: vi.fn(async () => undefined),
     signInWithGoogle: vi.fn(),
+    setKeyPrefix: vi.fn(async () => undefined),
     remove: vi.fn(async (key: string) => void secure.delete(key)),
   };
 });
@@ -14,7 +15,7 @@ const mocks = vi.hoisted(() => {
 vi.mock("@aparajita/capacitor-secure-storage", () => ({
   KeychainAccess: { whenUnlockedThisDeviceOnly: 1 },
   SecureStorage: {
-    setKeyPrefix: vi.fn(async () => undefined),
+    setKeyPrefix: mocks.setKeyPrefix,
     setSynchronize: vi.fn(async () => undefined),
     setDefaultKeychainAccess: vi.fn(async () => undefined),
     get: vi.fn(async (key: string) => mocks.secure.get(key) ?? null),
@@ -53,10 +54,23 @@ beforeEach(() => {
   mocks.remove.mockClear();
   mocks.signOut.mockClear();
   mocks.signInWithGoogle.mockReset();
+  mocks.setKeyPrefix.mockReset();
+  mocks.setKeyPrefix.mockResolvedValue(undefined);
   localStorage.clear();
 });
 
 describe("secure authentication lifecycle", () => {
+  it("fails closed and completes hydration when native secure storage is unavailable", async () => {
+    localStorage.setItem("alclean_secure_session_migrated_v1", "complete");
+    mocks.setKeyPrefix.mockRejectedValueOnce(new Error("plugin unavailable"));
+
+    const { authService } = await import("./auth");
+
+    await expect(authService.whenReady()).resolves.toBeUndefined();
+    expect(authService.isHydrated()).toBe(true);
+    expect(authService.getUser()).toBeNull();
+  });
+
   it("starts native Google sign-in without clearing the provider session first", async () => {
     localStorage.setItem("alclean_secure_session_migrated_v1", "complete");
     mocks.signInWithGoogle.mockResolvedValue({
