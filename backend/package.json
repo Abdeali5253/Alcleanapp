@@ -7,7 +7,9 @@
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js",
     "build": "tsc",
-    "test": "vitest run --config vitest.config.ts"
+    "test": "vitest run --config vitest.config.ts",
+    "notifications:devices": "node dist/notifications-admin.js devices",
+    "notifications:send": "node dist/notifications-admin.js send"
   },
   "dependencies": {
     "cors": "^2.8.5",

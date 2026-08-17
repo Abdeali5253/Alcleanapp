@@ -404,6 +404,51 @@ export async function sendNotificationToUser(
   );
 }
 
+export interface RegisteredDeviceSummary {
+  tokenPreview: string;
+  platform: DeviceToken["platform"];
+  userId?: string;
+  registeredAt: string;
+  lastActive: string;
+}
+
+/**
+ * Server-only administration helper. It intentionally returns only a token
+ * preview so logs and terminal output cannot expose usable FCM credentials.
+ */
+export function listRegisteredDevices(): RegisteredDeviceSummary[] {
+  return Array.from(deviceTokens.values()).map((device) => ({
+    tokenPreview: `${device.token.slice(0, 6)}...${device.token.slice(-6)}`,
+    platform: device.platform,
+    userId: device.userId,
+    registeredAt: device.registeredAt,
+    lastActive: device.lastActive,
+  }));
+}
+
+export interface BroadcastNotificationRequest {
+  title: string;
+  body: string;
+  imageUrl?: string;
+  data?: Record<string, string>;
+}
+
+/** Server-only broadcast helper for scheduled jobs and the local admin CLI. */
+export async function sendNotificationToAll(
+  request: BroadcastNotificationRequest,
+): Promise<{ recipients: number; success: number; failure: number }> {
+  const tokens = Array.from(deviceTokens.keys());
+  if (tokens.length === 0) {
+    return { recipients: 0, success: 0, failure: 0 };
+  }
+  const result = await sendFCMNotification(
+    tokens,
+    { title: request.title, body: request.body, image: request.imageUrl },
+    request.data,
+  );
+  return { recipients: tokens.length, ...result };
+}
+
 async function getCustomerIdFromAccessToken(
   accessToken: string,
 ): Promise<string | undefined> {
