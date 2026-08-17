@@ -12,6 +12,7 @@ import notificationRoutes from './routes/notifications.js';
 import orderRoutes from './routes/orders.js';
 import productRoutes from './routes/products.js';
 import { startTrackingNotificationScheduler } from './services/tracking-notifications.js';
+import { startNotificationAdminServer } from './notification-admin-server.js';
 
 const app = express();
 const port: number = Number(process.env.PORT) || 3001;
@@ -142,28 +143,29 @@ app.use(
 );
 
 if (process.env.NODE_ENV !== 'test') {
-app.listen(port, '0.0.0.0', () => {
-  console.log('--------------------------------');
-  console.log('AlClean Backend Server');
-  console.log('--------------------------------');
-  console.log(`Port: ${port}`);
-  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`Trust proxy: ${trustProxy}`);
-  console.log(
-    `Firebase: ${process.env.FCM_SERVER_KEY ? 'Configured' : 'Not configured'}`,
-  );
-  console.log('Shopify credentials stay on the backend.');
-  console.log('Frontend clients should only call backend /api routes.');
-  console.log('');
-  console.log('Available routes:');
-  console.log('  GET  /health');
-  console.log('  POST /api/notifications/register');
-  console.log('  GET  /api/products');
-  console.log('  GET  /api/products/:id');
-  console.log('  GET  /api/products/collection/:handle');
-  console.log('--------------------------------');
-  startTrackingNotificationScheduler();
-});
+  app.listen(port, '0.0.0.0', () => {
+    console.log('--------------------------------');
+    console.log('AlClean Backend Server');
+    console.log('--------------------------------');
+    console.log(`Port: ${port}`);
+    console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`Trust proxy: ${trustProxy}`);
+    console.log(
+      `Firebase: ${process.env.FCM_SERVER_KEY ? 'Configured' : 'Not configured'}`,
+    );
+    console.log('Shopify credentials stay on the backend.');
+    console.log('Frontend clients should only call backend /api routes.');
+    console.log('');
+    console.log('Available routes:');
+    console.log('  GET  /health');
+    console.log('  POST /api/notifications/register');
+    console.log('  GET  /api/products');
+    console.log('  GET  /api/products/:id');
+    console.log('  GET  /api/products/collection/:handle');
+    console.log('--------------------------------');
+    startTrackingNotificationScheduler();
+  });
+  startNotificationAdminServer();
 }
 
 export default app;

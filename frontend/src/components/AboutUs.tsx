@@ -1,25 +1,35 @@
-import { Link } from "react-router-dom";
-import { Target, Eye, Award, Users } from "lucide-react";
-import { Logo } from "./Logo";
+import { Link, useNavigate } from "react-router-dom";
+import { ChevronLeft, Target, Eye, Award, Users } from "lucide-react";
+import { UnifiedHeader } from "./UnifiedHeader";
 
 export function AboutUs() {
+  const navigate = useNavigate();
+
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-40 safe-top">
-        <div className="max-w-md mx-auto px-4 py-4 flex items-center justify-center">
-          <Link to="/">
-            <Logo className="h-10 cursor-pointer" />
-          </Link>
-        </div>
-      </header>
+      <UnifiedHeader />
 
-      <main className="max-w-md mx-auto px-4 py-6">
-        <h1 className="text-gray-900 text-2xl mb-2">
-          About AlClean
-        </h1>
-        <p className="text-gray-600 mb-6">
-          Your trusted partner in cleaning solutions
-        </p>
+      <main className="max-w-4xl mx-auto px-4 py-6">
+        <div className="flex items-center gap-3 mb-6">
+          <button
+            type="button"
+            aria-label="Go back"
+            onClick={() => {
+              if (window.history.length > 1) {
+                navigate(-1);
+                return;
+              }
+              navigate("/account");
+            }}
+            className="w-10 h-10 flex-shrink-0 rounded-lg border border-gray-200 bg-white text-gray-700 flex items-center justify-center hover:bg-gray-100 transition-colors"
+          >
+            <ChevronLeft size={24} />
+          </button>
+          <div>
+            <h1 className="text-gray-900 text-2xl">About AlClean</h1>
+            <p className="text-gray-600">Your trusted partner in cleaning solutions</p>
+          </div>
+        </div>
 
         {/* Hero Section */}
         <div className="bg-gradient-to-r from-[#6DB33F] to-[#5da035] rounded-2xl p-6 text-white mb-6">

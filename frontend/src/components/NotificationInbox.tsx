@@ -8,7 +8,8 @@ import {
   Truck, 
   Info,
   Trash2,
-  CheckCheck
+  CheckCheck,
+  Settings,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { notificationService, PushNotification } from "../lib/notifications";
@@ -148,7 +149,7 @@ export function NotificationInbox() {
       <div className="max-w-4xl mx-auto px-4 py-6">
         {/* Header */}
         <div className="mb-6">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h1 className="text-2xl font-bold text-gray-900 mb-2">
                 Notifications
@@ -162,16 +163,17 @@ export function NotificationInbox() {
             <Button
               variant="outline"
               onClick={() => navigate("/notification-settings")}
-              className="flex items-center gap-2"
+              className="self-start flex items-center gap-2 sm:self-auto"
             >
-              ⚙️ Settings
+              <Settings size={18} />
+              Settings
             </Button>
           </div>
         </div>
 
         {/* Filter and Actions */}
-        <div className="flex items-center justify-between mb-4 gap-2">
-          <div className="flex gap-2">
+        <div className="flex flex-col gap-3 mb-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="grid grid-cols-2 gap-2 sm:flex">
             <Button
               variant={filter === "all" ? "default" : "outline"}
               onClick={() => setFilter("all")}
@@ -189,13 +191,13 @@ export function NotificationInbox() {
           </div>
 
           {notifications.length > 0 && (
-            <div className="flex gap-2">
+            <div className="grid grid-cols-2 gap-2 sm:flex">
               {unreadCount > 0 && (
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={handleMarkAllAsRead}
-                  className="text-sm"
+                  className="min-w-0 text-sm"
                 >
                   <CheckCheck size={16} className="mr-1" />
                   Mark all read
@@ -205,7 +207,7 @@ export function NotificationInbox() {
                 variant="outline"
                 size="sm"
                 onClick={handleClearAll}
-                className="text-sm text-red-600 hover:text-red-700"
+                className="min-w-0 text-sm text-red-600 hover:text-red-700"
               >
                 <Trash2 size={16} className="mr-1" />
                 Clear all
