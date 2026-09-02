@@ -866,6 +866,22 @@ interface SocialCustomerLogin {
   forceOverride: boolean;
 }
 
+function getAppleCustomerEmail(decoded: {
+  uid: string;
+  email?: string;
+  email_verified?: boolean;
+}): string {
+  if (decoded.email && decoded.email_verified === true) {
+    return decoded.email;
+  }
+
+  // Apple may omit email after the first authorization. The verified Firebase
+  // UID is stable for this Apple identity, so use a non-deliverable, anonymous
+  // address as the Shopify login key instead of rejecting a valid Apple login.
+  const digest = crypto.createHash("sha256").update(decoded.uid).digest("hex");
+  return `apple-${digest}@users.invalid`;
+}
+
 async function loginSocialCustomer(input: SocialCustomerLogin): Promise<{
   status: number;
   body: Record<string, unknown>;
@@ -935,17 +951,16 @@ router.post("/apple-login", async (req: Request, res: Response) => {
   }
 
   const provider = decoded.firebase?.sign_in_provider;
-  const emailVerified = decoded.email_verified === true;
-  if (provider !== "apple.com" || !decoded.email || !emailVerified) {
+  if (provider !== "apple.com" || !decoded.uid) {
     return res.status(401).json({
       success: false,
-      error: "Apple sign-in did not provide a verified email address",
+      error: "Invalid Apple sign-in identity",
     });
   }
 
   try {
     const result = await loginSocialCustomer({
-      email: decoded.email,
+      email: getAppleCustomerEmail(decoded),
       firstName: cleanName(firstName),
       lastName: cleanName(lastName),
       provider: "apple",

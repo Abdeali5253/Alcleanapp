@@ -105,6 +105,44 @@ describe("Apple authentication", () => {
     expect(response.body.user.accessToken).toBe("shopify-access-token");
   });
 
+  it("recreates an Apple account when Apple omits the email", async () => {
+    mocks.verifyIdToken.mockResolvedValue({
+      uid: "returning-apple-user",
+      firebase: { sign_in_provider: "apple.com" },
+    });
+    mocks.fetch
+      .mockResolvedValueOnce(jsonResponse({ customers: [] }))
+      .mockResolvedValueOnce(jsonResponse({
+        customer: {
+          id: "gid://shopify/Customer/2",
+          email: "apple-fallback@users.invalid",
+          firstName: "",
+          lastName: "",
+        },
+      }))
+      .mockResolvedValueOnce(jsonResponse({
+        data: {
+          customerAccessTokenCreate: {
+            customerAccessToken: {
+              accessToken: "recreated-access-token",
+              expiresAt: "2026-12-01T00:00:00.000Z",
+            },
+            customerUserErrors: [],
+          },
+        },
+      }));
+
+    const response = await request(app)
+      .post("/api/auth/apple-login")
+      .send({ idToken: "firebase-token" });
+
+    expect(response.status).toBe(200);
+    const createRequest = JSON.parse(String(mocks.fetch.mock.calls[1]?.[1]?.body));
+    expect(createRequest.customer.email).toMatch(
+      /^apple-[a-f0-9]{64}@users\.invalid$/,
+    );
+  });
+
   it("requires consent before replacing an existing password credential", async () => {
     mocks.verifyIdToken.mockResolvedValue({
       uid: "apple-user",
