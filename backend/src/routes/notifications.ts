@@ -1,60 +1,14 @@
 import { Router, Request, Response } from "express";
 import dotenv from "dotenv";
-import { initializeApp, cert } from "firebase-admin/app";
-import { getMessaging, Message } from "firebase-admin/messaging";
+import { Message } from "firebase-admin/messaging";
 import fs from "fs";
 import path from "path";
 import fetch from "node-fetch";
+import { getFirebaseAdminMessaging } from "../services/firebase-admin.js";
 
 dotenv.config();
 
 const router = Router();
-
-// Initialize Firebase Admin only when needed
-let adminInitialized = false;
-
-function initializeFirebaseAdmin() {
-  if (adminInitialized) return;
-  if (
-    !process.env.FIREBASE_PROJECT_ID ||
-    !process.env.FIREBASE_PRIVATE_KEY ||
-    !process.env.FIREBASE_CLIENT_EMAIL
-  ) {
-    throw new Error("Firebase credentials not configured");
-  }
-
-  // Handle private key formatting - Firebase service account keys are usually already properly formatted
-  let privateKey = process.env.FIREBASE_PRIVATE_KEY;
-
-  // If the key contains escaped newlines (\n), unescape them
-  if (privateKey && privateKey.includes("\\n")) {
-    privateKey = privateKey.replace(/\\n/g, "\n");
-  }
-
-  // Validate that we have a proper private key
-  if (!privateKey || privateKey.length < 500) {
-    throw new Error(
-      `Invalid Firebase private key: key is too short (${privateKey?.length || 0} chars). Please check your FIREBASE_PRIVATE_KEY environment variable.`,
-    );
-  }
-
-  if (!privateKey.includes("-----BEGIN PRIVATE KEY-----")) {
-    throw new Error(
-      "Invalid Firebase private key: missing BEGIN PRIVATE KEY header. Please ensure you're using the full private_key from your Firebase service account JSON.",
-    );
-  }
-
-  console.log("[FCM] Initializing Firebase Admin");
-
-  initializeApp({
-    credential: cert({
-      projectId: process.env.FIREBASE_PROJECT_ID,
-      privateKey: privateKey,
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-    }),
-  });
-  adminInitialized = true;
-}
 
 const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID || "";
 const FCM_V1_API_URL = `https://fcm.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/messages:send`;
@@ -287,6 +241,28 @@ function saveNotifications() {
   }
 }
 
+export function deleteNotificationDataForUser(userId: string): {
+  devicesDeleted: number;
+  notificationsDeleted: number;
+} {
+  let devicesDeleted = 0;
+  let notificationsDeleted = 0;
+  for (const [token, device] of deviceTokens.entries()) {
+    if (device.userId === userId) {
+      deviceTokens.delete(token);
+      devicesDeleted += 1;
+    }
+  }
+  for (const [id, notification] of sentNotifications.entries()) {
+    if (notification.userId === userId) {
+      sentNotifications.delete(id);
+      notificationsDeleted += 1;
+    }
+  }
+  if (devicesDeleted > 0) saveDevices();
+  if (notificationsDeleted > 0) saveNotifications();
+  return { devicesDeleted, notificationsDeleted };
+}
 // Initialize persistent storage
 loadDevices();
 loadNotifications();
@@ -298,16 +274,14 @@ async function sendFCMNotification(
 ): Promise<{ success: number; failure: number }> {
   console.log(`[FCM] Attempting to send notification to ${tokens.length} device(s)`);
 
+  let messaging;
   try {
-    initializeFirebaseAdmin();
-    const messaging = getMessaging();
-    console.log("[FCM] Firebase Admin ready");
+    messaging = getFirebaseAdminMessaging();
   } catch (error: any) {
     console.error("[FCM] Failed to initialize Firebase:", error);
     return { success: 0, failure: tokens.length };
   }
 
-  const messaging = getMessaging();
   let successCount = 0;
   let failureCount = 0;
 

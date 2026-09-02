@@ -112,7 +112,15 @@ const healthCheck = (_req: express.Request, res: express.Response) => {
 app.get('/health', healthCheck);
 
 app.use(
-  ['/api/auth/login', '/api/auth/signup', '/api/auth/recover', '/api/auth/google-login', '/api/auth/renew'],
+  [
+    '/api/auth/login',
+    '/api/auth/signup',
+    '/api/auth/recover',
+    '/api/auth/google-login',
+    '/api/auth/apple-login',
+    '/api/auth/renew',
+    '/api/auth/account',
+  ],
   authLimiter,
 );
 app.use('/api/notifications/register', registrationLimiter);

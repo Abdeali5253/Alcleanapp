@@ -33,7 +33,7 @@ const config: CapacitorConfig = {
     },
     FirebaseAuthentication: {
       skipNativeAuth: false,
-      providers: ["google.com"],
+      providers: ["google.com", "apple.com"],
       googleClientIds: [
         "310536726569-kp1kugnvltrp06qsdjcfih2vph97un9p.apps.googleusercontent.com",
         "310536726569-4ol0gv68fp40a9vql6u18ug422sej430.apps.googleusercontent.com",

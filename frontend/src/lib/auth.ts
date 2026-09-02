@@ -19,6 +19,7 @@ export interface User {
   phone: string;
   accessToken: string;
   expiresAt: string;
+  authProvider?: "password" | "google" | "apple";
 }
 
 export interface Order {
@@ -234,6 +235,7 @@ class AuthService {
       if (!data?.success || !data.user?.accessToken || !data.user?.expiresAt) {
         throw new Error("Session renewal returned invalid data");
       }
+      data.user.authProvider = this.user?.authProvider;
       await this.saveUser(data.user as User);
     } catch (error) {
       console.error("[Auth] Session renewal failed:", error);
@@ -266,10 +268,10 @@ class AuthService {
     return this.user.accessToken;
   }
 
-  private async clearNativeGoogleSession(): Promise<void> {
+  private async clearNativeSocialSession(): Promise<void> {
     try {
       await FirebaseAuthentication.signOut();
-      console.log("[Auth] Native Google session cleared");
+      console.log("[Auth] Native social session cleared");
     } catch (error) {
       console.log("[Auth] Native signOut skipped:", error);
     }
@@ -325,7 +327,7 @@ class AuthService {
         data?.error || `Social login failed (HTTP ${response.status})`;
 
       if (Capacitor.isNativePlatform()) {
-        await this.clearNativeGoogleSession();
+        await this.clearNativeSocialSession();
       }
 
       if (data?.code === "ACCOUNT_EXISTS_PASSWORD_LOGIN") {
@@ -341,7 +343,12 @@ class AuthService {
     }
 
     if (data?.success) {
-      await this.updateUser(data.user);
+      const authProvider = endpoint.includes("apple-login")
+        ? "apple"
+        : endpoint.includes("google-login")
+          ? "google"
+          : undefined;
+      await this.updateUser({ ...data.user, authProvider });
       return { success: true };
     }
 
@@ -412,6 +419,7 @@ class AuthService {
 
       const user: User = data.user;
 
+      user.authProvider = "password";
       await this.saveUser(user);
       toast.success("Logged in successfully!");
       return user;
@@ -531,6 +539,100 @@ class AuthService {
     }
   }
 
+  async appleLogin(forceOverride = false): Promise<SocialLoginResult> {
+    this.assertSupportedPlatform();
+    if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== "ios") {
+      return { success: false, error: "Sign in with Apple is available on iOS only" };
+    }
+
+    try {
+      const result = await FirebaseAuthentication.signInWithApple();
+      if (!result.user) throw new Error("Apple sign-in did not return a user");
+      const firebaseToken = await FirebaseAuthentication.getIdToken({
+        forceRefresh: true,
+      });
+      if (!firebaseToken.token) throw new Error("Apple sign-in token is unavailable");
+
+      const displayName = result.user.displayName?.trim() || "";
+      const [firstName = "", ...remainingName] = displayName.split(/\s+/).filter(Boolean);
+      const socialResult = await this.finishSocialLogin("/api/auth/apple-login", {
+        idToken: firebaseToken.token,
+        firstName,
+        lastName: remainingName.join(" "),
+        forceOverride,
+      });
+      if (socialResult.success) toast.success("Logged in with Apple successfully!");
+      return socialResult;
+    } catch (error: any) {
+      const message = String(error?.message || "");
+      if (message.toLowerCase().includes("cancel")) {
+        toast.info("Login cancelled");
+        return { success: false };
+      }
+      console.error("[Auth] Apple login error:", error);
+      const friendlyMessage = message || "Apple login failed. Please try again.";
+      toast.error(friendlyMessage);
+      return { success: false, error: friendlyMessage };
+    }
+  }
+
+  async deleteAccount(): Promise<void> {
+    const currentUser = this.user;
+    const accessToken = currentUser?.accessToken;
+    if (!accessToken) throw new Error("You must be signed in to delete your account");
+
+    let firebaseIdToken: string | undefined;
+    if (Capacitor.isNativePlatform()) {
+      const current = await FirebaseAuthentication.getCurrentUser();
+      if (!current.user && currentUser.authProvider === "google") {
+        await FirebaseAuthentication.signInWithGoogle(
+          Capacitor.getPlatform() === "android"
+            ? { useCredentialManager: false }
+            : undefined,
+        );
+      }
+      const refreshedCurrent = current.user
+        ? current
+        : await FirebaseAuthentication.getCurrentUser();
+      const isAppleUser = refreshedCurrent.user?.providerData.some(
+        (provider) => provider.providerId === "apple.com",
+      ) || currentUser.authProvider === "apple";
+      if (isAppleUser) {
+        const reauthenticated = await FirebaseAuthentication.signInWithApple();
+        const authorizationCode = reauthenticated.credential?.authorizationCode;
+        if (!authorizationCode) {
+          throw new Error("Apple reauthentication did not return an authorization code");
+        }
+        const token = await FirebaseAuthentication.getIdToken({ forceRefresh: true });
+        firebaseIdToken = token.token;
+        await FirebaseAuthentication.revokeAccessToken({ token: authorizationCode });
+      } else if (refreshedCurrent.user) {
+        const token = await FirebaseAuthentication.getIdToken({ forceRefresh: true });
+        firebaseIdToken = token.token;
+      }
+      if (currentUser.authProvider && currentUser.authProvider !== "password" && !firebaseIdToken) {
+        throw new Error("Please sign in again before deleting this social account");
+      }
+    }
+
+    const response = await fetch(`${BACKEND_URL}/api/auth/account`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(firebaseIdToken ? { firebaseIdToken } : {}),
+    });
+    const data = await response.json().catch(() => null);
+    if (!response.ok || !data?.success) {
+      throw new Error(data?.error || "Account deletion could not be completed");
+    }
+
+    await this.clearNativeSocialSession();
+    await this.clearSession();
+    toast.success("Your account has been permanently deleted");
+  }
+
   // Log out
   private async invalidateSession(): Promise<void> {
     const accessToken = this.user?.accessToken ?? null;
@@ -540,7 +642,7 @@ class AuthService {
     };
     window.dispatchEvent(new CustomEvent("alclean-before-logout", { detail }));
     await Promise.allSettled(detail.tasks);
-    await this.clearNativeGoogleSession();
+    await this.clearNativeSocialSession();
     await this.clearSession();
   }
 

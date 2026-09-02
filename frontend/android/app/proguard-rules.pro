@@ -1,6 +1,6 @@
 # Add project specific ProGuard rules here.
 # Firebase Authentication contains optional Facebook provider handlers, but this
-# app enables only Google. Suppress references to the intentionally absent SDK.
+# app enables only Google and Apple. Suppress references to the intentionally absent SDK.
 -dontwarn com.facebook.CallbackManager$Factory
 -dontwarn com.facebook.CallbackManager
 -dontwarn com.facebook.FacebookCallback

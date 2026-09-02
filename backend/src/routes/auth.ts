@@ -2,6 +2,8 @@ import { Router, Request, Response } from "express";
 import fetch from "node-fetch";
 import { OAuth2Client } from "google-auth-library";
 import crypto from "crypto";
+import { getFirebaseAdminAuth } from "../services/firebase-admin.js";
+import { deleteNotificationDataForUser } from "./notifications.js";
 
 const router = Router();
 
@@ -94,6 +96,38 @@ async function shopifyAdminFetch(
   return data;
 }
 
+async function shopifyAdminGraphql<T>(
+  query: string,
+  variables: Record<string, unknown>,
+): Promise<T> {
+  const { domain, adminToken, apiVersion } = getShopifyAdminConfig();
+  if (!domain || !adminToken) throw new Error("Shopify Admin not configured");
+  const response = await fetch(
+    `https://${domain}/admin/api/${apiVersion}/graphql.json`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Shopify-Access-Token": adminToken,
+      },
+      body: JSON.stringify({ query, variables }),
+    },
+  );
+  const payload: any = await response.json();
+  if (!response.ok || payload.errors?.length) {
+    const message =
+      payload.errors?.map((entry: any) => entry.message).join(", ") ||
+      `Shopify Admin API error: ${response.status}`;
+    throw new Error(message);
+  }
+  return payload.data as T;
+}
+
+function cleanName(value: unknown): string {
+  return typeof value === "string"
+    ? value.replace(/[\u0000-\u001F\u007F]/g, "").trim().slice(0, 100)
+    : "";
+}
 // Search customer by email
 async function findCustomerByEmail(email: string): Promise<any | null> {
   try {
@@ -819,6 +853,256 @@ router.post("/google-login", async (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       error: error.message || "Failed to login with Google",
+    });
+  }
+});
+
+interface SocialCustomerLogin {
+  email: string;
+  firstName: string;
+  lastName: string;
+  provider: "apple";
+  providerUserId: string;
+  forceOverride: boolean;
+}
+
+async function loginSocialCustomer(input: SocialCustomerLogin): Promise<{
+  status: number;
+  body: Record<string, unknown>;
+}> {
+  const password = buildSocialPassword(input.provider, input.providerUserId);
+  const existingCustomer = await findCustomerByEmail(input.email);
+  if (existingCustomer) {
+    let login = await createCustomerAccessToken(input.email, password);
+    if (!login.accessToken) {
+      const state = String(existingCustomer.state || "").toLowerCase();
+      const canSetPassword = ["disabled", "invited", "declined"].includes(state);
+      if (!canSetPassword && !input.forceOverride) {
+        return {
+          status: 409,
+          body: {
+            success: false,
+            code: "ACCOUNT_EXISTS_PASSWORD_LOGIN",
+            error:
+              "This email already has a password account. Use password login, or confirm that you want to use Sign in with Apple for this account.",
+          },
+        };
+      }
+      await setCustomerPassword(existingCustomer.id, password);
+      login = await createCustomerAccessToken(input.email, password);
+    }
+    if (!login.accessToken) {
+      return {
+        status: 400,
+        body: { success: false, error: login.errors || "Failed to sign in with Apple" },
+      };
+    }
+    const user = await getUserByCustomerAccessToken(login.accessToken, login.expiresAt);
+    return { status: 200, body: { success: true, user } };
+  }
+
+  const customer = await createCustomer(
+    input.email,
+    input.firstName,
+    input.lastName,
+    password,
+  );
+  const login = await createCustomerAccessToken(input.email, password);
+  if (!login.accessToken) {
+    return {
+      status: 400,
+      body: { success: false, error: login.errors || "Failed to sign in with Apple" },
+    };
+  }
+  const user = transformCustomer(customer);
+  user.accessToken = login.accessToken;
+  user.expiresAt = login.expiresAt;
+  return { status: 200, body: { success: true, user } };
+}
+
+router.post("/apple-login", async (req: Request, res: Response) => {
+  const { idToken, firstName, lastName, forceOverride = false } = req.body || {};
+  if (typeof idToken !== "string" || !idToken) {
+    return res.status(400).json({ success: false, error: "Firebase ID token is required" });
+  }
+
+  let decoded;
+  try {
+    decoded = await getFirebaseAdminAuth().verifyIdToken(idToken, true);
+  } catch (error) {
+    console.error("[Auth] Apple Firebase token verification failed", error);
+    return res.status(401).json({ success: false, error: "Invalid or expired Apple sign-in" });
+  }
+
+  const provider = decoded.firebase?.sign_in_provider;
+  const emailVerified = decoded.email_verified === true;
+  if (provider !== "apple.com" || !decoded.email || !emailVerified) {
+    return res.status(401).json({
+      success: false,
+      error: "Apple sign-in did not provide a verified email address",
+    });
+  }
+
+  try {
+    const result = await loginSocialCustomer({
+      email: decoded.email,
+      firstName: cleanName(firstName),
+      lastName: cleanName(lastName),
+      provider: "apple",
+      providerUserId: decoded.uid,
+      forceOverride: forceOverride === true,
+    });
+    return res.status(result.status).json(result.body);
+  } catch (error: any) {
+    console.error("[Auth] Apple login failed", error?.message || error);
+    return res.status(500).json({
+      success: false,
+      error: error?.message || "Failed to sign in with Apple",
+    });
+  }
+});
+
+async function listCustomerOrderIds(customerId: string): Promise<string[]> {
+  const orderIds: string[] = [];
+  let after: string | null = null;
+  do {
+    const data: {
+      customer: {
+        orders: {
+          nodes: Array<{ id: string }>;
+          pageInfo: { hasNextPage: boolean; endCursor: string | null };
+        };
+      } | null;
+    } = await shopifyAdminGraphql(
+      `query deletionOrders($id: ID!, $after: String) {
+        customer(id: $id) {
+          orders(first: 100, after: $after) {
+            nodes { id }
+            pageInfo { hasNextPage endCursor }
+          }
+        }
+      }`,
+      { id: customerId, after },
+    );
+    if (!data.customer) return orderIds;
+    orderIds.push(...data.customer.orders.nodes.map((order) => order.id));
+    after = data.customer.orders.pageInfo.hasNextPage
+      ? data.customer.orders.pageInfo.endCursor
+      : null;
+  } while (after);
+  return orderIds;
+}
+
+async function detachCustomerFromOrders(orderIds: string[]): Promise<void> {
+  for (const orderId of orderIds) {
+    const data: {
+      orderCustomerRemove: { userErrors: Array<{ message: string }> };
+    } = await shopifyAdminGraphql(
+      `mutation detachDeletionOrder($orderId: ID!) {
+        orderCustomerRemove(orderId: $orderId) {
+          userErrors { message }
+        }
+      }`,
+      { orderId },
+    );
+    if (data.orderCustomerRemove.userErrors.length > 0) {
+      throw new Error(
+        data.orderCustomerRemove.userErrors.map((entry) => entry.message).join(", "),
+      );
+    }
+  }
+}
+
+async function deleteShopifyCustomer(customerId: string): Promise<void> {
+  const data: {
+    customerDelete: {
+      deletedCustomerId: string | null;
+      userErrors: Array<{ message: string }>;
+    };
+  } = await shopifyAdminGraphql(
+    `mutation deleteAccountCustomer($id: ID!) {
+      customerDelete(input: { id: $id }) {
+        deletedCustomerId
+        userErrors { message }
+      }
+    }`,
+    { id: customerId },
+  );
+  if (data.customerDelete.userErrors.length > 0) {
+    throw new Error(
+      data.customerDelete.userErrors.map((entry) => entry.message).join(", "),
+    );
+  }
+  if (!data.customerDelete.deletedCustomerId) {
+    throw new Error("Shopify did not confirm customer deletion");
+  }
+}
+
+router.delete("/account", async (req: Request, res: Response) => {
+  const accessToken = req.headers.authorization?.match(/^Bearer\s+([^\s]+)$/i)?.[1];
+  if (!accessToken) {
+    return res.status(401).json({ success: false, error: "Access token required" });
+  }
+
+  let customer: any;
+  try {
+    customer = await getUserByCustomerAccessToken(accessToken);
+  } catch {
+    return res.status(401).json({ success: false, error: "Invalid or expired session" });
+  }
+  if (!customer?.id || !customer?.email) {
+    return res.status(401).json({ success: false, error: "Customer not found" });
+  }
+
+  const firebaseIdToken = req.body?.firebaseIdToken;
+  let firebaseUid: string | null = null;
+  if (firebaseIdToken !== undefined) {
+    if (typeof firebaseIdToken !== "string" || !firebaseIdToken) {
+      return res.status(400).json({ success: false, error: "Invalid Firebase identity" });
+    }
+    try {
+      const decoded = await getFirebaseAdminAuth().verifyIdToken(firebaseIdToken, true);
+      const provider = decoded.firebase?.sign_in_provider;
+      const allowedProvider = provider === "apple.com" || provider === "google.com";
+      if (
+        !allowedProvider ||
+        !decoded.email ||
+        decoded.email.toLowerCase() !== String(customer.email).toLowerCase()
+      ) {
+        return res.status(403).json({ success: false, error: "Account identity mismatch" });
+      }
+      firebaseUid = decoded.uid;
+    } catch (error) {
+      console.error("[Auth] Deletion identity verification failed", error);
+      return res.status(401).json({ success: false, error: "Reauthentication required" });
+    }
+  }
+
+  try {
+    const orderIds = await listCustomerOrderIds(customer.id);
+    await detachCustomerFromOrders(orderIds);
+    await deleteShopifyCustomer(customer.id);
+    const removed = deleteNotificationDataForUser(customer.id);
+
+    if (firebaseUid) {
+      try {
+        await getFirebaseAdminAuth().deleteUser(firebaseUid);
+      } catch (error: any) {
+        if (error?.code !== "auth/user-not-found") throw error;
+      }
+    }
+
+    return res.json({
+      success: true,
+      detachedOrderCount: orderIds.length,
+      removed,
+      retainedData: "Historical transaction records required for business or legal purposes",
+    });
+  } catch (error: any) {
+    console.error("[Auth] Account deletion failed", error?.message || error);
+    return res.status(502).json({
+      success: false,
+      error: "Account deletion could not be completed. Please try again.",
     });
   }
 });

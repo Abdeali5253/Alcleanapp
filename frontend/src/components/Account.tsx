@@ -19,6 +19,7 @@ import {
   Lock,
   Heart,
   Loader2,
+  Trash2,
 } from "lucide-react";
 import { authService, User as AuthUser } from "../lib/auth";
 import { Button } from "./ui/button";
@@ -80,7 +81,11 @@ export function Account() {
   const [showPassword, setShowPassword] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [isAppleLoading, setIsAppleLoading] = useState(false);
+  const [deletionStep, setDeletionStep] = useState<0 | 1 | 2>(0);
+  const [isDeleting, setIsDeleting] = useState(false);
   const googleLoginInFlightRef = useRef(false);
+  const appleLoginInFlightRef = useRef(false);
 
   // Form fields
   const [firstName, setFirstName] = useState("");
@@ -211,6 +216,57 @@ export function Account() {
       googleLoginInFlightRef.current = false;
       setIsGoogleLoading(false);
       setIsLoggingIn(false);
+    }
+  };
+
+  const handleAppleLogin = async () => {
+    if (appleLoginInFlightRef.current) return;
+    appleLoginInFlightRef.current = true;
+    setIsLoggingIn(true);
+    setIsAppleLoading(true);
+    try {
+      const result = await authService.appleLogin();
+      let isSuccessful = result.success;
+      if (!result.success && result.requiresOverride) {
+        const confirmed = window.confirm(
+          `${result.error}\n\nDo you want to use Sign in with Apple for this existing account?`,
+        );
+        if (!confirmed) return;
+        const overrideResult = await authService.appleLogin(true);
+        if (!overrideResult.success) return;
+        isSuccessful = true;
+      } else if (!result.success) {
+        return;
+      }
+      if (isSuccessful) {
+        const redirectPath = authService.getRedirectAfterLogin();
+        if (redirectPath) navigate(redirectPath);
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Apple login failed. Please try again.");
+    } finally {
+      appleLoginInFlightRef.current = false;
+      setIsAppleLoading(false);
+      setIsLoggingIn(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (isDeleting) return;
+    setIsDeleting(true);
+    try {
+      await authService.deleteAccount();
+      setDeletionStep(0);
+      navigate("/account", { replace: true });
+    } catch (error: any) {
+      const message = String(error?.message || "");
+      if (message.toLowerCase().includes("cancel")) {
+        toast.info("Account deletion cancelled");
+      } else {
+        toast.error(message || "Account deletion could not be completed. Please try again.");
+      }
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -502,12 +558,35 @@ export function Account() {
               <div className="flex-1 border-t border-gray-300"></div>
             </div>
 
+            {Capacitor.getPlatform() === "ios" && (
+              <Button
+                type="button"
+                onClick={handleAppleLogin}
+                disabled={isLoggingIn}
+                aria-busy={isAppleLoading}
+                className="w-full mt-4 h-11 bg-black hover:bg-gray-900 text-white border border-black"
+              >
+                {isAppleLoading ? (
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                ) : (
+                  <svg
+                    aria-hidden="true"
+                    className="w-5 h-5 mr-2 fill-current"
+                    viewBox="0 0 24 24"
+                  >
+                    <path d="M17.05 12.54c-.03-3.15 2.57-4.68 2.69-4.75-1.47-2.15-3.76-2.44-4.57-2.47-1.92-.2-3.79 1.15-4.77 1.15-1 0-2.51-1.13-4.14-1.1-2.09.03-4.05 1.24-5.12 3.11-2.21 3.83-.56 9.46 1.56 12.56 1.06 1.52 2.3 3.22 3.93 3.16 1.6-.07 2.2-1.01 4.13-1.01 1.91 0 2.48 1.01 4.15.97 1.72-.03 2.8-1.52 3.82-3.05 1.22-1.74 1.71-3.46 1.73-3.55-.04-.01-3.38-1.29-3.41-5.02ZM13.91 3.29A5.1 5.1 0 0 0 15.08 0a5.19 5.19 0 0 0-3.35 1.69 4.86 4.86 0 0 0-1.2 3.16 4.29 4.29 0 0 0 3.38-1.56Z" />
+                  </svg>
+                )}
+                {isAppleLoading ? "Signing in..." : "Continue with Apple"}
+              </Button>
+            )}
+
             <Button
               type="button"
               onClick={handleGoogleLogin}
               disabled={isLoggingIn}
               aria-busy={isGoogleLoading}
-              className="w-full mt-4 bg-white hover:bg-gray-50 text-gray-700 border border-gray-300"
+              className="w-full mt-4 h-11 bg-white hover:bg-gray-50 text-gray-700 border border-gray-300"
             >
               {isGoogleLoading ? (
                 <Loader2 className="mr-2 h-5 w-5 animate-spin" />
@@ -614,7 +693,97 @@ export function Account() {
           <LogOut size={20} />
           <span className="font-medium">Log Out</span>
         </button>
+
+        <button
+          type="button"
+          onClick={() => setDeletionStep(1)}
+          className="mt-3 w-full flex items-center justify-center gap-2 py-4 bg-red-600 rounded-2xl border border-red-600 text-white hover:bg-red-700 transition-colors"
+        >
+          <Trash2 size={20} />
+          <span className="font-medium">Delete Account</span>
+        </button>
       </main>
+
+      {deletionStep > 0 && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-account-title"
+        >
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+            {deletionStep === 1 ? (
+              <>
+                <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-red-100">
+                  <Trash2 className="text-red-600" size={28} />
+                </div>
+                <h2
+                  id="delete-account-title"
+                  className="text-center text-xl font-semibold text-gray-900"
+                >
+                  Delete your account?
+                </h2>
+                <p className="mt-3 text-sm leading-6 text-gray-600">
+                  This permanently deletes your profile, sign-in identity, saved app data,
+                  notification history, and device registrations. This cannot be undone.
+                </p>
+                <p className="mt-3 text-sm leading-6 text-gray-600">
+                  Historical transaction records may be retained only where needed for order
+                  fulfillment, refunds, fraud prevention, accounting, or legal obligations.
+                </p>
+                <div className="mt-6 flex gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => setDeletionStep(0)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="button"
+                    className="flex-1 bg-red-600 text-white hover:bg-red-700"
+                    onClick={() => setDeletionStep(2)}
+                  >
+                    Continue
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <>
+                <h2 id="delete-account-title" className="text-xl font-semibold text-gray-900">
+                  Final confirmation
+                </h2>
+                <p className="mt-3 text-sm leading-6 text-gray-600">
+                  Delete your AlClean account permanently? Apple users will be asked to sign in
+                  again so AlClean can revoke Sign in with Apple authorization.
+                </p>
+                <div className="mt-6 flex gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="flex-1"
+                    disabled={isDeleting}
+                    onClick={() => setDeletionStep(0)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="button"
+                    className="flex-1 bg-red-600 text-white hover:bg-red-700"
+                    disabled={isDeleting}
+                    aria-busy={isDeleting}
+                    onClick={handleDeleteAccount}
+                  >
+                    {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    {isDeleting ? "Deleting..." : "Delete Permanently"}
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
