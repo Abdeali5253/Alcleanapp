@@ -11,7 +11,7 @@ const router = Router();
 function getShopifyConfig() {
   const domain = process.env.SHOPIFY_STORE_DOMAIN || "";
   const token = process.env.SHOPIFY_STOREFRONT_TOKEN || "";
-  const apiVersion = process.env.SHOPIFY_API_VERSION || "2025-01";
+  const apiVersion = process.env.SHOPIFY_API_VERSION || "2026-07";
   const url = domain ? `https://${domain}/api/${apiVersion}/graphql.json` : "";
 
   return { domain, token, apiVersion, url };
@@ -20,7 +20,7 @@ function getShopifyConfig() {
 function getShopifyAdminConfig() {
   const domain = process.env.SHOPIFY_STORE_DOMAIN || "";
   const adminToken = process.env.SHOPIFY_ADMIN_API_TOKEN || "";
-  const apiVersion = process.env.SHOPIFY_API_VERSION || "2025-01";
+  const apiVersion = process.env.SHOPIFY_API_VERSION || "2026-07";
   const adminUrl = domain ? `https://${domain}/admin/api/${apiVersion}` : "";
 
   return { domain, adminToken, apiVersion, adminUrl };
@@ -1013,10 +1013,6 @@ async function detachCustomerFromOrders(orderIds: string[]): Promise<void> {
   }
 }
 
-class ShopifyHistoricalOrdersError extends Error {
-  readonly code = "SHOPIFY_HISTORICAL_ORDERS_SCOPE_REQUIRED";
-}
-
 function isAssociatedOrdersError(error: unknown): boolean {
   return String(error instanceof Error ? error.message : error)
     .toLowerCase()
@@ -1048,7 +1044,38 @@ async function deleteShopifyCustomer(customerId: string): Promise<void> {
   }
 }
 
-async function detachOrdersAndDeleteShopifyCustomer(customerId: string): Promise<number> {
+async function requestShopifyCustomerDataErasure(customerId: string): Promise<void> {
+  const data: {
+    customerRequestDataErasure: {
+      customerId: string | null;
+      userErrors: Array<{ code?: string; message: string }>;
+    };
+  } = await shopifyAdminGraphql(
+    `mutation requestAccountDataErasure($customerId: ID!) {
+      customerRequestDataErasure(customerId: $customerId) {
+        customerId
+        userErrors { code message }
+      }
+    }`,
+    { customerId },
+  );
+  if (data.customerRequestDataErasure.userErrors.length > 0) {
+    throw new Error(
+      data.customerRequestDataErasure.userErrors
+        .map((entry) => entry.message)
+        .join(", "),
+    );
+  }
+  if (!data.customerRequestDataErasure.customerId) {
+    throw new Error("Shopify did not confirm the customer data-erasure request");
+  }
+}
+
+async function detachOrdersAndDeleteShopifyCustomer(customerId: string): Promise<{
+  detachedOrderCount: number;
+  shopifyCustomerDeleted: boolean;
+  shopifyErasureRequested: boolean;
+}> {
   const detachedOrderIds = new Set<string>();
 
   // Shopify can take a moment to expose the updated customer/order relationship.
@@ -1060,7 +1087,11 @@ async function detachOrdersAndDeleteShopifyCustomer(customerId: string): Promise
 
     try {
       await deleteShopifyCustomer(customerId);
-      return detachedOrderIds.size;
+      return {
+        detachedOrderCount: detachedOrderIds.size,
+        shopifyCustomerDeleted: true,
+        shopifyErasureRequested: false,
+      };
     } catch (error) {
       if (!isAssociatedOrdersError(error)) throw error;
       if (attempt < 2) {
@@ -1069,9 +1100,12 @@ async function detachOrdersAndDeleteShopifyCustomer(customerId: string): Promise
     }
   }
 
-  throw new ShopifyHistoricalOrdersError(
-    "Shopify still reports associated orders after detachment. The Admin API token likely cannot see orders older than 60 days. Grant read_all_orders together with write_orders and write_customers, then issue and deploy an updated SHOPIFY_ADMIN_API_TOKEN.",
-  );
+  await requestShopifyCustomerDataErasure(customerId);
+  return {
+    detachedOrderCount: detachedOrderIds.size,
+    shopifyCustomerDeleted: false,
+    shopifyErasureRequested: true,
+  };
 }
 
 router.delete("/account", async (req: Request, res: Response) => {
@@ -1115,7 +1149,11 @@ router.delete("/account", async (req: Request, res: Response) => {
   }
 
   try {
-    const detachedOrderCount = await detachOrdersAndDeleteShopifyCustomer(customer.id);
+    const {
+      detachedOrderCount,
+      shopifyCustomerDeleted,
+      shopifyErasureRequested,
+    } = await detachOrdersAndDeleteShopifyCustomer(customer.id);
     const removed = deleteNotificationDataForUser(customer.id);
 
     if (firebaseUid) {
@@ -1129,19 +1167,13 @@ router.delete("/account", async (req: Request, res: Response) => {
     return res.json({
       success: true,
       detachedOrderCount,
+      shopifyCustomerDeleted,
+      shopifyErasureRequested,
       removed,
       retainedData: "Historical transaction records required for business or legal purposes",
     });
   } catch (error: any) {
     console.error("[Auth] Account deletion failed", error?.message || error);
-    if (error instanceof ShopifyHistoricalOrdersError) {
-      return res.status(409).json({
-        success: false,
-        code: error.code,
-        error:
-          "Account deletion is temporarily unavailable because an older order is still linked. Please contact AlClean support.",
-      });
-    }
     return res.status(502).json({
       success: false,
       error: "Account deletion could not be completed. Please try again.",

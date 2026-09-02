@@ -635,9 +635,15 @@ class AuthService {
       throw new Error(data?.error || "Account deletion could not be completed");
     }
 
+    const completionMessage = data.shopifyErasureRequested
+      ? "Your account is closed. Shopify is processing removal of personal information, which can take up to 10 days."
+      : "Your account has been permanently deleted";
+
     await this.clearNativeSocialSession();
     await this.clearSession();
-    toast.success("Your account has been permanently deleted");
+    toast.success(completionMessage, {
+      duration: data.shopifyErasureRequested ? 10000 : undefined,
+    });
   }
 
   // Log out

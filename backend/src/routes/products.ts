@@ -7,7 +7,7 @@ const router = Router();
 function getShopifyConfig() {
   const domain = process.env.SHOPIFY_STORE_DOMAIN || '';
   const token = process.env.SHOPIFY_STOREFRONT_TOKEN || '';
-  const apiVersion = process.env.SHOPIFY_API_VERSION || '2025-01';
+  const apiVersion = process.env.SHOPIFY_API_VERSION || '2026-07';
   const url = domain ? `https://${domain}/api/${apiVersion}/graphql.json` : '';
   
   return { domain, token, apiVersion, url };

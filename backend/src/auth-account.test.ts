@@ -189,7 +189,7 @@ describe("account deletion", () => {
     expect(mocks.deleteUser).toHaveBeenCalledWith("firebase-user");
   });
 
-  it("explains when historical Shopify orders are hidden from the Admin token", async () => {
+  it("requests data erasure when historical order activity prevents deletion", async () => {
     mocks.fetch
       .mockResolvedValueOnce(jsonResponse({
         data: {
@@ -261,6 +261,14 @@ describe("account deletion", () => {
             ],
           },
         },
+      }))
+      .mockResolvedValueOnce(jsonResponse({
+        data: {
+          customerRequestDataErasure: {
+            customerId: "gid://shopify/Customer/1",
+            userErrors: [],
+          },
+        },
       }));
 
     const response = await request(app)
@@ -268,8 +276,10 @@ describe("account deletion", () => {
       .set("Authorization", "Bearer shopify-access-token")
       .send({});
 
-    expect(response.status).toBe(409);
-    expect(response.body.code).toBe("SHOPIFY_HISTORICAL_ORDERS_SCOPE_REQUIRED");
+    expect(response.status).toBe(200);
+    expect(response.body.shopifyCustomerDeleted).toBe(false);
+    expect(response.body.shopifyErasureRequested).toBe(true);
+    expect(mocks.deleteNotificationDataForUser).toHaveBeenCalled();
   });
 
   it("rejects a Firebase identity that does not match the Shopify customer", async () => {
