@@ -615,14 +615,21 @@ class AuthService {
       }
     }
 
-    const response = await fetch(`${BACKEND_URL}/api/auth/account`, {
-      method: "DELETE",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(firebaseIdToken ? { firebaseIdToken } : {}),
-    });
+    let response: Response;
+    try {
+      response = await fetch(`${BACKEND_URL}/api/auth/account`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(firebaseIdToken ? { firebaseIdToken } : {}),
+      });
+    } catch {
+      throw new Error(
+        "Could not reach the AlClean server. Check your internet connection and try again.",
+      );
+    }
     const data = await response.json().catch(() => null);
     if (!response.ok || !data?.success) {
       throw new Error(data?.error || "Account deletion could not be completed");

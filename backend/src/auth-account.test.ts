@@ -189,6 +189,89 @@ describe("account deletion", () => {
     expect(mocks.deleteUser).toHaveBeenCalledWith("firebase-user");
   });
 
+  it("explains when historical Shopify orders are hidden from the Admin token", async () => {
+    mocks.fetch
+      .mockResolvedValueOnce(jsonResponse({
+        data: {
+          customer: {
+            id: "gid://shopify/Customer/1",
+            email: "person@example.com",
+            firstName: "Test",
+            lastName: "Person",
+            phone: null,
+          },
+        },
+      }))
+      .mockResolvedValueOnce(jsonResponse({
+        data: {
+          customer: {
+            orders: {
+              nodes: [],
+              pageInfo: { hasNextPage: false, endCursor: null },
+            },
+          },
+        },
+      }))
+      .mockResolvedValueOnce(jsonResponse({
+        data: {
+          customerDelete: {
+            deletedCustomerId: null,
+            userErrors: [
+              { message: "Customer can't be deleted because they have associated orders" },
+            ],
+          },
+        },
+      }))
+      .mockResolvedValueOnce(jsonResponse({
+        data: {
+          customer: {
+            orders: {
+              nodes: [],
+              pageInfo: { hasNextPage: false, endCursor: null },
+            },
+          },
+        },
+      }))
+      .mockResolvedValueOnce(jsonResponse({
+        data: {
+          customerDelete: {
+            deletedCustomerId: null,
+            userErrors: [
+              { message: "Customer can't be deleted because they have associated orders" },
+            ],
+          },
+        },
+      }))
+      .mockResolvedValueOnce(jsonResponse({
+        data: {
+          customer: {
+            orders: {
+              nodes: [],
+              pageInfo: { hasNextPage: false, endCursor: null },
+            },
+          },
+        },
+      }))
+      .mockResolvedValueOnce(jsonResponse({
+        data: {
+          customerDelete: {
+            deletedCustomerId: null,
+            userErrors: [
+              { message: "Customer can't be deleted because they have associated orders" },
+            ],
+          },
+        },
+      }));
+
+    const response = await request(app)
+      .delete("/api/auth/account")
+      .set("Authorization", "Bearer shopify-access-token")
+      .send({});
+
+    expect(response.status).toBe(409);
+    expect(response.body.code).toBe("SHOPIFY_HISTORICAL_ORDERS_SCOPE_REQUIRED");
+  });
+
   it("rejects a Firebase identity that does not match the Shopify customer", async () => {
     mocks.verifyIdToken.mockResolvedValue({
       uid: "other-user",
