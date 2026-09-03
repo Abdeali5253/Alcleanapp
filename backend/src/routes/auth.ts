@@ -1165,6 +1165,16 @@ router.delete("/account", async (req: Request, res: Response) => {
         !allowedProvider ||
         (!tokenEmailMatches && !appleUidMatches)
       ) {
+        console.warn("[Auth] Account deletion identity mismatch", {
+          provider: provider || "unknown",
+          customerId: customer.id,
+          customerUsesAnonymousAppleEmail:
+            customerEmail.startsWith("apple-") &&
+            customerEmail.endsWith("@users.invalid"),
+          tokenHasEmail: typeof decoded.email === "string",
+          tokenEmailMatches,
+          appleUidMatches,
+        });
         return res.status(403).json({ success: false, error: "Account identity mismatch" });
       }
       firebaseUid = decoded.uid;

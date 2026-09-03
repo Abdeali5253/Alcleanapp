@@ -207,6 +207,9 @@ describe("secure authentication lifecycle", () => {
     expect(mocks.revokeAccessToken).toHaveBeenCalledWith({
       token: "fresh-authorization-code",
     });
+    expect(mocks.getIdToken.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.signInWithApple.mock.invocationCallOrder[0],
+    );
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining("/api/auth/account"),
       expect.objectContaining({

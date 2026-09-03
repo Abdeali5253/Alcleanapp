@@ -598,13 +598,27 @@ class AuthService {
         (provider) => provider.providerId === "apple.com",
       ) || currentUser.authProvider === "apple";
       if (isAppleUser) {
+        // Keep the token for the Firebase identity that owns the current app
+        // session. A new Apple authorization can switch the active Firebase
+        // user before we revoke it, which would make deletion look like an
+        // account mismatch on devices with more than one Apple identity.
+        if (refreshedCurrent.user) {
+          const currentIdentityToken = await FirebaseAuthentication.getIdToken({
+            forceRefresh: true,
+          });
+          firebaseIdToken = currentIdentityToken.token;
+        }
         const reauthenticated = await FirebaseAuthentication.signInWithApple();
         const authorizationCode = reauthenticated.credential?.authorizationCode;
         if (!authorizationCode) {
           throw new Error("Apple reauthentication did not return an authorization code");
         }
-        const token = await FirebaseAuthentication.getIdToken({ forceRefresh: true });
-        firebaseIdToken = token.token;
+        if (!firebaseIdToken) {
+          const reauthenticatedToken = await FirebaseAuthentication.getIdToken({
+            forceRefresh: true,
+          });
+          firebaseIdToken = reauthenticatedToken.token;
+        }
         await FirebaseAuthentication.revokeAccessToken({ token: authorizationCode });
       } else if (refreshedCurrent.user) {
         const token = await FirebaseAuthentication.getIdToken({ forceRefresh: true });
