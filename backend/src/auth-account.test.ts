@@ -173,6 +173,55 @@ describe("Apple authentication", () => {
 });
 
 describe("account deletion", () => {
+  it("deletes an anonymous Apple account using its verified Apple UID", async () => {
+    mocks.verifyIdToken.mockResolvedValue({
+      uid: "returning-apple-user",
+      email: "person@example.com",
+      firebase: { sign_in_provider: "apple.com" },
+    });
+    mocks.deleteUser.mockResolvedValue(undefined);
+    const anonymousEmail =
+      "apple-a71965c0900dd9bf5420d12e8332c58443409e78a4bacb03c98c7ced2aeb26e7@users.invalid";
+    mocks.fetch
+      .mockResolvedValueOnce(jsonResponse({
+        data: {
+          customer: {
+            id: "gid://shopify/Customer/2",
+            email: anonymousEmail,
+            firstName: "",
+            lastName: "",
+            phone: null,
+          },
+        },
+      }))
+      .mockResolvedValueOnce(jsonResponse({
+        data: {
+          customer: {
+            orders: {
+              nodes: [],
+              pageInfo: { hasNextPage: false, endCursor: null },
+            },
+          },
+        },
+      }))
+      .mockResolvedValueOnce(jsonResponse({
+        data: {
+          customerDelete: {
+            deletedCustomerId: "gid://shopify/Customer/2",
+            userErrors: [],
+          },
+        },
+      }));
+
+    const response = await request(app)
+      .delete("/api/auth/account")
+      .set("Authorization", "Bearer shopify-access-token")
+      .send({ firebaseIdToken: "fresh-firebase-token" });
+
+    expect(response.status).toBe(200);
+    expect(mocks.deleteUser).toHaveBeenCalledWith("returning-apple-user");
+  });
+
   it("detaches orders, deletes account data, and deletes the matching Firebase user", async () => {
     mocks.verifyIdToken.mockResolvedValue({
       uid: "firebase-user",

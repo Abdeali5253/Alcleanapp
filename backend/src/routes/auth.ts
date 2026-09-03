@@ -184,14 +184,18 @@ async function setCustomerPassword(
 
 // Transform Shopify customer to our User type
 function transformCustomer(customer: any): any {
+  const email = String(customer.email || "");
+  const firstName = customer.firstName || customer.first_name || "";
+  const lastName = customer.lastName || customer.last_name || "";
+  const isAnonymousAppleAccount =
+    email.startsWith("apple-") && email.endsWith("@users.invalid");
   return {
     id: customer.id,
-    email: customer.email,
-    name:
-      `${customer.firstName || ""} ${customer.lastName || ""}`.trim() ||
-      customer.email,
-    firstName: customer.firstName || "",
-    lastName: customer.lastName || "",
+    email,
+    name: `${firstName} ${lastName}`.trim() ||
+      (isAnonymousAppleAccount ? "Apple User" : email),
+    firstName,
+    lastName,
     phone: customer.phone || "",
   };
 }
@@ -1149,10 +1153,17 @@ router.delete("/account", async (req: Request, res: Response) => {
       const decoded = await getFirebaseAdminAuth().verifyIdToken(firebaseIdToken, true);
       const provider = decoded.firebase?.sign_in_provider;
       const allowedProvider = provider === "apple.com" || provider === "google.com";
+      const customerEmail = String(customer.email).toLowerCase();
+      const tokenEmailMatches =
+        typeof decoded.email === "string" &&
+        decoded.email.toLowerCase() === customerEmail;
+      const appleUidMatches =
+        provider === "apple.com" &&
+        typeof decoded.uid === "string" &&
+        getAppleCustomerEmail({ uid: decoded.uid }).toLowerCase() === customerEmail;
       if (
         !allowedProvider ||
-        !decoded.email ||
-        decoded.email.toLowerCase() !== String(customer.email).toLowerCase()
+        (!tokenEmailMatches && !appleUidMatches)
       ) {
         return res.status(403).json({ success: false, error: "Account identity mismatch" });
       }

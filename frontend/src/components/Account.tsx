@@ -93,6 +93,9 @@ export function Account() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [phone, setPhone] = useState("");
+  const isAnonymousAppleAccount = Boolean(
+    user?.email?.startsWith("apple-") && user.email.endsWith("@users.invalid"),
+  );
 
   useEffect(() => {
     const unsubscribe = authService.subscribe((newUser) => {
@@ -656,8 +659,12 @@ export function Account() {
               <User size={32} className="text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-bold">{user.name || "User"}</h1>
-              <p className="text-white/80 text-sm">{user.email}</p>
+              <h1 className="text-xl font-bold">
+                {isAnonymousAppleAccount ? "Apple User" : user.name || "User"}
+              </h1>
+              <p className="text-white/80 text-sm">
+                {isAnonymousAppleAccount ? "Private Apple account" : user.email}
+              </p>
               {user.phone && (
                 <p className="text-white/70 text-xs">{user.phone}</p>
               )}
