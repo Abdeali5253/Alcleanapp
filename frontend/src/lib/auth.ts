@@ -348,6 +348,14 @@ class AuthService {
         : endpoint.includes("google-login")
           ? "google"
           : undefined;
+      if (data.refreshFirebaseToken === true && Capacitor.isNativePlatform()) {
+        const refreshedToken = await FirebaseAuthentication.getIdToken({
+          forceRefresh: true,
+        });
+        if (!refreshedToken.token) {
+          throw new Error("Could not establish the secure account identity");
+        }
+      }
       await this.updateUser({ ...data.user, authProvider });
       return { success: true };
     }
@@ -594,15 +602,18 @@ class AuthService {
       const refreshedCurrent = current.user
         ? current
         : await FirebaseAuthentication.getCurrentUser();
-      const isAppleUser = refreshedCurrent.user?.providerData.some(
+      const currentFirebaseUserIsApple = Boolean(
+        refreshedCurrent.user?.providerData.some(
         (provider) => provider.providerId === "apple.com",
-      ) || currentUser.authProvider === "apple";
+        ),
+      );
+      const isAppleUser = currentFirebaseUserIsApple || currentUser.authProvider === "apple";
       if (isAppleUser) {
         // Keep the token for the Firebase identity that owns the current app
         // session. A new Apple authorization can switch the active Firebase
         // user before we revoke it, which would make deletion look like an
         // account mismatch on devices with more than one Apple identity.
-        if (refreshedCurrent.user) {
+        if (refreshedCurrent.user && currentFirebaseUserIsApple) {
           const currentIdentityToken = await FirebaseAuthentication.getIdToken({
             forceRefresh: true,
           });
@@ -646,7 +657,15 @@ class AuthService {
     }
     const data = await response.json().catch(() => null);
     if (!response.ok || !data?.success) {
-      throw new Error(data?.error || "Account deletion could not be completed");
+      const error = new Error(data?.error || "Account deletion could not be completed") as Error & {
+        code?: string;
+      };
+      error.code = data?.code;
+      if (error.code === "ACCOUNT_BINDING_MISSING") {
+        await this.clearNativeSocialSession();
+        await this.clearSession();
+      }
+      throw error;
     }
 
     const completionMessage = data.shopifyErasureRequested

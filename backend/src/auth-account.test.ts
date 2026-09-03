@@ -5,6 +5,8 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   fetch: vi.fn(),
   verifyIdToken: vi.fn(),
+  getUser: vi.fn(),
+  setCustomUserClaims: vi.fn(),
   deleteUser: vi.fn(),
   deleteNotificationDataForUser: vi.fn(() => ({
     devicesDeleted: 1,
@@ -16,6 +18,8 @@ vi.mock("node-fetch", () => ({ default: mocks.fetch }));
 vi.mock("./services/firebase-admin.js", () => ({
   getFirebaseAdminAuth: () => ({
     verifyIdToken: mocks.verifyIdToken,
+    getUser: mocks.getUser,
+    setCustomUserClaims: mocks.setCustomUserClaims,
     deleteUser: mocks.deleteUser,
   }),
 }));
@@ -42,6 +46,10 @@ beforeAll(async () => {
 beforeEach(() => {
   mocks.fetch.mockReset();
   mocks.verifyIdToken.mockReset();
+  mocks.getUser.mockReset();
+  mocks.getUser.mockResolvedValue({ customClaims: { existingClaim: true } });
+  mocks.setCustomUserClaims.mockReset();
+  mocks.setCustomUserClaims.mockResolvedValue(undefined);
   mocks.deleteUser.mockReset();
   mocks.deleteNotificationDataForUser.mockClear();
 });
@@ -103,6 +111,12 @@ describe("Apple authentication", () => {
     expect(response.status).toBe(200);
     expect(response.body.user.email).toBe("private@privaterelay.appleid.com");
     expect(response.body.user.accessToken).toBe("shopify-access-token");
+    expect(response.body.refreshFirebaseToken).toBe(true);
+    expect(mocks.setCustomUserClaims).toHaveBeenCalledWith("apple-user", {
+      existingClaim: true,
+      shopifyCustomerId: "gid://shopify/Customer/1",
+      authProvider: "apple",
+    });
   });
 
   it("recreates an Apple account when Apple omits the email", async () => {
@@ -141,6 +155,13 @@ describe("Apple authentication", () => {
     expect(createRequest.customer.email).toMatch(
       /^apple-[a-f0-9]{64}@users\.invalid$/,
     );
+    expect(mocks.setCustomUserClaims).toHaveBeenCalledWith(
+      "returning-apple-user",
+      expect.objectContaining({
+        shopifyCustomerId: "gid://shopify/Customer/2",
+        authProvider: "apple",
+      }),
+    );
   });
 
   it("requires consent before replacing an existing password credential", async () => {
@@ -177,6 +198,8 @@ describe("account deletion", () => {
     mocks.verifyIdToken.mockResolvedValue({
       uid: "regenerated-apple-user",
       email: "person@example.com",
+      shopifyCustomerId: "gid://shopify/Customer/2",
+      authProvider: "apple",
       firebase: { sign_in_provider: "apple.com" },
     });
     mocks.deleteUser.mockResolvedValue(undefined);
@@ -226,6 +249,8 @@ describe("account deletion", () => {
     mocks.verifyIdToken.mockResolvedValue({
       uid: "firebase-user",
       email: "person@example.com",
+      shopifyCustomerId: "gid://shopify/Customer/1",
+      authProvider: "apple",
       firebase: { sign_in_provider: "apple.com" },
     });
     mocks.deleteUser.mockResolvedValue(undefined);
@@ -274,6 +299,62 @@ describe("account deletion", () => {
       "gid://shopify/Customer/1",
     );
     expect(mocks.deleteUser).toHaveBeenCalledWith("firebase-user");
+  });
+
+  it("requires Apple users with a legacy session to sign in again", async () => {
+    mocks.verifyIdToken.mockResolvedValue({
+      uid: "legacy-apple-user",
+      firebase: { sign_in_provider: "apple.com" },
+    });
+    mocks.fetch.mockResolvedValueOnce(jsonResponse({
+      data: {
+        customer: {
+          id: "gid://shopify/Customer/1",
+          email: "private@privaterelay.appleid.com",
+          firstName: "Private",
+          lastName: "Person",
+          phone: null,
+        },
+      },
+    }));
+
+    const response = await request(app)
+      .delete("/api/auth/account")
+      .set("Authorization", "Bearer shopify-access-token")
+      .send({ firebaseIdToken: "legacy-firebase-token" });
+
+    expect(response.status).toBe(403);
+    expect(response.body.code).toBe("ACCOUNT_BINDING_MISSING");
+    expect(mocks.deleteUser).not.toHaveBeenCalled();
+  });
+
+  it("rejects an Apple identity bound to a different Shopify customer", async () => {
+    mocks.verifyIdToken.mockResolvedValue({
+      uid: "other-apple-user",
+      shopifyCustomerId: "gid://shopify/Customer/999",
+      authProvider: "apple",
+      firebase: { sign_in_provider: "apple.com" },
+    });
+    mocks.fetch.mockResolvedValueOnce(jsonResponse({
+      data: {
+        customer: {
+          id: "gid://shopify/Customer/1",
+          email: "private@privaterelay.appleid.com",
+          firstName: "Private",
+          lastName: "Person",
+          phone: null,
+        },
+      },
+    }));
+
+    const response = await request(app)
+      .delete("/api/auth/account")
+      .set("Authorization", "Bearer shopify-access-token")
+      .send({ firebaseIdToken: "other-firebase-token" });
+
+    expect(response.status).toBe(403);
+    expect(response.body.code).toBe("ACCOUNT_BINDING_MISMATCH");
+    expect(mocks.deleteUser).not.toHaveBeenCalled();
   });
 
   it("requests data erasure when historical order activity prevents deletion", async () => {

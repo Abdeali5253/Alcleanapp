@@ -16,6 +16,12 @@ import { startNotificationAdminServer } from './notification-admin-server.js';
 
 const app = express();
 const port: number = Number(process.env.PORT) || 3001;
+const apiVersion =
+  process.env.ALCLEAN_API_VERSION?.trim() ||
+  process.env.GIT_COMMIT_SHA?.trim() ||
+  process.env.SOURCE_VERSION?.trim() ||
+  process.env.npm_package_version?.trim() ||
+  'development';
 // Trust forwarded client addresses only from the configured proxy network.
 // The loopback default is safe for Nginx running on the same host and avoids
 // accepting spoofed X-Forwarded-* headers on direct network connections.
@@ -83,13 +89,19 @@ app.use(
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
+    exposedHeaders: ['X-AlClean-API-Version', 'X-AlClean-Request-ID'],
   }),
 );
+app.use((_req, res, next) => {
+  res.setHeader('X-AlClean-API-Version', apiVersion);
+  next();
+});
 app.use(express.json({ limit: '32kb' }));
 
 const healthCheck = (_req: express.Request, res: express.Response) => {
   res.json({
     status: 'ok',
+    apiVersion,
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development',
     services: {

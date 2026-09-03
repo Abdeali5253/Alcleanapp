@@ -940,6 +940,19 @@ async function loginSocialCustomer(input: SocialCustomerLogin): Promise<{
   return { status: 200, body: { success: true, user } };
 }
 
+async function bindFirebaseUserToShopifyCustomer(
+  firebaseUid: string,
+  shopifyCustomerId: string,
+): Promise<void> {
+  const auth = getFirebaseAdminAuth();
+  const firebaseUser = await auth.getUser(firebaseUid);
+  await auth.setCustomUserClaims(firebaseUid, {
+    ...(firebaseUser.customClaims || {}),
+    shopifyCustomerId,
+    authProvider: "apple",
+  });
+}
+
 router.post("/apple-login", async (req: Request, res: Response) => {
   const { idToken, firstName, lastName, forceOverride = false } = req.body || {};
   if (typeof idToken !== "string" || !idToken) {
@@ -971,6 +984,14 @@ router.post("/apple-login", async (req: Request, res: Response) => {
       providerUserId: decoded.uid,
       forceOverride: forceOverride === true,
     });
+    if (result.status === 200 && result.body.success === true) {
+      const user = result.body.user as { id?: unknown } | undefined;
+      if (typeof user?.id !== "string" || !user.id) {
+        throw new Error("Shopify customer identity is unavailable");
+      }
+      await bindFirebaseUserToShopifyCustomer(decoded.uid, user.id);
+      result.body.refreshFirebaseToken = true;
+    }
     return res.status(result.status).json(result.body);
   } catch (error: any) {
     console.error("[Auth] Apple login failed", error?.message || error);
@@ -1128,6 +1149,8 @@ async function detachOrdersAndDeleteShopifyCustomer(customerId: string): Promise
 }
 
 router.delete("/account", async (req: Request, res: Response) => {
+  const requestId = crypto.randomUUID();
+  res.setHeader("X-AlClean-Request-ID", requestId);
   const accessToken = req.headers.authorization?.match(/^Bearer\s+([^\s]+)$/i)?.[1];
   if (!accessToken) {
     return res.status(401).json({ success: false, error: "Access token required" });
@@ -1152,40 +1175,76 @@ router.delete("/account", async (req: Request, res: Response) => {
     try {
       const decoded = await getFirebaseAdminAuth().verifyIdToken(firebaseIdToken, true);
       const provider = decoded.firebase?.sign_in_provider;
-      const allowedProvider = provider === "apple.com" || provider === "google.com";
-      const customerEmail = String(customer.email).toLowerCase();
-      const customerUsesAnonymousAppleEmail =
-        customerEmail.startsWith("apple-") &&
-        customerEmail.endsWith("@users.invalid");
-      const tokenEmailMatches =
-        typeof decoded.email === "string" &&
-        decoded.email.toLowerCase() === customerEmail;
-      const appleUidMatches =
-        provider === "apple.com" &&
-        typeof decoded.uid === "string" &&
-        getAppleCustomerEmail({ uid: decoded.uid }).toLowerCase() === customerEmail;
-      // The authenticated Shopify access token already proves ownership of the
-      // customer account. Anonymous Apple accounts have no real email to compare,
-      // and Apple/Firebase can issue a new UID after authorization is revoked.
-      // Require a freshly verified Apple identity, but do not reject deletion
-      // solely because that regenerated UID differs from the original one.
-      const anonymousAppleReauthentication =
-        provider === "apple.com" && customerUsesAnonymousAppleEmail;
-      if (
-        !allowedProvider ||
-        (!tokenEmailMatches && !appleUidMatches && !anonymousAppleReauthentication)
-      ) {
-        console.warn("[Auth] Account deletion identity mismatch", {
-          provider: provider || "unknown",
-          customerId: customer.id,
-          customerUsesAnonymousAppleEmail,
-          tokenHasEmail: typeof decoded.email === "string",
-          tokenEmailMatches,
-          appleUidMatches,
+      const claimedCustomerId = decoded.shopifyCustomerId;
+      const claimedAuthProvider = decoded.authProvider;
+      const hasBinding =
+        typeof claimedCustomerId === "string" &&
+        typeof claimedAuthProvider === "string";
+      const customerBindingMatches = claimedCustomerId === customer.id;
+
+      // Google accounts retain their verified-email check until that login
+      // path is migrated to Firebase custom claims separately.
+      if (provider === "google.com") {
+        const googleEmailMatches =
+          typeof decoded.email === "string" &&
+          decoded.email.toLowerCase() === String(customer.email).toLowerCase();
+        if (!googleEmailMatches) {
+          console.warn("[Auth] Google account deletion identity mismatch", {
+            requestId,
+            provider,
+            emailMatches: false,
+          });
+          return res.status(403).json({
+            success: false,
+            code: "ACCOUNT_BINDING_MISMATCH",
+            error: "The signed-in Google account does not own this AlClean account.",
+          });
+        }
+        firebaseUid = decoded.uid;
+      } else if (provider !== "apple.com") {
+        return res.status(403).json({
+          success: false,
+          code: "APPLE_PROVIDER_REQUIRED",
+          error: "Please sign in with Apple again before deleting your account.",
         });
-        return res.status(403).json({ success: false, error: "Account identity mismatch" });
+      } else if (!hasBinding) {
+        console.warn("[Auth] Account deletion binding missing", {
+          requestId,
+          provider: provider || "unknown",
+          claimPresent: false,
+        });
+        return res.status(403).json({
+          success: false,
+          code: "ACCOUNT_BINDING_MISSING",
+          error: "Please sign out, then sign in with Apple again before deleting your account.",
+        });
+      } else if (claimedAuthProvider !== "apple") {
+        console.warn("[Auth] Apple provider required for account deletion", {
+          requestId,
+          provider: provider || "unknown",
+          claimPresent: true,
+          customerBindingMatches,
+        });
+        return res.status(403).json({
+          success: false,
+          code: "APPLE_PROVIDER_REQUIRED",
+          error: "Please sign in with Apple again before deleting your account.",
+        });
+      } else if (!customerBindingMatches) {
+        console.warn("[Auth] Account deletion binding mismatch", {
+          requestId,
+          provider: provider || "unknown",
+          claimPresent: true,
+          customerBindingMatches: false,
+        });
+        return res.status(403).json({
+          success: false,
+          code: "ACCOUNT_BINDING_MISMATCH",
+          error: "The signed-in Apple account does not own this AlClean account.",
+        });
+      } else {
+        firebaseUid = decoded.uid;
       }
-      firebaseUid = decoded.uid;
     } catch (error) {
       console.error("[Auth] Deletion identity verification failed", error);
       return res.status(401).json({ success: false, error: "Reauthentication required" });

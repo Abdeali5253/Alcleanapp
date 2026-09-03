@@ -137,6 +137,7 @@ describe("secure authentication lifecycle", () => {
       status: 200,
       text: async () => JSON.stringify({
         success: true,
+        refreshFirebaseToken: true,
         user: {
           id: "gid://shopify/Customer/1",
           email: "relay@privaterelay.appleid.com",
@@ -156,7 +157,9 @@ describe("secure authentication lifecycle", () => {
     const result = await authService.appleLogin();
 
     expect(result.success).toBe(true);
-    expect(mocks.getIdToken).toHaveBeenCalledWith({ forceRefresh: true });
+    expect(mocks.getIdToken).toHaveBeenCalledTimes(2);
+    expect(mocks.getIdToken).toHaveBeenNthCalledWith(1, { forceRefresh: true });
+    expect(mocks.getIdToken).toHaveBeenNthCalledWith(2, { forceRefresh: true });
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining("/api/auth/apple-login"),
       expect.objectContaining({
@@ -182,6 +185,7 @@ describe("secure authentication lifecycle", () => {
         firstName: "Private",
         lastName: "Person",
         phone: "",
+        authProvider: "apple",
       },
       accessToken: "shopify-token",
       expiresAt: new Date(Date.now() + 7 * 86_400_000).toISOString(),
@@ -221,6 +225,51 @@ describe("secure authentication lifecycle", () => {
     expect(mocks.secure.has("session")).toBe(false);
   });
 
+  it("does not reuse a stale Google Firebase token for Apple deletion", async () => {
+    mocks.platform = "ios";
+    localStorage.setItem("alclean_secure_session_migrated_v1", "complete");
+    mocks.secure.set("session", {
+      user: {
+        id: "gid://shopify/Customer/1",
+        email: "apple-user@users.invalid",
+        name: "Apple User",
+        firstName: "",
+        lastName: "",
+        phone: "",
+        authProvider: "apple",
+      },
+      accessToken: "shopify-token",
+      expiresAt: new Date(Date.now() + 7 * 86_400_000).toISOString(),
+    });
+    mocks.getCurrentUser.mockResolvedValue({
+      user: { providerData: [{ providerId: "google.com" }] },
+    });
+    mocks.signInWithApple.mockResolvedValue({
+      user: { providerData: [{ providerId: "apple.com" }] },
+      credential: { authorizationCode: "apple-authorization-code" },
+    });
+    mocks.getIdToken.mockResolvedValue({ token: "apple-firebase-token" });
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ success: true }),
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { authService } = await import("./auth");
+    await authService.whenReady();
+    await authService.deleteAccount();
+
+    expect(mocks.signInWithApple.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.getIdToken.mock.invocationCallOrder[0],
+    );
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("/api/auth/account"),
+      expect.objectContaining({
+        body: JSON.stringify({ firebaseIdToken: "apple-firebase-token" }),
+      }),
+    );
+  });
+
   it("keeps the local session when account deletion fails", async () => {
     localStorage.setItem("alclean_secure_session_migrated_v1", "complete");
     mocks.secure.set("session", {
@@ -238,6 +287,49 @@ describe("secure authentication lifecycle", () => {
     await expect(authService.deleteAccount()).rejects.toThrow("Try again");
     expect(authService.getUser()?.accessToken).toBe("shopify-token");
     expect(mocks.secure.has("session")).toBe(true);
+  });
+
+  it("clears a legacy Apple session when the backend requires rebinding", async () => {
+    mocks.platform = "ios";
+    localStorage.setItem("alclean_secure_session_migrated_v1", "complete");
+    mocks.secure.set("session", {
+      user: {
+        id: "gid://shopify/Customer/1",
+        email: "private@privaterelay.appleid.com",
+        name: "Private Person",
+        firstName: "Private",
+        lastName: "Person",
+        phone: "",
+        authProvider: "apple",
+      },
+      accessToken: "shopify-token",
+      expiresAt: new Date(Date.now() + 7 * 86_400_000).toISOString(),
+    });
+    mocks.getCurrentUser.mockResolvedValue({
+      user: { providerData: [{ providerId: "apple.com" }] },
+    });
+    mocks.getIdToken.mockResolvedValue({ token: "legacy-token" });
+    mocks.signInWithApple.mockResolvedValue({
+      user: { providerData: [{ providerId: "apple.com" }] },
+      credential: { authorizationCode: "authorization-code" },
+    });
+    vi.stubGlobal("fetch", vi.fn(async () => ({
+      ok: false,
+      json: async () => ({
+        success: false,
+        code: "ACCOUNT_BINDING_MISSING",
+        error: "Please sign out, then sign in with Apple again.",
+      }),
+    })));
+
+    const { authService } = await import("./auth");
+    await authService.whenReady();
+
+    await expect(authService.deleteAccount()).rejects.toMatchObject({
+      code: "ACCOUNT_BINDING_MISSING",
+    });
+    expect(authService.getUser()).toBeNull();
+    expect(mocks.secure.has("session")).toBe(false);
   });
 
   it("never commits a session that is missing trustworthy expiry metadata", async () => {

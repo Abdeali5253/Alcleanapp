@@ -9,10 +9,18 @@ beforeAll(async () => {
   process.env.NODE_ENV = 'test';
   process.env.ALLOWED_ORIGINS = 'https://alclean.pk';
   process.env.TRUST_PROXY = 'loopback';
+  process.env.ALCLEAN_API_VERSION = 'test-build';
   ({ default: app, validateProductionConfiguration } = await import('./index.js'));
 });
 
 describe('security regression routes', () => {
+  it('exposes the deployed API version in health responses', async () => {
+    const response = await request(app).get('/health');
+    expect(response.status).toBe(200);
+    expect(response.body.apiVersion).toBe('test-build');
+    expect(response.headers['x-alclean-api-version']).toBe('test-build');
+  });
+
   it('trusts only the configured reverse-proxy network', () => {
     expect(app.get('trust proxy')).toBe('loopback');
   });
