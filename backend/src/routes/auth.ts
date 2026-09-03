@@ -184,13 +184,20 @@ async function setCustomerPassword(
 
 // Transform Shopify customer to our User type
 function transformCustomer(customer: any): any {
+  const rawId = customer.id;
+  const id =
+    typeof rawId === "string" && rawId.startsWith("gid://shopify/Customer/")
+      ? rawId
+      : rawId !== undefined && rawId !== null && String(rawId).trim()
+        ? `gid://shopify/Customer/${String(rawId).trim()}`
+        : "";
   const email = String(customer.email || "");
   const firstName = customer.firstName || customer.first_name || "";
   const lastName = customer.lastName || customer.last_name || "";
   const isAnonymousAppleAccount =
     email.startsWith("apple-") && email.endsWith("@users.invalid");
   return {
-    id: customer.id,
+    id,
     email,
     name: `${firstName} ${lastName}`.trim() ||
       (isAnonymousAppleAccount ? "Apple User" : email),

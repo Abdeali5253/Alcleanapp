@@ -82,7 +82,7 @@ describe("Apple authentication", () => {
       .mockResolvedValueOnce(jsonResponse({ customers: [] }))
       .mockResolvedValueOnce(jsonResponse({
         customer: {
-          id: "gid://shopify/Customer/1",
+          id: 1,
           email: "private@privaterelay.appleid.com",
           firstName: "Private",
           lastName: "Person",
