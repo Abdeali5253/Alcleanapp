@@ -173,9 +173,9 @@ describe("Apple authentication", () => {
 });
 
 describe("account deletion", () => {
-  it("deletes an anonymous Apple account using its verified Apple UID", async () => {
+  it("deletes an anonymous Apple account after Apple regenerates its UID", async () => {
     mocks.verifyIdToken.mockResolvedValue({
-      uid: "returning-apple-user",
+      uid: "regenerated-apple-user",
       email: "person@example.com",
       firebase: { sign_in_provider: "apple.com" },
     });
@@ -219,7 +219,7 @@ describe("account deletion", () => {
       .send({ firebaseIdToken: "fresh-firebase-token" });
 
     expect(response.status).toBe(200);
-    expect(mocks.deleteUser).toHaveBeenCalledWith("returning-apple-user");
+    expect(mocks.deleteUser).toHaveBeenCalledWith("regenerated-apple-user");
   });
 
   it("detaches orders, deletes account data, and deletes the matching Firebase user", async () => {

@@ -1154,6 +1154,9 @@ router.delete("/account", async (req: Request, res: Response) => {
       const provider = decoded.firebase?.sign_in_provider;
       const allowedProvider = provider === "apple.com" || provider === "google.com";
       const customerEmail = String(customer.email).toLowerCase();
+      const customerUsesAnonymousAppleEmail =
+        customerEmail.startsWith("apple-") &&
+        customerEmail.endsWith("@users.invalid");
       const tokenEmailMatches =
         typeof decoded.email === "string" &&
         decoded.email.toLowerCase() === customerEmail;
@@ -1161,16 +1164,21 @@ router.delete("/account", async (req: Request, res: Response) => {
         provider === "apple.com" &&
         typeof decoded.uid === "string" &&
         getAppleCustomerEmail({ uid: decoded.uid }).toLowerCase() === customerEmail;
+      // The authenticated Shopify access token already proves ownership of the
+      // customer account. Anonymous Apple accounts have no real email to compare,
+      // and Apple/Firebase can issue a new UID after authorization is revoked.
+      // Require a freshly verified Apple identity, but do not reject deletion
+      // solely because that regenerated UID differs from the original one.
+      const anonymousAppleReauthentication =
+        provider === "apple.com" && customerUsesAnonymousAppleEmail;
       if (
         !allowedProvider ||
-        (!tokenEmailMatches && !appleUidMatches)
+        (!tokenEmailMatches && !appleUidMatches && !anonymousAppleReauthentication)
       ) {
         console.warn("[Auth] Account deletion identity mismatch", {
           provider: provider || "unknown",
           customerId: customer.id,
-          customerUsesAnonymousAppleEmail:
-            customerEmail.startsWith("apple-") &&
-            customerEmail.endsWith("@users.invalid"),
+          customerUsesAnonymousAppleEmail,
           tokenHasEmail: typeof decoded.email === "string",
           tokenEmailMatches,
           appleUidMatches,
