@@ -13,7 +13,7 @@
     "android:open": "npx cap open android",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "postinstall": "node scripts/prune-firebase-auth-facebook.mjs"
+    "postinstall": "node scripts/prune-firebase-auth-facebook.mjs && node scripts/patch-ios-plugin-warnings.mjs"
   },
   "dependencies": {
     "@aparajita/capacitor-secure-storage": "^8.0.0",
@@ -29,7 +29,7 @@
     "@radix-ui/react-slot": "^1.2.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "cordova-plugin-inappbrowser": "^6.0.0",
+    "cordova-plugin-inappbrowser": "7.0.0",
     "firebase": "^12.7.0",
     "lucide-react": "^0.487.0",
     "motion": "^11.0.0",
