@@ -106,8 +106,11 @@ const healthCheck = (_req: express.Request, res: express.Response) => {
     environment: process.env.NODE_ENV || 'development',
     services: {
       notifications: {
-        configured: !!process.env.FCM_SERVER_KEY,
-        fcmKeyPresent: !!process.env.FCM_SERVER_KEY,
+        configured: !!(
+          process.env.FIREBASE_PROJECT_ID &&
+          process.env.FIREBASE_PRIVATE_KEY &&
+          process.env.FIREBASE_CLIENT_EMAIL
+        ),
       },
       shopify: {
         adminApiConfigured: !!process.env.SHOPIFY_ADMIN_API_TOKEN,
@@ -171,7 +174,13 @@ if (process.env.NODE_ENV !== 'test') {
     console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
     console.log(`Trust proxy: ${trustProxy}`);
     console.log(
-      `Firebase: ${process.env.FCM_SERVER_KEY ? 'Configured' : 'Not configured'}`,
+      `Firebase: ${
+        process.env.FIREBASE_PROJECT_ID &&
+        process.env.FIREBASE_PRIVATE_KEY &&
+        process.env.FIREBASE_CLIENT_EMAIL
+          ? 'Configured'
+          : 'Not configured'
+      }`,
     );
     console.log('Shopify credentials stay on the backend.');
     console.log('Frontend clients should only call backend /api routes.');

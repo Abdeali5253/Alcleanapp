@@ -341,6 +341,7 @@ async function sendFCMNotification(
         error.code === "messaging/registration-token-not-registered"
       ) {
         deviceTokens.delete(token);
+        saveDevices();
       }
     }
   }
@@ -535,6 +536,7 @@ router.delete("/unregister", async (req: Request, res: Response) => {
       }
     }
     const deleted = deviceTokens.delete(token);
+    if (deleted) saveDevices();
     res.json({
       success: true,
       message: deleted ? "Device unregistered" : "Device not found",

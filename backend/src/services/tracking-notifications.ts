@@ -1,10 +1,10 @@
 import fs from "fs";
 import path from "path";
+import cron from "node-cron";
 import { sendNotificationToUser } from "../routes/notifications.js";
 import {
-  getOpenOrdersForTrackingNotifications,
+  getTrackingOrdersFromFinac,
   getTrackingNotificationSnapshot,
-  isTrackingNotificationExcludedCity,
 } from "../routes/orders.js";
 
 interface TrackingNotificationState {
@@ -13,7 +13,8 @@ interface TrackingNotificationState {
 
 const DATA_DIR = path.join(process.cwd(), "data");
 const STATE_FILE = path.join(DATA_DIR, "tracking-notification-state.json");
-const DEFAULT_INTERVAL_HOURS = 24;
+const DEFAULT_CRON_SCHEDULE = "0 12,17 * * *";
+const DEFAULT_TIME_ZONE = "Asia/Karachi";
 let checkInProgress = false;
 
 function loadState(): TrackingNotificationState {
@@ -57,29 +58,22 @@ export async function runTrackingNotificationCheck(): Promise<void> {
   const state = loadState();
   let checked = 0;
   let sent = 0;
-  let skippedCity = 0;
 
   try {
-    const orders = await getOpenOrdersForTrackingNotifications();
+    // Finac supplies the courier and tracking number. Shopify is used only to
+    // resolve the order to the authenticated customer who owns the FCM token.
+    const orders = await getTrackingOrdersFromFinac();
     console.log(
-      `[Tracking Notifications] Checking ${orders.length} open order(s)`,
+      `[Tracking Notifications] Checking ${orders.length} Finac assignment(s)`,
     );
 
     for (const order of orders) {
       try {
-        if (!order.customerId || !order.city) continue;
-        if (isTrackingNotificationExcludedCity(order.city)) {
-          skippedCity++;
-          continue;
-        }
+        if (!order.customerId) continue;
 
         checked++;
         const snapshot = await getTrackingNotificationSnapshot(order);
         if (!snapshot.trackingNumber) continue;
-        if (isTrackingNotificationExcludedCity(snapshot.city)) {
-          skippedCity++;
-          continue;
-        }
 
         const fingerprint = getFingerprint(snapshot);
         if (state[order.id]?.fingerprint === fingerprint) continue;
@@ -107,6 +101,14 @@ export async function runTrackingNotificationCheck(): Promise<void> {
           };
           saveState(state);
           sent++;
+        } else if (result.failure > 0) {
+          console.warn(
+            `[Tracking Notifications] Delivery failed for ${order.orderNumber} on ${result.failure} device(s)`,
+          );
+        } else {
+          console.log(
+            `[Tracking Notifications] No registered device for customer on ${order.orderNumber}`,
+          );
         }
       } catch (error) {
         console.error(
@@ -117,7 +119,7 @@ export async function runTrackingNotificationCheck(): Promise<void> {
     }
 
     console.log(
-      `[Tracking Notifications] Complete: ${checked} checked, ${sent} notified, ${skippedCity} local-city skipped`,
+      `[Tracking Notifications] Complete: ${checked} checked, ${sent} notified`,
     );
   } catch (error) {
     console.error("[Tracking Notifications] Check failed:", error);
@@ -132,25 +134,29 @@ export function startTrackingNotificationScheduler(): void {
     return;
   }
 
-  const configuredHours = Number(
-    process.env.TRACKING_NOTIFICATION_INTERVAL_HOURS || DEFAULT_INTERVAL_HOURS,
+  const configuredSchedule =
+    process.env.TRACKING_NOTIFICATION_CRON || DEFAULT_CRON_SCHEDULE;
+  const timeZone =
+    process.env.TRACKING_NOTIFICATION_TIME_ZONE || DEFAULT_TIME_ZONE;
+  const schedule = cron.validate(configuredSchedule)
+    ? configuredSchedule
+    : DEFAULT_CRON_SCHEDULE;
+
+  if (schedule !== configuredSchedule) {
+    console.warn(
+      `[Tracking Notifications] Invalid cron "${configuredSchedule}"; using "${DEFAULT_CRON_SCHEDULE}"`,
+    );
+  }
+
+  cron.schedule(
+    schedule,
+    () => {
+      void runTrackingNotificationCheck();
+    },
+    { timezone: timeZone },
   );
-  const intervalHours =
-    Number.isFinite(configuredHours) && configuredHours > 0
-      ? configuredHours
-      : DEFAULT_INTERVAL_HOURS;
-  const intervalMs = intervalHours * 60 * 60 * 1000;
+
   console.log(
-    `[Tracking Notifications] Scheduled every ${intervalHours} hour(s)`,
+    `[Tracking Notifications] Scheduled with cron "${schedule}" in ${timeZone}`,
   );
-
-  const startupTimer = setTimeout(() => {
-    void runTrackingNotificationCheck();
-  }, 15_000);
-  startupTimer.unref();
-
-  const intervalTimer = setInterval(() => {
-    void runTrackingNotificationCheck();
-  }, intervalMs);
-  intervalTimer.unref();
 }

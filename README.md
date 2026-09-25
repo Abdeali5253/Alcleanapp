@@ -43,15 +43,32 @@ SHOPIFY_ADMIN_API_TOKEN=your-admin-token
 SHOPIFY_API_VERSION=2025-07
 TRACKING_ASSIGNMENTS_URL=https://app.albizco.com/end_points/get_tracking.php?company_type=Alclean
 TRACKING_NOTIFICATIONS_ENABLED=true
-TRACKING_NOTIFICATION_INTERVAL_HOURS=24
+TRACKING_NOTIFICATION_CRON=0 12,17 * * *
+TRACKING_NOTIFICATION_TIME_ZONE=Asia/Karachi
+TRACKING_NOTIFICATION_LOOKBACK_DAYS=90
+LEOPARD_TRACKING_URL=https://your-leopard-tracking-endpoint
+LEOPARD_TRACKING_API_KEY=your-leopard-api-key
+LEOPARD_TRACKING_API_PASSWORD=your-leopard-api-password
+DAEWOO_TRACKING_URL=https://codapi.daewoo.net.pk/api/booking/quickTrack
+DAEWOO_API_KEY=your-daewoo-api-key
+POSTEX_TRACKING_URL=https://api.postex.pk/services/integration/api/order/v1/track-order/{trackingNumber}
+POSTEX_API_TOKEN=your-postex-api-token
 PORT=3001
 ALLOWED_ORIGINS=http://localhost:3000
 ```
 
-The backend checks open orders once shortly after startup and then every 24
-hours. Tracking pushes are skipped for Karachi, Lahore, Islamabad, and
-Rawalpindi. Keep the backend `data` directory on persistent storage because
+At 12:00 PM and 5:00 PM Pakistan time each day, the backend fetches courier assignments
+from Finac once, matches each assignment to its Shopify order only to resolve
+the customer identity, and then requests the current tracking timeline from
+Leopard, Daewoo, or PostEx. Finac's courier and tracking number are the source
+of truth; Shopify fulfillment status is not used to decide which courier to
+query. A push notification is sent only when the courier tracking fingerprint
+changes.
+
+Keep the backend `data` directory on persistent storage because
 `tracking-notification-state.json` prevents duplicate status notifications.
+Set the Daewoo and PostEx API credentials before assignments for those
+couriers can be checked.
 
 ### Installation
 

@@ -47,6 +47,8 @@ export interface TrackingNotificationOrder {
   customerPhone?: string;
   financialStatus?: string;
   fulfillmentStatus?: string;
+  trackingNumber?: string;
+  courier?: string;
 }
 
 export interface TrackingNotificationSnapshot {
@@ -140,13 +142,26 @@ export async function getOpenOrdersForTrackingNotifications(): Promise<
   const orders: TrackingNotificationOrder[] = [];
   let cursor: string | null = null;
   let hasNextPage = true;
+  const configuredLookbackDays = Number(
+    process.env.TRACKING_NOTIFICATION_LOOKBACK_DAYS || 90,
+  );
+  const lookbackDays =
+    Number.isFinite(configuredLookbackDays) && configuredLookbackDays > 0
+      ? Math.min(configuredLookbackDays, 365)
+      : 90;
+  const createdAfter = new Date(
+    Date.now() - lookbackDays * 24 * 60 * 60 * 1000,
+  )
+    .toISOString()
+    .slice(0, 10);
   const query = `
-    query trackingNotificationOrders($after: String) {
-      orders(first: 100, after: $after, query: "status:open", sortKey: CREATED_AT) {
+    query trackingNotificationOrders($after: String, $query: String!) {
+      orders(first: 100, after: $after, query: $query, sortKey: CREATED_AT, reverse: true) {
         nodes {
           id
           name
           createdAt
+          cancelledAt
           displayFinancialStatus
           displayFulfillmentStatus
           customer { id }
@@ -158,9 +173,16 @@ export async function getOpenOrdersForTrackingNotifications(): Promise<
   `;
 
   while (hasNextPage) {
-    const data: any = await shopifyAdminFetch(query, { after: cursor });
+    // Do not limit this to `status:open`: Shopify can close/archive an order at
+    // the same time as its final fulfillment update, which previously caused
+    // the delivered notification to be missed entirely.
+    const data: any = await shopifyAdminFetch(query, {
+      after: cursor,
+      query: `created_at:>=${createdAfter}`,
+    });
     const connection = data.orders;
     for (const order of connection?.nodes || []) {
+      if (order.cancelledAt) continue;
       orders.push({
         id: order.id,
         orderNumber: order.name,
@@ -202,6 +224,10 @@ function getTrackingConfig() {
       process.env.DAEWOO_TRACKING_URL ||
       "https://codapi.daewoo.net.pk/api/booking/quickTrack",
     daewooApiKey: process.env.DAEWOO_API_KEY || "",
+    postexUrl:
+      process.env.POSTEX_TRACKING_URL ||
+      "https://api.postex.pk/services/integration/api/order/v1/track-order/{trackingNumber}",
+    postexToken: process.env.POSTEX_API_TOKEN || "",
   };
 }
 
@@ -289,23 +315,46 @@ export function isTrackingNotificationExcludedCity(
   return !!getLocalDeliveryContact(city);
 }
 
+function parseCourierTimestamp(value: unknown): string | undefined {
+  const raw = String(value ?? "").trim();
+  if (!raw) return undefined;
+
+  // Courier timestamps without an explicit offset are Pakistan local time.
+  // Parsing them as the server's local time shifts scans when production runs
+  // in UTC, so attach PKT (+05:00) before converting to ISO.
+  const localDateTime = raw.match(
+    /^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2}(?::\d{2})?)$/,
+  );
+  const normalized = localDateTime
+    ? `${localDateTime[1]}T${localDateTime[2]}+05:00`
+    : raw;
+  const parsed = new Date(normalized);
+  return Number.isNaN(parsed.getTime()) ? undefined : parsed.toISOString();
+}
+
 function buildTimestamp(value: any): string | undefined {
   if (!value) return undefined;
 
-  const direct = new Date(String(value));
-  if (!Number.isNaN(direct.getTime())) {
-    return direct.toISOString();
+  const direct = parseCourierTimestamp(value);
+  if (direct) {
+    return direct;
   }
 
   if (typeof value === "object") {
-    const datePart = value.date || value.status_date || value.created_at;
-    const timePart = value.time || value.status_time;
+    const datePart =
+      value.date ||
+      value.status_date ||
+      value.created_at ||
+      value.transactionDate ||
+      value.orderDate ||
+      value.remarksDate ||
+      value.statusDate ||
+      value.Activity_Date;
+    const timePart =
+      value.time || value.status_time || value.Activity_Time;
     if (datePart || timePart) {
       const combined = [datePart, timePart].filter(Boolean).join(" ");
-      const parsed = new Date(combined);
-      if (!Number.isNaN(parsed.getTime())) {
-        return parsed.toISOString();
-      }
+      return parseCourierTimestamp(combined);
     }
   }
 
@@ -331,7 +380,6 @@ function inferStatusFromText(text: string): TrackingTimelineEvent["status"] {
   if (
     lower.includes("transit") ||
     lower.includes("dispatch") ||
-    lower.includes("shipment") ||
     lower.includes("out for delivery") ||
     lower.includes("arrival") ||
     lower.includes("received at facility")
@@ -341,6 +389,7 @@ function inferStatusFromText(text: string): TrackingTimelineEvent["status"] {
   if (
     lower.includes("book") ||
     lower.includes("pickup") ||
+    lower.includes("picked") ||
     lower.includes("manifest") ||
     lower.includes("confirm") ||
     lower.includes("process")
@@ -385,21 +434,62 @@ function findTimelineArrays(input: any, path = "root", depth = 0): any[] {
   return [];
 }
 
-function mapCourierEvents(payload: any): TrackingTimelineEvent[] {
+function findStatusObjects(input: any, depth = 0): Record<string, any>[] {
+  if (depth > 5 || input == null) return [];
+  if (Array.isArray(input)) {
+    return input.flatMap((item) => findStatusObjects(item, depth + 1));
+  }
+  if (typeof input !== "object") return [];
+
+  const statusKeys = [
+    "status",
+    "transactionStatus",
+    "orderStatus",
+    "currentStatus",
+    "status_name",
+    "event_status",
+  ];
+  const current = statusKeys.some(
+    (key) => input[key] !== undefined && input[key] !== null,
+  )
+    ? [input]
+    : [];
+
+  return [
+    ...current,
+    ...Object.values(input).flatMap((value) =>
+      findStatusObjects(value, depth + 1),
+    ),
+  ];
+}
+
+export function mapCourierEvents(payload: any): TrackingTimelineEvent[] {
   const candidates = findTimelineArrays(payload);
   const bestMatch = candidates.sort(
     (a, b) => b.value.length - a.value.length,
   )[0];
+  const entries = bestMatch?.value || findStatusObjects(payload);
 
-  if (!bestMatch) {
+  if (!entries.length) {
     return [];
   }
 
-  const events = bestMatch.value
+  const events = entries
     .map((entry: Record<string, any>) => {
       const label =
-        getTextValue(entry, ["status", "activity", "description", "detail"]) ||
-        getTextValue(entry, ["reason", "remarks", "message"]);
+        getTextValue(entry, [
+          "Status_With_City",
+          "Status",
+          "status",
+          "transactionStatus",
+          "orderStatus",
+          "currentStatus",
+          "status_name",
+          "event_status",
+          "activity",
+          "description",
+          "detail",
+        ]) || getTextValue(entry, ["reason", "remarks", "message"]);
       if (!label) {
         return null;
       }
@@ -410,19 +500,38 @@ function mapCourierEvents(payload: any): TrackingTimelineEvent[] {
         details: getTextValue(entry, ["remarks", "detail", "message"]),
         location: getTextValue(entry, ["location", "city", "branch"]),
         timestamp:
-          buildTimestamp(getTextValue(entry, ["timestamp", "datetime"])) ||
-          buildTimestamp(entry),
+          buildTimestamp(
+            getTextValue(entry, [
+              "timestamp",
+              "datetime",
+              "Activity_datetime",
+              "Activity_Date",
+              "remarksDate",
+              "statusDate",
+            ]),
+          ) || buildTimestamp(entry),
         completed: true,
         source: "courier" as const,
       };
     })
     .filter(Boolean) as TrackingTimelineEvent[];
 
-  return events.sort((a, b) => {
+  const sorted = events.sort((a, b) => {
     if (!a.timestamp && !b.timestamp) return 0;
     if (!a.timestamp) return -1;
     if (!b.timestamp) return 1;
     return new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime();
+  });
+
+  return sorted.filter((event, index) => {
+    if (index === 0) return true;
+    const previous = sorted[index - 1];
+    return !(
+      event.label === previous.label &&
+      event.timestamp === previous.timestamp &&
+      event.details === previous.details &&
+      event.location === previous.location
+    );
   });
 }
 
@@ -542,7 +651,7 @@ function buildTrackingAssignmentsUrl(orderId?: string): string {
   return url.toString();
 }
 
-async function fetchTrackingAssignments(
+export async function fetchTrackingAssignments(
   orderId?: string,
 ): Promise<TrackingAssignment[]> {
   const { assignmentsUrl } = getTrackingConfig();
@@ -578,7 +687,7 @@ async function fetchTrackingAssignments(
   }
 }
 
-function buildCourierRequest(
+export function buildCourierRequest(
   courier: string,
   trackingNumber: string,
 ): {
@@ -594,6 +703,8 @@ function buildCourierRequest(
     leopardApiHeader,
     daewooUrl,
     daewooApiKey,
+    postexUrl,
+    postexToken,
   } = getTrackingConfig();
   const normalizedCourier = courier.trim().toLowerCase();
 
@@ -610,6 +721,31 @@ function buildCourierRequest(
       method: "GET",
       headers: {
         Authorization: `Bearer ${daewooApiKey}`,
+      },
+    };
+  }
+
+  if (
+    normalizedCourier.includes("postex") ||
+    normalizedCourier.includes("post ex") ||
+    normalizedCourier.includes("call courier")
+  ) {
+    if (!postexUrl || !postexToken) {
+      return null;
+    }
+
+    const url = postexUrl.includes("{trackingNumber}")
+      ? postexUrl.replace(
+          "{trackingNumber}",
+          encodeURIComponent(trackingNumber),
+        )
+      : `${postexUrl.replace(/\/$/, "")}/${encodeURIComponent(trackingNumber)}`;
+
+    return {
+      url,
+      method: "GET",
+      headers: {
+        token: postexToken,
       },
     };
   }
@@ -861,11 +997,15 @@ async function enrichOrderTracking(
 ): Promise<any> {
   const trackingNumber = assignment?.tracking_number || order.trackingNumber;
   const courier = assignment?.courier || order.courier;
-  const city = order.city || assignment?.city || "";
-  const localDelivery = getLocalDeliveryContact(city);
-  const courierResult = localDelivery
-    ? { timeline: [] }
-    : await fetchCourierTimeline(courier, trackingNumber);
+  const city = assignment?.city || order.city || "";
+  // A Finac courier assignment always takes precedence over local-delivery
+  // defaults, including for cities that can also be served by the local team.
+  const localDelivery =
+    courier && trackingNumber ? null : getLocalDeliveryContact(city);
+  const courierResult =
+    courier && trackingNumber
+      ? await fetchCourierTimeline(courier, trackingNumber)
+      : { timeline: [] };
   const courierTimeline = courierResult.timeline;
   const fallbackTimeline = buildFallbackTimeline(
     {
@@ -907,17 +1047,57 @@ async function enrichOrderTracking(
   };
 }
 
+export async function getTrackingOrdersFromFinac(): Promise<
+  TrackingNotificationOrder[]
+> {
+  const [orders, assignments] = await Promise.all([
+    getOpenOrdersForTrackingNotifications(),
+    fetchTrackingAssignments(),
+  ]);
+
+  return orders.flatMap((order) => {
+    const assignment = matchTrackingAssignment(
+      { orderNumber: order.orderNumber },
+      assignments,
+      order.customerPhone || "",
+    );
+    if (!assignment?.tracking_number || !assignment.courier) {
+      return [];
+    }
+
+    return [
+      {
+        ...order,
+        city: assignment.city || order.city,
+        trackingNumber: assignment.tracking_number,
+        courier: assignment.courier,
+      },
+    ];
+  });
+}
+
 export async function getTrackingNotificationSnapshot(
   order: TrackingNotificationOrder,
 ): Promise<TrackingNotificationSnapshot> {
-  const assignments = await fetchTrackingAssignments(
-    normalizeTrackingOrderId(order.orderNumber),
-  );
-  const assignment = matchTrackingAssignment(
-    { orderNumber: order.orderNumber },
-    assignments,
-    order.customerPhone || "",
-  );
+  let assignment: TrackingAssignment | undefined;
+  if (order.trackingNumber && order.courier) {
+    assignment = {
+      order_id: normalizeTrackingOrderId(order.orderNumber),
+      tracking_number: order.trackingNumber,
+      courier: order.courier,
+      city: order.city,
+      phone: order.customerPhone,
+    };
+  } else {
+    const assignments = await fetchTrackingAssignments(
+      normalizeTrackingOrderId(order.orderNumber),
+    );
+    assignment = matchTrackingAssignment(
+      { orderNumber: order.orderNumber },
+      assignments,
+      order.customerPhone || "",
+    );
+  }
   const enriched = await enrichOrderTracking(
     {
       id: order.id,
