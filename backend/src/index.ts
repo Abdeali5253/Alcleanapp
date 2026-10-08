@@ -102,6 +102,7 @@ const healthCheck = (_req: express.Request, res: express.Response) => {
   res.json({
     status: 'ok',
     apiVersion,
+    capabilities: { profileUpdate: true, shopifyOrderCancellation: true },
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development',
     services: {
@@ -186,7 +187,10 @@ if (process.env.NODE_ENV !== 'test') {
     console.log('Frontend clients should only call backend /api routes.');
     console.log('');
     console.log('Available routes:');
+    console.log(`API version: ${apiVersion}`);
     console.log('  GET  /health');
+    console.log('  PUT  /api/auth/profile');
+    console.log('  GET  /api/orders/customer (Shopify cancellation enabled)');
     console.log('  POST /api/notifications/register');
     console.log('  GET  /api/products');
     console.log('  GET  /api/products/:id');

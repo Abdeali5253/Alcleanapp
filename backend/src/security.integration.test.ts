@@ -1,6 +1,9 @@
 import request from 'supertest';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import type { Express } from 'express';
+
+const mocks = vi.hoisted(() => ({ fetch: vi.fn() }));
+vi.mock('node-fetch', () => ({ default: mocks.fetch }));
 
 let app: Express;
 let validateProductionConfiguration: (env: NodeJS.ProcessEnv) => void;
@@ -18,6 +21,10 @@ describe('security regression routes', () => {
     const response = await request(app).get('/health');
     expect(response.status).toBe(200);
     expect(response.body.apiVersion).toBe('test-build');
+    expect(response.body.capabilities).toEqual({
+      profileUpdate: true,
+      shopifyOrderCancellation: true,
+    });
     expect(response.headers['x-alclean-api-version']).toBe('test-build');
   });
 
@@ -60,10 +67,17 @@ describe('security regression routes', () => {
   });
 
   it('rejects a well-formed but invalid or expired customer token', async () => {
+    process.env.SHOPIFY_STORE_DOMAIN = 'store.example';
+    process.env.SHOPIFY_STOREFRONT_TOKEN = 'test-storefront-token';
+    mocks.fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ data: { customer: null } }),
+    });
     const response = await request(app)
       .get('/api/notifications/history')
       .set('Authorization', `Bearer ${'x'.repeat(20)}`);
     expect(response.status).toBe(401);
+    expect(mocks.fetch).toHaveBeenCalledOnce();
   });
 
   it('rejects hostile browser origins', async () => {
