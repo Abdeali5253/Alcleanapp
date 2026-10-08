@@ -202,11 +202,12 @@ class AuthService {
           "The authentication server returned a session without a valid expiry. Deploy the updated backend and try again.",
         );
       }
-      this.user = { ...user, expiresAt };
+      const savedUser = { ...user, expiresAt };
       await SecureStorage.set(
         SECURE_SESSION_KEY,
-        this.toStoredSession(this.user),
+        this.toStoredSession(savedUser),
       );
+      this.user = savedUser;
       this.scheduleRenewal();
     } else {
       this.user = null;
@@ -770,6 +771,21 @@ class AuthService {
   // Update user profile
   async updateUser(updatedUser: User): Promise<void> {
     await this.saveUser(updatedUser);
+  }
+
+  async updateProfile(updatedUser: User): Promise<void> {
+    await this.whenReady();
+    const currentUser = this.user;
+    if (!currentUser?.accessToken) throw new Error("Please sign in to edit your profile");
+    const response = await fetch(`${BACKEND_URL}/api/auth/profile`, {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${currentUser.accessToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ firstName: updatedUser.firstName.trim(), lastName: updatedUser.lastName.trim(), phone: updatedUser.phone?.trim() || "" }),
+    });
+    if (await this.handleUnauthorizedResponse(response)) throw new Error("Please sign in again");
+    const data = await response.json();
+    if (!response.ok || !data.success || !data.user) throw new Error(data.error || "Failed to save profile");
+    await this.saveUser({ ...currentUser, ...data.user, accessToken: currentUser.accessToken, expiresAt: currentUser.expiresAt });
   }
 
   // Redirect management

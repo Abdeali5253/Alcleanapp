@@ -477,3 +477,38 @@ describe("account deletion", () => {
     expect(mocks.deleteNotificationDataForUser).not.toHaveBeenCalled();
   });
 });
+
+describe("persistent profile updates", () => {
+  const customer = { id: "gid://shopify/Customer/1", email: "person@example.com", firstName: "Old", lastName: "Name", phone: "" };
+  it("saves only editable fields for the authenticated customer", async () => {
+    mocks.fetch.mockResolvedValueOnce(jsonResponse({ data: { customer } }));
+    mocks.fetch.mockResolvedValueOnce(jsonResponse({ data: { customerUpdate: { customer: { ...customer, firstName: "New", phone: "+923001234567" }, customerUserErrors: [] } } }));
+    const response = await request(app).put("/api/auth/profile").set("Authorization", "Bearer customer-token").send({ firstName: " New ", lastName: "Name", phone: "+923001234567", id: "other-customer", password: "ignored", email: "other@example.com" });
+    expect(response.status).toBe(200);
+    expect(response.body.user.firstName).toBe("New");
+    const variables = JSON.parse(mocks.fetch.mock.calls[1][1].body).variables;
+    expect(variables.customer).toEqual({ firstName: "New", lastName: "Name", phone: "+923001234567" });
+    expect(variables.customerAccessToken).toBe("customer-token");
+  });
+  it("reports Shopify validation failures instead of claiming success", async () => {
+    mocks.fetch.mockResolvedValueOnce(jsonResponse({ data: { customer } }));
+    mocks.fetch.mockResolvedValueOnce(jsonResponse({ data: { customerUpdate: { customer: null, customerUserErrors: [{ message: "Phone is already taken" }] } } }));
+    const response = await request(app).put("/api/auth/profile").set("Authorization", "Bearer customer-token").send({ firstName: "New", lastName: "Name", phone: "+923001234567" });
+    expect(response.status).toBe(400);
+    expect(response.body.error).toContain("Phone is already taken");
+  });
+  it("requires a session and validates input before contacting Shopify", async () => {
+    expect((await request(app).put("/api/auth/profile").send({})).status).toBe(401);
+    expect((await request(app).put("/api/auth/profile").set("Authorization", "Bearer customer-token").send({ firstName: "New", lastName: "Name", phone: "invalid" })).status).toBe(400);
+    expect(mocks.fetch).not.toHaveBeenCalled();
+  });
+});
+
+describe("profile session expiry", () => {
+  it("rejects an expired customer token without submitting a profile mutation", async () => {
+    mocks.fetch.mockResolvedValueOnce(jsonResponse({ data: { customer: null } }));
+    const response = await request(app).put("/api/auth/profile").set("Authorization", "Bearer expired-token").send({ firstName: "New", lastName: "Name", phone: "" });
+    expect(response.status).toBe(401);
+    expect(mocks.fetch).toHaveBeenCalledOnce();
+  });
+});

@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({ native: true }));
 vi.mock("@capacitor/core", () => ({ Capacitor: { isNativePlatform: () => mocks.native } }));
-import { getCheckoutToken, getNativeCheckoutBrowser } from "./checkout-browser";
+import { getCheckoutToken, getNativeCheckoutBrowser, isCheckoutThankYouPage } from "./checkout-browser";
 beforeEach(() => { vi.useFakeTimers(); mocks.native = true; delete (window as any).cordova; });
 afterEach(() => { vi.useRealTimers(); delete (window as any).cordova; });
 describe("native checkout browser", () => {
@@ -38,6 +38,17 @@ describe("checkout navigation identity", () => {
   it("rejects foreign hosts, insecure URLs, credentials and noncheckout pages", () => {
     for (const url of ["https://evil.com/checkouts/token", "http://alclean.pk/checkouts/token", "https://evil@alclean.pk/checkouts/token", "https://alclean.pk/account"]) {
       expect(getCheckoutToken(url, initial)).toBeNull();
+    }
+  });
+});
+
+describe("hosted checkout return navigation", () => {
+  const initial = "https://alclean.pk/cart/c/session";
+  it("returns only from the checkout thank-you path", () => {
+    expect(isCheckoutThankYouPage("https://alclean.pk/checkouts/cn/token/thank-you", initial)).toBe(true);
+    expect(isCheckoutThankYouPage("https://alclean.pk/checkouts/token/thank_you", initial)).toBe(true);
+    for (const url of ["https://evil.com/checkouts/token/thank_you", "https://alclean.pk/checkouts/token/payment", "https://alclean.pk/checkouts/token?thank_you=true"]) {
+      expect(isCheckoutThankYouPage(url, initial)).toBe(false);
     }
   });
 });

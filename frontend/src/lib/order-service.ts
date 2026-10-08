@@ -15,8 +15,10 @@ export interface Order {
   deliveryCharge: number;
   total: number;
   paymentMethod: 'cod' | 'bank-transfer';
-  status: 'pending' | 'processing' | 'in-transit' | 'delivered';
+  status: 'pending' | 'processing' | 'in-transit' | 'delivered' | 'cancelled';
   createdAt: string;
+  cancelledAt?: string | null;
+  cancellationReason?: string | null;
   trackingNumber?: string;
   courier?: string;
   companyType?: string;
@@ -32,7 +34,7 @@ export interface Order {
     note: string;
   } | null;
   trackingTimeline?: {
-    status: 'pending' | 'processing' | 'in-transit' | 'delivered';
+    status: 'pending' | 'processing' | 'in-transit' | 'delivered' | 'cancelled';
     label: string;
     details?: string;
     location?: string;
@@ -141,7 +143,9 @@ class OrderService {
           deliveryCharge: 0, // Not available in Shopify order
           total: parseFloat(order.totalPrice.amount),
           paymentMethod: 'cod', // Default
-          status: this.mapShopifyStatus(order.financialStatus, order.fulfillmentStatus),
+          status: order.canceledAt ? 'cancelled' : this.mapShopifyStatus(order.financialStatus, order.fulfillmentStatus),
+          cancelledAt: order.canceledAt,
+          cancellationReason: order.cancelReason,
           createdAt: order.processedAt,
           shopifyOrderId: order.id,
         };
@@ -246,7 +250,7 @@ class OrderService {
 
       if (trackingPhone === userPhone) {
         const order = this.orders.find(o => o.orderNumber === tracking.order_id);
-        if (order) {
+        if (order && order.status !== 'cancelled') {
           const previousStatus = order.status;
           const previousTracking = order.trackingNumber;
 

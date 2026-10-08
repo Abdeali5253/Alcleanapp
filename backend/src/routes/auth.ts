@@ -507,6 +507,52 @@ router.post("/renew", async (req: Request, res: Response) => {
  * GET /api/auth/customer
  * Get customer details
  */
+router.put("/profile", async (req: Request, res: Response) => {
+  const accessToken = req.headers.authorization?.match(/^Bearer\s+([^\s]+)$/i)?.[1];
+  if (!accessToken) return res.status(401).json({ success: false, error: "Access token required" });
+  const { firstName, lastName, phone } = req.body || {};
+  if (typeof firstName !== "string" || typeof lastName !== "string" ||
+      !firstName.trim() || !lastName.trim() || firstName.length > 100 || lastName.length > 100 ||
+      (phone !== undefined && typeof phone !== "string")) {
+    return res.status(400).json({ success: false, error: "Valid first and last names are required" });
+  }
+  const normalizedPhone = typeof phone === "string" ? phone.trim() : undefined;
+  if (normalizedPhone && !/^\+[1-9]\d{6,14}$/.test(normalizedPhone)) {
+    return res.status(400).json({ success: false, error: "Use an international phone number, for example +923001234567" });
+  }
+  try {
+    let currentCustomer: any;
+    try {
+      currentCustomer = await getUserByCustomerAccessToken(accessToken);
+    } catch {
+      return res.status(401).json({ success: false, error: "Invalid or expired session" });
+    }
+    if (!currentCustomer?.id) return res.status(401).json({ success: false, error: "Invalid or expired session" });
+    const mutation = `
+      mutation updateProfile($customerAccessToken: String!, $customer: CustomerUpdateInput!) {
+        customerUpdate(customerAccessToken: $customerAccessToken, customer: $customer) {
+          customer { id email firstName lastName phone }
+          customerUserErrors { code field message }
+        }
+      }
+    `;
+    const customer: Record<string, unknown> = { firstName: firstName.trim(), lastName: lastName.trim() };
+    if (normalizedPhone !== undefined) customer.phone = normalizedPhone || null;
+    const data = await shopifyFetch<{ customerUpdate: { customer: any; customerUserErrors: any[] } }>(mutation, { customerAccessToken: accessToken, customer });
+    const result = data.customerUpdate;
+    if (result?.customerUserErrors?.length) {
+      return res.status(400).json({ success: false, error: result.customerUserErrors.map((error: any) => error.message).join(", ") });
+    }
+    if (!result?.customer || result.customer.id !== currentCustomer.id) {
+      return res.status(502).json({ success: false, error: "Profile update could not be confirmed" });
+    }
+    return res.json({ success: true, user: transformCustomer(result.customer) });
+  } catch (error) {
+    console.error("[Auth] Profile update failed:", error);
+    return res.status(502).json({ success: false, error: "Could not save your profile. Please try again." });
+  }
+});
+
 router.get("/customer", async (req: Request, res: Response) => {
   try {
     const accessToken = req.headers.authorization?.replace("Bearer ", "");
@@ -534,6 +580,8 @@ router.get("/customer", async (req: Request, res: Response) => {
                 processedAt
                 financialStatus
                 fulfillmentStatus
+                canceledAt
+                cancelReason
                 totalPrice {
                   amount
                   currencyCode
@@ -581,6 +629,8 @@ router.get("/customer", async (req: Request, res: Response) => {
         processedAt: edge.node.processedAt,
         financialStatus: edge.node.financialStatus,
         fulfillmentStatus: edge.node.fulfillmentStatus,
+        canceledAt: edge.node.canceledAt,
+        cancelReason: edge.node.cancelReason,
         totalPrice: edge.node.totalPrice,
         lineItems: edge.node.lineItems.edges.map((li: any) => ({
           title: li.node.title,

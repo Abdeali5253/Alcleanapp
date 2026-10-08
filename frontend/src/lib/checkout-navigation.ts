@@ -4,8 +4,8 @@ const CheckoutNavigation = registerPlugin<{ returnToApp(): Promise<void> }>(
   "CheckoutNavigation",
 );
 
-// Called only after the backend verifies the completed order.
-export async function returnFromVerifiedCheckout(
+// Dismiss checkout to expose the app; order verification is handled separately.
+export async function returnFromCheckout(
   browser: { close?: () => unknown } | null,
 ): Promise<void> {
   try {

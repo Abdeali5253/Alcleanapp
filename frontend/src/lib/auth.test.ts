@@ -439,3 +439,35 @@ describe("secure authentication lifecycle", () => {
     expect(authService.getUser()).toBeNull();
   });
 });
+
+describe("profile persistence", () => {
+  function seedProfile() {
+    localStorage.setItem("alclean_secure_session_migrated_v1", "complete");
+    mocks.secure.set("session", {
+      user: { id: "1", email: "person@example.com", name: "Old Name", firstName: "Old", lastName: "Name", phone: "", authProvider: "google" },
+      accessToken: "customer-token", expiresAt: new Date(Date.now() + 7 * 86_400_000).toISOString(),
+    });
+  }
+  it("retains saved Shopify profile changes after a fresh app initialization", async () => {
+    seedProfile();
+    const fetchMock = vi.fn(async (_url: string, _options?: unknown) => ({ ok: true, status: 200, json: async () => ({ success: true, user: { id: "1", email: "person@example.com", name: "New Name", firstName: "New", lastName: "Name", phone: "+923001234567" } }) }));
+    vi.stubGlobal("fetch", fetchMock);
+    const { authService } = await import("./auth");
+    await authService.whenReady();
+    await authService.updateProfile({ ...authService.getUser()!, firstName: "New", phone: "+923001234567" });
+    expect(fetchMock.mock.calls[0][0]).toContain("/api/auth/profile");
+    vi.resetModules();
+    const { authService: restarted } = await import("./auth");
+    await restarted.whenReady();
+    expect(restarted.getUser()).toMatchObject({ firstName: "New", name: "New Name", phone: "+923001234567", authProvider: "google", accessToken: "customer-token" });
+  });
+  it("does not overwrite stored profile when Shopify rejects the save", async () => {
+    seedProfile();
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: false, status: 400, json: async () => ({ success: false, error: "Phone is already taken" }) })));
+    const { authService } = await import("./auth");
+    await authService.whenReady();
+    await expect(authService.updateProfile({ ...authService.getUser()!, firstName: "New" })).rejects.toThrow("Phone is already taken");
+    expect(authService.getUser()?.firstName).toBe("Old");
+    expect((mocks.secure.get("session") as any).user.firstName).toBe("Old");
+  });
+});

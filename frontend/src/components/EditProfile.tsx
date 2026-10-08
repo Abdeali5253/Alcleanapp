@@ -27,8 +27,8 @@ export function EditProfile() {
     
     // Pre-fill form
     const nameParts = user.name?.split(/\s+/) || [];
-    setFirstName(nameParts[0] || user.firstName || "");
-    setLastName(nameParts.slice(1).join(" ") || user.lastName || "");
+    setFirstName(user.firstName || nameParts[0] || "");
+    setLastName(user.lastName || nameParts.slice(1).join(" ") || "");
     setEmail(user.email);
     setPhone(user.phone || "");
   }, [navigate]);
@@ -41,22 +41,7 @@ export function EditProfile() {
       // Combine first and last name
       const name = `${firstName.trim()} ${lastName.trim()}`.trim();
 
-      // Try to update in Shopify if user has access token (optional - won't block if fails)
-      if (currentUser?.accessToken && firstName && lastName) {
-        try {
-          const { updateCustomer } = await import("../lib/shopify");
-          await updateCustomer(currentUser.accessToken, {
-            firstName,
-            lastName,
-            phone
-          });
-          console.log('[EditProfile] Shopify profile updated');
-        } catch (error) {
-          console.log('[EditProfile] Shopify update not available, continuing with local update');
-        }
-      }
-
-      // Update local user data
+      // Save in Shopify and secure session storage before reporting success
       const updatedUser: User = {
         ...currentUser!,
         name,
@@ -66,7 +51,7 @@ export function EditProfile() {
         phone
       };
       
-      await authService.updateUser(updatedUser);
+      await authService.updateProfile(updatedUser);
       toast.success("Profile updated successfully!");
       
       setTimeout(() => {
@@ -74,7 +59,7 @@ export function EditProfile() {
       }, 1000);
     } catch (error) {
       console.error('Profile update error:', error);
-      toast.error("Failed to update profile");
+      toast.error(error instanceof Error ? error.message : "Failed to update profile");
     } finally {
       setIsSaving(false);
     }

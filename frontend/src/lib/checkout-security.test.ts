@@ -11,8 +11,8 @@ const successSource = readFileSync(
 );
 
 describe("checkout completion trust boundary", () => {
-  it("does not inject scripts or trust browser messages and URLs", () => {
-    expect(source).not.toContain("executeScript");
+  it("keeps browser UI signals separate from backend order confirmation", () => {
+    expect(source).toContain("observeHostedCheckoutConfirmation");
     expect(source).not.toContain('addEventListener("message"');
     expect(source).not.toContain("isCheckoutCompleteUrl");
     expect(source).not.toContain("alclean-checkout-complete");
@@ -24,8 +24,8 @@ describe("checkout completion trust boundary", () => {
   });
 
   it("does not let the success route clear the cart or trust URL parameters", () => {
-    expect(successSource).not.toContain("clearCart");
+    expect(successSource).toMatch(/if \(result.completed && !stopped\) \{[\s\S]*cartService.clearCart\(\)/);
     expect(successSource).not.toContain("useSearchParams");
-    expect(successSource).toContain('state as { verified?: boolean }');
+    expect(successSource).toContain("if (!verified && !checkoutReturn)");
   });
 });

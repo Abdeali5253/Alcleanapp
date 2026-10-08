@@ -4,7 +4,7 @@ import { isCompletedCartOrder } from "../checkout-completion.js";
 
 const router = Router();
 
-type AppOrderStatus = "pending" | "processing" | "in-transit" | "delivered";
+type AppOrderStatus = "pending" | "processing" | "in-transit" | "delivered" | "cancelled";
 
 interface TrackingAssignment {
   order_id?: string;
@@ -966,7 +966,9 @@ function transformShopifyOrder(order: any): any {
     deliveryCharge: 0,
     total: parseFloat(order.totalPrice.amount),
     paymentMethod: "cod",
-    status: mapShopifyStatus(order.financialStatus, order.fulfillmentStatus),
+    status: order.canceledAt ? "cancelled" : mapShopifyStatus(order.financialStatus, order.fulfillmentStatus),
+    cancelledAt: order.canceledAt || null,
+    cancellationReason: order.cancelReason || null,
     createdAt: order.processedAt,
     shopifyOrderId: order.id,
   };
@@ -996,6 +998,20 @@ async function enrichOrderTracking(
   order: any,
   assignment?: TrackingAssignment,
 ): Promise<any> {
+  if (order.status === "cancelled") {
+    return {
+      ...order,
+      status: "cancelled",
+      trackingStatusText: "Order cancelled",
+      trackingLastUpdated: order.cancelledAt,
+      trackingTimeline: [
+        { status: "pending", label: "Order placed", timestamp: order.createdAt, completed: true, source: "system" },
+        { status: "cancelled", label: "Order cancelled", details: "This order was cancelled in Shopify.", timestamp: order.cancelledAt, completed: true, source: "system" },
+      ],
+      ratingEligible: false,
+      localDelivery: null,
+    };
+  }
   const trackingNumber = assignment?.tracking_number || order.trackingNumber;
   const courier = assignment?.courier || order.courier;
   const city = assignment?.city || order.city || "";
@@ -1271,6 +1287,8 @@ router.get("/", async (req: Request, res: Response) => {
                 processedAt
                 financialStatus
                 fulfillmentStatus
+                canceledAt
+                cancelReason
                 totalPrice {
                   amount
                   currencyCode
@@ -1321,6 +1339,7 @@ router.get("/", async (req: Request, res: Response) => {
           customer.email;
         order.customerPhone = customer.phone || "";
 
+        if (order.status === "cancelled") return enrichOrderTracking(order);
         const assignments = await fetchTrackingAssignments(
           normalizeTrackingOrderId(order.orderNumber),
         );

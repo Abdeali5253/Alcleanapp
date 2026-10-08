@@ -36,3 +36,26 @@ describe("checkout completion route", () => {
     expect(mocks.fetch).not.toHaveBeenCalled();
   });
 });
+
+describe("cancelled order tracking", () => {
+  it("uses Shopify cancellation ahead of fulfillment and never calls courier APIs", async () => {
+    process.env.SHOPIFY_STOREFRONT_TOKEN = "storefront-token";
+    mocks.fetch.mockResolvedValue({ ok: true, json: async () => ({ data: { customer: {
+      email: "customer@example.com", firstName: "Test", lastName: "Customer", phone: "+923001234567",
+      orders: { edges: [{ node: {
+        id: "gid://shopify/Order/19900", orderNumber: 19900, processedAt: "2026-10-08T10:00:00Z",
+        canceledAt: "2026-10-08T11:00:00Z", cancelReason: "CUSTOMER", financialStatus: "PAID", fulfillmentStatus: "FULFILLED",
+        totalPrice: { amount: "680" }, lineItems: { edges: [] },
+      } }] },
+    } } }) });
+    const response = await request(app).get("/api/orders").set("Authorization", "Bearer customer-token");
+    expect(response.status).toBe(200);
+    const order = response.body.orders[0];
+    expect(order.status).toBe("cancelled");
+    expect(order.trackingStatusText).toBe("Order cancelled");
+    expect(order.ratingEligible).toBe(false);
+    expect(order.trackingTimeline.at(-1)).toMatchObject({ status: "cancelled", timestamp: "2026-10-08T11:00:00Z" });
+    expect(mocks.fetch).toHaveBeenCalledOnce();
+    expect(JSON.parse(mocks.fetch.mock.calls[0][1].body).query).toContain("canceledAt");
+  });
+});

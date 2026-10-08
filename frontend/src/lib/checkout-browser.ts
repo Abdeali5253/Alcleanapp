@@ -27,3 +27,10 @@ export function getCheckoutToken(rawUrl: string, initialUrl: string): string | n
     return null;
   }
 }
+
+export function isCheckoutThankYouPage(rawUrl: string, initialUrl: string): boolean {
+  if (!getCheckoutToken(rawUrl, initialUrl)) return false;
+  try {
+    return /\/checkouts\/(?:cn\/)?[A-Za-z0-9_-]+\/(?:thank_you|thank-you)\/?$/.test(new URL(rawUrl).pathname);
+  } catch { return false; }
+}

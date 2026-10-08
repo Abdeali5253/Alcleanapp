@@ -20,8 +20,9 @@ import { Capacitor } from "@capacitor/core";
 import { Browser } from "@capacitor/browser";
 import { BACKEND_URL } from "../lib/base-url";
 import { buildPrefilledCheckoutUrl } from "../lib/checkout-prefill";
-import { returnFromVerifiedCheckout } from "../lib/checkout-navigation";
-import { getCheckoutToken, getNativeCheckoutBrowser } from "../lib/checkout-browser";
+import { returnFromCheckout } from "../lib/checkout-navigation";
+import { observeHostedCheckoutConfirmation } from "../lib/checkout-observer";
+import { getCheckoutToken, getNativeCheckoutBrowser, isCheckoutThankYouPage } from "../lib/checkout-browser";
 
 declare global {
   interface Window {
@@ -36,11 +37,15 @@ export function Checkout() {
   const [isLoading, setIsLoading] = useState(false);
   const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
   const [paymentCompleted, setPaymentCompleted] = useState(false);
+  const [checkoutLoadFailed, setCheckoutLoadFailed] = useState(false);
   const inAppRef = useRef<any>(null);
+  const stopCheckoutObserverRef = useRef<(() => void) | null>(null);
   const checkoutCompletionHandledRef = useRef(false);
   const checkoutPollingStoppedRef = useRef(true);
   const guestHintShownRef = useRef(false);
   const checkoutTokenRef = useRef<string | null>(null);
+  const checkoutStartedAtRef = useRef(0);
+  const checkoutPollingRunRef = useRef(0);
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -59,6 +64,7 @@ export function Checkout() {
     return () => {
       unsubscribeCart();
       unsubscribeAuth();
+      stopCheckoutObserverRef.current?.();
       try {
         inAppRef.current?.close?.();
       } catch {}
@@ -143,8 +149,9 @@ export function Checkout() {
     checkoutCompletionHandledRef.current = true;
     checkoutPollingStoppedRef.current = true;
     const browser = inAppRef.current;
+    stopCheckoutObserverRef.current?.();
     inAppRef.current = null;
-    await returnFromVerifiedCheckout(browser);
+    await returnFromCheckout(browser);
     cartService.clearCart();
     setPaymentCompleted(true);
     toast.success("Order placed successfully!");
@@ -161,9 +168,11 @@ export function Checkout() {
   ) => {
     const accessToken = authService.getUser()?.accessToken;
 
+    const pollingRun = ++checkoutPollingRunRef.current;
     checkoutPollingStoppedRef.current = false;
     for (let attempt = 0; attempt < 600; attempt += 1) {
       if (
+        pollingRun !== checkoutPollingRunRef.current ||
         checkoutPollingStoppedRef.current ||
         checkoutCompletionHandledRef.current
       ) {
@@ -188,6 +197,7 @@ export function Checkout() {
         if (!response.ok) continue;
 
         const result = await response.json();
+        if (pollingRun !== checkoutPollingRunRef.current || checkoutPollingStoppedRef.current) return;
         if (!result?.completed) continue;
 
         console.log("[Checkout] Shopify order confirmed by backend", result.order);
@@ -204,7 +214,10 @@ export function Checkout() {
     startedAt: number,
     checkoutId: string,
   ) => {
+    stopCheckoutObserverRef.current?.();
     setCheckoutUrl(url);
+    checkoutStartedAtRef.current = startedAt;
+    setCheckoutLoadFailed(false);
     checkoutCompletionHandledRef.current = false;
     checkoutTokenRef.current = getCheckoutToken(url, url);
 
@@ -243,23 +256,49 @@ export function Checkout() {
       );
 
       inAppRef.current = ref;
+      const returnToSuccessScreen = (pageUrl: string) => {
+        if (inAppRef.current !== ref || checkoutCompletionHandledRef.current) return;
+        const token = getCheckoutToken(pageUrl, url);
+        if (token) checkoutTokenRef.current = token;
+        stopCheckoutObserverRef.current?.();
+        checkoutPollingStoppedRef.current = true;
+        inAppRef.current = null;
+        void returnFromCheckout(ref).then(() => {
+          navigate("/checkout/success", {
+            replace: true,
+            state: { checkoutReturn: {
+              since: startedAt, total, cartId: checkoutId,
+              checkoutToken: checkoutTokenRef.current,
+            } },
+          });
+        });
+      };
       const observeCheckoutNavigation = (event: { url?: string }) => {
         const token = event.url ? getCheckoutToken(event.url, url) : null;
         if (token) checkoutTokenRef.current = token;
+        if (event.url && isCheckoutThankYouPage(event.url, url)) returnToSuccessScreen(event.url);
       };
+      stopCheckoutObserverRef.current = observeHostedCheckoutConfirmation(ref, url, returnToSuccessScreen);
       ref.addEventListener("loadstart", observeCheckoutNavigation);
       ref.addEventListener("loadstop", observeCheckoutNavigation);
       void pollForCompletedShopifyOrder(startedAt, total, checkoutId);
 
       ref.addEventListener("loaderror", () => {
-        if (!checkoutCompletionHandledRef.current) {
-          toast.error("Payment page could not load. Check your connection and retry.");
-        }
+        if (checkoutCompletionHandledRef.current || inAppRef.current !== ref) return;
+        // The native error page hides React controls. Dismiss it to expose a
+        // retry screen in the app, keeping the same cart, URL and start time.
+        stopCheckoutObserverRef.current?.();
+        inAppRef.current = null;
+        setCheckoutLoadFailed(true);
+        try {
+          ref.close();
+        } catch {}
       });
 
       ref.addEventListener("exit", () => {
         // A delayed exit from a previous checkout must not stop the new one.
         if (inAppRef.current !== ref) return;
+        stopCheckoutObserverRef.current?.();
         console.log("[IAB] exit");
         inAppRef.current = null;
         checkoutPollingStoppedRef.current = true;
@@ -314,6 +353,44 @@ export function Checkout() {
       setIsLoading(false);
     }
   };
+
+  const retryPaymentPage = async () => {
+    if (!checkoutUrl || isLoading) return;
+    setIsLoading(true);
+    try {
+      await openPaymentPage(
+        checkoutUrl,
+        checkoutStartedAtRef.current,
+        cartService.getCheckoutId() || "",
+      );
+    } catch (error) {
+      setCheckoutLoadFailed(true);
+      toast.error("Unable to open checkout. Check your connection and try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (checkoutLoadFailed && !paymentCompleted) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6 safe-area">
+        <div className="bg-white rounded-2xl shadow-lg p-8 max-w-md w-full text-center space-y-5">
+          <h1 className="text-2xl font-bold text-gray-900">Couldn't load checkout</h1>
+          <p className="text-gray-600">
+            The payment page couldn't connect. Check your internet connection and try again.
+            Your cart and entered details have been kept.
+          </p>
+          <Button onClick={retryPaymentPage} disabled={isLoading} className="w-full bg-[#6DB33F] hover:bg-[#5da035]">
+            {isLoading ? <Loader2 size={20} className="animate-spin mr-2" /> : null}
+            Retry Checkout
+          </Button>
+          <Button onClick={() => setCheckoutLoadFailed(false)} variant="outline" className="w-full" disabled={isLoading}>
+            Back to Checkout
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   if (paymentCompleted) {
     return (
@@ -586,16 +663,8 @@ export function Checkout() {
               </p>
             </div>
             <button
-              onClick={() => {
-                void openPaymentPage(
-                  checkoutUrl,
-                  Date.now() - 10_000,
-                  cartService.getCheckoutId() || "",
-                ).catch((error) => {
-                  console.error("[Checkout] Could not reopen payment page:", error);
-                  toast.error("Unable to open payment page. Please try again.");
-                });
-              }}
+              onClick={retryPaymentPage}
+              disabled={isLoading}
               className="flex items-center justify-center gap-2 w-full bg-blue-600 text-white py-3 rounded-lg font-medium"
             >
               <ExternalLink size={18} />

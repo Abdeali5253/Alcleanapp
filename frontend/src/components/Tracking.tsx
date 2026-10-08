@@ -1,5 +1,7 @@
+import { App } from "@capacitor/app";
 import {
   CheckCircle,
+  XCircle,
   Clock,
   MapPin,
   Package,
@@ -29,7 +31,7 @@ function normalizeTimeline(order: Order) {
     {
       status: order.status,
       label:
-        order.status === "delivered"
+        order.status === "cancelled" ? "Order cancelled" : order.status === "delivered"
           ? "Delivered"
           : order.status === "in-transit"
             ? "Parcel in transit"
@@ -66,13 +68,27 @@ export function Tracking() {
       if (cachedOrders) {
         setOrders(cachedOrders);
         setIsLoading(false);
-        return;
       }
 
       loadOrders(user.id, user.accessToken);
     });
 
-    return () => unsubscribe();
+    const refreshOrders = () => {
+      const user = authService.getUser();
+      if (user?.accessToken) void loadOrders(user.id, user.accessToken);
+    };
+    const onVisibilityChange = () => { if (!document.hidden) refreshOrders(); };
+    window.addEventListener("focus", refreshOrders);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    const nativeListener = App.addListener("appStateChange", ({ isActive }) => {
+      if (isActive) refreshOrders();
+    });
+    return () => {
+      unsubscribe();
+      window.removeEventListener("focus", refreshOrders);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      void nativeListener.then((listener) => listener.remove());
+    };
   }, []);
 
   const loadOrders = async (userId: string, accessToken?: string) => {
@@ -141,6 +157,8 @@ export function Tracking() {
 
   const getStatusIcon = (status: string) => {
     switch (status) {
+      case "cancelled":
+        return <XCircle className="w-5 h-5 text-red-600" />;
       case "delivered":
         return <CheckCircle className="w-5 h-5 text-green-600" />;
       case "in-transit":
@@ -154,6 +172,8 @@ export function Tracking() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
+      case "cancelled":
+        return "bg-red-100 text-red-800 border-red-200";
       case "delivered":
         return "bg-green-100 text-green-800 border-green-200";
       case "in-transit":
@@ -365,7 +385,7 @@ export function Tracking() {
                               <span className="font-medium">
                                 {order.localDelivery ? "Handled by:" : "Courier:"}
                               </span>{" "}
-                              {order.courier || "Pending assignment"}
+                              {order.courier || (order.status === "cancelled" ? "Not dispatched" : "Pending assignment")}
                             </p>
                             {order.localDelivery ? (
                               <>
@@ -393,7 +413,7 @@ export function Tracking() {
                             ) : (
                               <p>
                                 <span className="font-medium">Tracking #:</span>{" "}
-                                {order.trackingNumber || "Will appear once shipped"}
+                                {order.trackingNumber || (order.status === "cancelled" ? "Not applicable" : "Will appear once shipped")}
                               </p>
                             )}
                             {latestTimelineItem?.label && (
@@ -450,7 +470,9 @@ export function Tracking() {
                             <div className="flex flex-col items-center">
                               <div
                                 className={`flex h-9 w-9 items-center justify-center rounded-full border ${
-                                  event.status === "delivered"
+                                  event.status === "cancelled"
+                                    ? "border-red-200 bg-red-100 text-red-600"
+                                    : event.status === "delivered"
                                     ? "border-green-200 bg-green-100 text-green-600"
                                     : event.status === "in-transit"
                                       ? "border-blue-200 bg-blue-100 text-blue-600"
