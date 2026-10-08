@@ -9,7 +9,7 @@ const config: CapacitorConfig = {
   loggingBehavior: "none",
   server: {
     androidScheme: "https", // Changed to HTTPS to allow secure deep links
-    iosScheme: "https",
+    iosScheme: "capacitor", // WKWebView requires a custom local scheme on iOS.
   },
   plugins: {
     StatusBar: {

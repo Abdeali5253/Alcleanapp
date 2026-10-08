@@ -27,6 +27,7 @@ echo "Using Node $(node --version) and npm $(npm --version)"
 npm ci --include=dev --no-audit --no-fund
 npm run build
 npx cap sync ios
+node scripts/normalize-ios-package-paths.mjs
 
 for package_dir in \
   node_modules/@aparajita/capacitor-secure-storage \

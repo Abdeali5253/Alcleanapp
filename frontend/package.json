@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "ios:build": "npm run build && npx cap sync ios",
+    "ios:build": "npm run build && npx cap sync ios && node scripts/normalize-ios-package-paths.mjs",
     "ios:open": "npx cap open ios",
     "android:build": "npm run build && npx cap sync android",
     "android:open": "npx cap open android",

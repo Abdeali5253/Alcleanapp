@@ -448,7 +448,8 @@ describe("profile persistence", () => {
       accessToken: "customer-token", expiresAt: new Date(Date.now() + 7 * 86_400_000).toISOString(),
     });
   }
-  it("retains saved Shopify profile changes after a fresh app initialization", async () => {
+  it.each(["android", "ios"])("retains saved Shopify profile changes after restart on %s", async (platform) => {
+    mocks.platform = platform;
     seedProfile();
     const fetchMock = vi.fn(async (_url: string, _options?: unknown) => ({ ok: true, status: 200, json: async () => ({ success: true, user: { id: "1", email: "person@example.com", name: "New Name", firstName: "New", lastName: "Name", phone: "+923001234567" } }) }));
     vi.stubGlobal("fetch", fetchMock);
@@ -461,7 +462,8 @@ describe("profile persistence", () => {
     await restarted.whenReady();
     expect(restarted.getUser()).toMatchObject({ firstName: "New", name: "New Name", phone: "+923001234567", authProvider: "google", accessToken: "customer-token" });
   });
-  it("does not overwrite stored profile when Shopify rejects the save", async () => {
+  it.each(["android", "ios"])("keeps the stored profile when Shopify rejects the save on %s", async (platform) => {
+    mocks.platform = platform;
     seedProfile();
     vi.stubGlobal("fetch", vi.fn(async () => ({ ok: false, status: 400, json: async () => ({ success: false, error: "Phone is already taken" }) })));
     const { authService } = await import("./auth");
