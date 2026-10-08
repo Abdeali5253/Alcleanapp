@@ -333,10 +333,7 @@ class CartService {
 
         // Update the checkout URL with pre-filled parameters
         data.checkout.webUrl = url.toString();
-        console.log(
-          "[Cart] Checkout URL updated with pre-filled address:",
-          data.checkout.webUrl
-        );
+        // The URL contains customer details; do not write it to device logs.
       }
 
       return data.checkout;

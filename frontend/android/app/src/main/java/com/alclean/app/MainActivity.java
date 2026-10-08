@@ -14,6 +14,7 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        registerPlugin(CheckoutNavigationPlugin.class);
         super.onCreate(savedInstanceState);
 
         // Keep web content below Android system bars (status/notch area).

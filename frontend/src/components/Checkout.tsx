@@ -19,6 +19,9 @@ import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { Capacitor } from "@capacitor/core";
 import { Browser } from "@capacitor/browser";
 import { BACKEND_URL } from "../lib/base-url";
+import { buildPrefilledCheckoutUrl } from "../lib/checkout-prefill";
+import { returnFromVerifiedCheckout } from "../lib/checkout-navigation";
+import { getNativeCheckoutBrowser } from "../lib/checkout-browser";
 
 declare global {
   interface Window {
@@ -40,6 +43,7 @@ export function Checkout() {
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
+  const [email, setEmail] = useState(authService.getUser()?.email || "");
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
   const [city, setCity] = useState("");
@@ -66,6 +70,7 @@ export function Checkout() {
       setFirstName(user.firstName || "");
       setLastName(user.lastName || "");
       setPhone(user.phone || "");
+      setEmail(user.email || "");
     }
   }, [user]);
 
@@ -132,10 +137,13 @@ export function Checkout() {
   const deliveryCharge = calculateDeliveryCharge();
   const total = subtotal + deliveryCharge;
 
-  const completeCheckout = () => {
+  const completeCheckout = async () => {
     if (checkoutCompletionHandledRef.current) return;
     checkoutCompletionHandledRef.current = true;
     checkoutPollingStoppedRef.current = true;
+    const browser = inAppRef.current;
+    inAppRef.current = null;
+    await returnFromVerifiedCheckout(browser);
     cartService.clearCart();
     setPaymentCompleted(true);
     toast.success("Order placed successfully!");
@@ -181,10 +189,7 @@ export function Checkout() {
         if (!result?.completed) continue;
 
         console.log("[Checkout] Shopify order confirmed by backend", result.order);
-        completeCheckout();
-        try {
-          inAppRef.current?.close?.();
-        } catch {}
+        await completeCheckout();
         return;
       } catch (pollError) {
         console.warn("[Checkout] Completion poll failed:", pollError);
@@ -201,17 +206,12 @@ export function Checkout() {
     checkoutCompletionHandledRef.current = false;
     void pollForCompletedShopifyOrder(startedAt, total, checkoutId);
 
-    const cordovaAny = (window as any).cordova;
-    let inAppBrowser = cordovaAny?.InAppBrowser;
-
-    // Capacitor loads Cordova compatibility plugins asynchronously on iOS.
-    // Wait briefly so checkout never falls through to SafariViewController,
-    // which cannot expose the final Shopify page to the app.
-    if (Capacitor.getPlatform() === "ios" && !inAppBrowser) {
-      for (let attempt = 0; attempt < 30 && !inAppBrowser; attempt += 1) {
-        await new Promise((resolve) => window.setTimeout(resolve, 100));
-        inAppBrowser = (window as any).cordova?.InAppBrowser;
-      }
+    let inAppBrowser;
+    try {
+      inAppBrowser = await getNativeCheckoutBrowser();
+    } catch (error) {
+      checkoutPollingStoppedRef.current = true;
+      throw error;
     }
 
     if (Capacitor.isNativePlatform() && inAppBrowser) {
@@ -232,8 +232,8 @@ export function Checkout() {
           "presentationstyle=fullscreen",
           "transitionstyle=coververtical",
           "hardwareback=yes",
-          "clearcache=yes",
-          "clearsessioncache=yes",
+          "clearcache=no",
+          "clearsessioncache=no",
           "hidden=no",
           "hidespinner=yes",
           "zoom=no",
@@ -241,6 +241,12 @@ export function Checkout() {
       );
 
       inAppRef.current = ref;
+
+      ref.addEventListener("loaderror", () => {
+        if (!checkoutCompletionHandledRef.current) {
+          toast.error("Payment page could not load. Check your connection and retry.");
+        }
+      });
 
       ref.addEventListener("exit", () => {
         console.log("[IAB] exit");
@@ -269,18 +275,24 @@ export function Checkout() {
     setIsLoading(true);
     try {
       const { checkoutUrl: url, checkout } = await cartService.createCheckout();
-      await cartService.updateShippingAddress({
+      const shippingAddress = {
         firstName,
         lastName,
         address1: address,
         city,
-        province: city,
+        province: "",
         country: "PK",
-        zip: postalCode || "00000",
+        zip: postalCode.trim(),
         phone,
-      });
+      };
+      const updatedCheckout = await cartService.updateShippingAddress(shippingAddress);
+      const paymentUrl = buildPrefilledCheckoutUrl(
+        updatedCheckout?.webUrl || url,
+        shippingAddress,
+        email,
+      );
       toast.success("Opening secure payment page...");
-      await openPaymentPage(url, Date.now() - 10_000, checkout.id);
+      await openPaymentPage(paymentUrl, Date.now() - 10_000, checkout.id);
     } catch (error: any) {
       console.error("[Checkout] Error:", error);
       toast.error(
@@ -438,6 +450,16 @@ export function Checkout() {
             </div>
           )}
           <div className="space-y-4">
+            <div>
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+              />
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label htmlFor="firstName">First Name *</Label>
@@ -552,13 +574,16 @@ export function Checkout() {
               </p>
             </div>
             <button
-              onClick={() =>
-                openPaymentPage(
+              onClick={() => {
+                void openPaymentPage(
                   checkoutUrl,
                   Date.now() - 10_000,
                   cartService.getCheckoutId() || "",
-                )
-              }
+                ).catch((error) => {
+                  console.error("[Checkout] Could not reopen payment page:", error);
+                  toast.error("Unable to open payment page. Please try again.");
+                });
+              }}
               className="flex items-center justify-center gap-2 w-full bg-blue-600 text-white py-3 rounded-lg font-medium"
             >
               <ExternalLink size={18} />

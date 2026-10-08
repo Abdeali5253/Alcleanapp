@@ -1,5 +1,6 @@
 import { Router, Request, Response } from "express";
 import fetch from "node-fetch";
+import { isCompletedCartOrder } from "../checkout-completion.js";
 
 const router = Router();
 
@@ -1160,16 +1161,9 @@ router.get("/completion-check", async (req: Request, res: Response) => {
           adminQuery,
           { query: `cart_token:${cartToken}` },
         );
-        const matchingOrder = (adminData.orders?.nodes || []).find((order: any) => {
-          const createdAt = new Date(order.createdAt).getTime();
-          const orderTotal = Number(order.totalPriceSet?.shopMoney?.amount || 0);
-          const tokenMatches =
-            order.cartToken === cartToken || order.checkoutToken === cartToken;
-          const isNew = Number.isFinite(createdAt) && createdAt >= since;
-          const totalMatches =
-            !expectedTotal || Math.abs(orderTotal - expectedTotal) < 0.01;
-          return tokenMatches && isNew && totalMatches;
-        });
+        const matchingOrder = (adminData.orders?.nodes || []).find((order: any) =>
+          isCompletedCartOrder(order, cartToken, since),
+        );
 
         return res.json({
           success: true,
