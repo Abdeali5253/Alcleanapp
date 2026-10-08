@@ -1134,14 +1134,17 @@ router.get("/completion-check", async (req: Request, res: Response) => {
     const accessToken = req.headers.authorization?.replace("Bearer ", "");
     const since = Number(req.query.since || 0);
     const expectedTotal = Number(req.query.total || 0);
-    const cartToken = getCartToken(String(req.query.cartId || ""));
+    const rawCartToken = getCartToken(String(req.query.cartId || ""));
+    const rawCheckoutToken = String(req.query.checkoutToken || "");
+    const cartToken = /^[A-Za-z0-9_-]{1,256}$/.test(rawCartToken) ? rawCartToken : "";
+    const checkoutToken = /^[A-Za-z0-9_-]{1,256}$/.test(rawCheckoutToken) ? rawCheckoutToken : "";
     if (!Number.isFinite(since) || since <= 0) {
       return res.status(400).json({ success: false, error: "Valid since timestamp required" });
     }
 
     // Works for both guest and authenticated checkout by correlating the exact
     // Storefront Cart token with the order created from that cart.
-    if (cartToken && getShopifyAdminConfig().token) {
+    if ((cartToken || checkoutToken) && getShopifyAdminConfig().token) {
       try {
         const adminQuery = `
           query checkoutCompletionByCart($query: String!) {
@@ -1159,10 +1162,13 @@ router.get("/completion-check", async (req: Request, res: Response) => {
         `;
         const adminData = await shopifyAdminFetch<{ orders: { nodes: any[] } }>(
           adminQuery,
-          { query: `cart_token:${cartToken}` },
+          { query: [
+            cartToken ? `cart_token:${cartToken}` : "",
+            checkoutToken ? `checkout_token:${checkoutToken}` : "",
+          ].filter(Boolean).join(" OR ") },
         );
         const matchingOrder = (adminData.orders?.nodes || []).find((order: any) =>
-          isCompletedCartOrder(order, cartToken, since),
+          isCompletedCartOrder(order, cartToken, since, checkoutToken),
         );
 
         return res.json({

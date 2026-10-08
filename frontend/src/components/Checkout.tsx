@@ -21,7 +21,7 @@ import { Browser } from "@capacitor/browser";
 import { BACKEND_URL } from "../lib/base-url";
 import { buildPrefilledCheckoutUrl } from "../lib/checkout-prefill";
 import { returnFromVerifiedCheckout } from "../lib/checkout-navigation";
-import { getNativeCheckoutBrowser } from "../lib/checkout-browser";
+import { getCheckoutToken, getNativeCheckoutBrowser } from "../lib/checkout-browser";
 
 declare global {
   interface Window {
@@ -40,6 +40,7 @@ export function Checkout() {
   const checkoutCompletionHandledRef = useRef(false);
   const checkoutPollingStoppedRef = useRef(true);
   const guestHintShownRef = useRef(false);
+  const checkoutTokenRef = useRef<string | null>(null);
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -161,7 +162,7 @@ export function Checkout() {
     const accessToken = authService.getUser()?.accessToken;
 
     checkoutPollingStoppedRef.current = false;
-    for (let attempt = 0; attempt < 120; attempt += 1) {
+    for (let attempt = 0; attempt < 600; attempt += 1) {
       if (
         checkoutPollingStoppedRef.current ||
         checkoutCompletionHandledRef.current
@@ -176,6 +177,7 @@ export function Checkout() {
           total: String(expectedTotal),
           cartId: checkoutId,
         });
+        if (checkoutTokenRef.current) params.set("checkoutToken", checkoutTokenRef.current);
         const headers: Record<string, string> = {};
         if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
         const response = await fetch(
@@ -204,7 +206,7 @@ export function Checkout() {
   ) => {
     setCheckoutUrl(url);
     checkoutCompletionHandledRef.current = false;
-    void pollForCompletedShopifyOrder(startedAt, total, checkoutId);
+    checkoutTokenRef.current = getCheckoutToken(url, url);
 
     let inAppBrowser;
     try {
@@ -241,6 +243,13 @@ export function Checkout() {
       );
 
       inAppRef.current = ref;
+      const observeCheckoutNavigation = (event: { url?: string }) => {
+        const token = event.url ? getCheckoutToken(event.url, url) : null;
+        if (token) checkoutTokenRef.current = token;
+      };
+      ref.addEventListener("loadstart", observeCheckoutNavigation);
+      ref.addEventListener("loadstop", observeCheckoutNavigation);
+      void pollForCompletedShopifyOrder(startedAt, total, checkoutId);
 
       ref.addEventListener("loaderror", () => {
         if (!checkoutCompletionHandledRef.current) {
@@ -249,6 +258,8 @@ export function Checkout() {
       });
 
       ref.addEventListener("exit", () => {
+        // A delayed exit from a previous checkout must not stop the new one.
+        if (inAppRef.current !== ref) return;
         console.log("[IAB] exit");
         inAppRef.current = null;
         checkoutPollingStoppedRef.current = true;
@@ -263,6 +274,7 @@ export function Checkout() {
 
     console.log("[Checkout] Falling back to Capacitor Browser (no URL events)");
     await Browser.open({ url, presentationStyle: "fullscreen" });
+    void pollForCompletedShopifyOrder(startedAt, total, checkoutId);
     toast.info("Complete payment in the secure browser, then return to AlClean.");
   };
 

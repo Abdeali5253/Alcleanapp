@@ -13,6 +13,7 @@ describe("cart checkout completion", () => {
     expect(isCompletedCartOrder({ ...order, createdAt: "invalid" }, "cart-1", since)).toBe(false);
   });
   it("accepts the exact checkout token when Shopify exposes that identity", () => {
-    expect(isCompletedCartOrder({ ...order, cartToken: null, checkoutToken: "cart-1" }, "cart-1", since)).toBe(true);
+    expect(isCompletedCartOrder({ ...order, cartToken: null, checkoutToken: "cart-1" }, "different-cart-id", since, "cart-1")).toBe(true);
+    expect(isCompletedCartOrder({ ...order, cartToken: null, checkoutToken: "other-checkout" }, "different-cart-id", since, "cart-1")).toBe(false);
   });
 });

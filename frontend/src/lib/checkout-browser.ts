@@ -13,3 +13,17 @@ export async function getNativeCheckoutBrowser(): Promise<any> {
   }
   throw new Error("Payment browser is still starting. Please try again.");
 }
+
+// Navigation supplies an identity hint, never proof that an order completed.
+export function getCheckoutToken(rawUrl: string, initialUrl: string): string | null {
+  try {
+    const url = new URL(rawUrl);
+    const initial = new URL(initialUrl);
+    if (url.protocol !== "https:" || url.username || url.password || url.port) return null;
+    const allowedHosts = new Set([initial.hostname, "alclean.pk", "checkout.shopify.com"]);
+    if (!allowedHosts.has(url.hostname)) return null;
+    return url.pathname.match(/\/checkouts\/(?:cn\/)?([A-Za-z0-9_-]+)(?:\/|$)/)?.[1] || null;
+  } catch {
+    return null;
+  }
+}
