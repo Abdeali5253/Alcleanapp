@@ -18,6 +18,8 @@ import { authService, User } from "../lib/auth";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { Capacitor } from "@capacitor/core";
 import { Browser } from "@capacitor/browser";
+import { InAppBrowser, DefaultWebViewOptions, ToolbarPosition } from "@capacitor/inappbrowser";
+import type { PluginListenerHandle } from "@capacitor/core";
 import { BACKEND_URL } from "../lib/base-url";
 import { buildPrefilledCheckoutUrl } from "../lib/checkout-prefill";
 import { returnFromCheckout } from "../lib/checkout-navigation";
@@ -46,6 +48,12 @@ export function Checkout() {
   const checkoutTokenRef = useRef<string | null>(null);
   const checkoutStartedAtRef = useRef(0);
   const checkoutPollingRunRef = useRef(0);
+  const androidCheckoutListenersRef = useRef<PluginListenerHandle[]>([]);
+
+  const removeAndroidCheckoutListeners = async () => {
+    const listeners = androidCheckoutListenersRef.current.splice(0);
+    await Promise.all(listeners.map((listener) => listener.remove()));
+  };
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -68,6 +76,8 @@ export function Checkout() {
       try {
         inAppRef.current?.close?.();
       } catch {}
+      void InAppBrowser.close().catch(() => {});
+      void removeAndroidCheckoutListeners();
       checkoutPollingStoppedRef.current = true;
     };
   }, []);
@@ -151,6 +161,10 @@ export function Checkout() {
     const browser = inAppRef.current;
     stopCheckoutObserverRef.current?.();
     inAppRef.current = null;
+    if (Capacitor.getPlatform() === "android") {
+      await InAppBrowser.close().catch(() => {});
+      await removeAndroidCheckoutListeners();
+    }
     await returnFromCheckout(browser);
     cartService.clearCart();
     setPaymentCompleted(true);
@@ -220,6 +234,72 @@ export function Checkout() {
     setCheckoutLoadFailed(false);
     checkoutCompletionHandledRef.current = false;
     checkoutTokenRef.current = getCheckoutToken(url, url);
+
+    if (Capacitor.getPlatform() === "android") {
+      await removeAndroidCheckoutListeners();
+      let returnedToApp = false;
+      const returnToSuccessScreen = (pageUrl: string) => {
+        if (returnedToApp || checkoutCompletionHandledRef.current) return;
+        const token = getCheckoutToken(pageUrl, url);
+        if (token) checkoutTokenRef.current = token;
+        if (!isCheckoutThankYouPage(pageUrl, url)) return;
+
+        returnedToApp = true;
+        checkoutPollingStoppedRef.current = true;
+        void InAppBrowser.close().catch(() => {}).finally(() => {
+          void removeAndroidCheckoutListeners();
+          navigate("/checkout/success", {
+            replace: true,
+            state: { checkoutReturn: {
+              since: startedAt, total, cartId: checkoutId,
+              checkoutToken: checkoutTokenRef.current,
+            } },
+          });
+        });
+      };
+
+      const navigationListener = await InAppBrowser.addListener(
+        "browserPageNavigationCompleted",
+        ({ url: pageUrl }) => {
+          if (pageUrl) returnToSuccessScreen(pageUrl);
+        },
+      );
+      const closeListener = await InAppBrowser.addListener("browserClosed", () => {
+        if (returnedToApp || checkoutCompletionHandledRef.current) return;
+        checkoutPollingStoppedRef.current = true;
+        void removeAndroidCheckoutListeners();
+        toast.info("Checkout closed. Your cart has been kept.");
+      });
+      androidCheckoutListenersRef.current = [navigationListener, closeListener];
+
+      try {
+        await InAppBrowser.openInWebView({
+          url,
+          options: {
+            ...DefaultWebViewOptions,
+            showURL: false,
+            showToolbar: true,
+            closeButtonText: "Back to AlClean",
+            toolbarPosition: ToolbarPosition.TOP,
+            showNavigationButtons: true,
+            clearCache: false,
+            clearSessionCache: false,
+            android: {
+              ...DefaultWebViewOptions.android,
+              allowZoom: false,
+              hardwareBack: true,
+              pauseMedia: true,
+            },
+          },
+        });
+        void pollForCompletedShopifyOrder(startedAt, total, checkoutId);
+      } catch (error) {
+        await removeAndroidCheckoutListeners();
+        checkoutPollingStoppedRef.current = true;
+        throw error;
+      }
+      return;
+    }
 
     let inAppBrowser;
     try {
