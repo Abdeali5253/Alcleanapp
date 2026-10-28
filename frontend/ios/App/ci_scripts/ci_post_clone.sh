@@ -35,6 +35,7 @@ for package_dir in \
   node_modules/@capacitor-firebase/messaging \
   node_modules/@capacitor/app \
   node_modules/@capacitor/browser \
+  node_modules/@capacitor/inappbrowser \
   node_modules/@capacitor/local-notifications \
   ios/capacitor-cordova-ios-plugins/sources/CordovaPluginInappbrowser
 do
@@ -45,8 +46,10 @@ do
 done
 
 # The archive action intentionally disables automatic package resolution.
-# Resolve explicitly after Capacitor regenerates CapApp-SPM so the resolved
-# graph always includes transitive packages such as KeychainSwift.
+# Capacitor sync can add transitive Swift packages (for example the embedded
+# browser's OSInAppBrowserLib). Remove a lock file generated before that sync,
+# then resolve explicitly so the archive receives the current graph.
+rm -f "$FRONTEND_DIR/ios/App/App.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved"
 xcodebuild -resolvePackageDependencies \
   -project "$FRONTEND_DIR/ios/App/App.xcodeproj" \
   -scheme App
