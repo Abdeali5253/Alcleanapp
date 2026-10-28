@@ -46,10 +46,8 @@ do
 done
 
 # The archive action intentionally disables automatic package resolution.
-# Capacitor sync can add transitive Swift packages (for example the embedded
-# browser's OSInAppBrowserLib). Remove a lock file generated before that sync,
-# then resolve explicitly so the archive receives the current graph.
-rm -f "$FRONTEND_DIR/ios/App/App.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved"
+# Keep the committed Package.resolved file; it pins transitive packages such
+# as KeychainSwift and OSInAppBrowserLib for the archive action.
 xcodebuild -resolvePackageDependencies \
   -project "$FRONTEND_DIR/ios/App/App.xcodeproj" \
   -scheme App
